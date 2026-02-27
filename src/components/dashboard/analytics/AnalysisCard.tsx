@@ -103,7 +103,7 @@ export function AnalysisCard({ endpointName, className = "" }: AnalysisCardProps
                                 fontSize: "12px",
                                 fontFamily: "monospace",
                             }}
-                            formatter={(value: any, name: string) => [
+                            formatter={(value: any, name: string | undefined) => [
                                 yFormatter(Number(value)),
                                 name,
                             ]}
@@ -146,7 +146,7 @@ export function AnalysisCard({ endpointName, className = "" }: AnalysisCardProps
                                 fontSize: "12px",
                                 fontFamily: "monospace",
                             }}
-                            formatter={(value: any, name: string) => [
+                            formatter={(value: any, name: string | undefined) => [
                                 yFormatter(Number(value)),
                                 name,
                             ]}
@@ -185,7 +185,7 @@ export function AnalysisCard({ endpointName, className = "" }: AnalysisCardProps
                                 fontSize: "12px",
                                 fontFamily: "monospace",
                             }}
-                            formatter={(value: any, name: string) => [
+                            formatter={(value: any, name: string | undefined) => [
                                 yFormatter(Number(value)),
                                 name,
                             ]}
