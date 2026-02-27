@@ -205,6 +205,88 @@ export function AnalysisCard({ endpointName, className = "" }: AnalysisCardProps
                         ))}
                     </AreaChart>
                 );
+            case "stacked-area-100":
+                return (
+                    <AreaChart data={chart.data} margin={{ top: 5, right: 5, left: -20, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                        <XAxis
+                            dataKey={chart.xKey}
+                            tick={{ fontSize: 11, fill: "var(--muted)" }}
+                            axisLine={{ stroke: "var(--border-color)" }}
+                        />
+                        <YAxis
+                            tick={{ fontSize: 11, fill: "var(--muted)" }}
+                            axisLine={{ stroke: "var(--border-color)" }}
+                            tickFormatter={yFormatter}
+                        />
+                        <Tooltip
+                            contentStyle={{
+                                backgroundColor: "var(--surface)",
+                                border: "1px solid var(--border-color)",
+                                borderRadius: "8px",
+                                fontSize: "12px",
+                                fontFamily: "monospace",
+                            }}
+                            formatter={(value: any, name: string | undefined) => [
+                                yFormatter(Number(value)),
+                                name,
+                            ]}
+                            labelFormatter={(label) => `${chart.xLabel || chart.xKey}: ${label}`}
+                        />
+                        <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: "11px" }} />
+                        {chart.yKeys.map((key, i) => (
+                            <Area
+                                key={key}
+                                type="monotone"
+                                dataKey={key}
+                                stackId="1"
+                                stroke={chart.colors?.[key] || DEFAULT_COLORS[i % DEFAULT_COLORS.length]}
+                                fill={chart.colors?.[key] || DEFAULT_COLORS[i % DEFAULT_COLORS.length]}
+                                fillOpacity={1}
+                                strokeWidth={2}
+                            />
+                        ))}
+                    </AreaChart>
+                );
+            case "stacked-bar-100":
+                return (
+                    <BarChart data={chart.data} margin={{ top: 5, right: 5, left: -20, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                        <XAxis
+                            dataKey={chart.xKey}
+                            tick={{ fontSize: 11, fill: "var(--muted)" }}
+                            axisLine={{ stroke: "var(--border-color)" }}
+                        />
+                        <YAxis
+                            tick={{ fontSize: 11, fill: "var(--muted)" }}
+                            axisLine={{ stroke: "var(--border-color)" }}
+                            tickFormatter={yFormatter}
+                        />
+                        <Tooltip
+                            contentStyle={{
+                                backgroundColor: "var(--surface)",
+                                border: "1px solid var(--border-color)",
+                                borderRadius: "8px",
+                                fontSize: "12px",
+                                fontFamily: "monospace",
+                            }}
+                            formatter={(value: any, name: string | undefined) => [
+                                yFormatter(Number(value)),
+                                name,
+                            ]}
+                            labelFormatter={(label) => `${chart.xLabel || chart.xKey}: ${label}`}
+                        />
+                        <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: "11px" }} />
+                        {chart.yKeys.map((key, i) => (
+                            <Bar
+                                key={key}
+                                dataKey={key}
+                                stackId="1"
+                                fill={chart.colors?.[key] || DEFAULT_COLORS[i % DEFAULT_COLORS.length]}
+                            />
+                        ))}
+                    </BarChart>
+                );
             default:
                 return (
                     <div className="flex h-full items-center justify-center text-muted font-mono text-sm">
