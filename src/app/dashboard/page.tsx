@@ -2,12 +2,11 @@
 
 import { DashboardSidebar, DashboardMobileHeader } from "@/components/dashboard/Sidebar";
 import { StatsOverview } from "@/components/dashboard/StatsOverview";
-import { MarketTrendsChart } from "@/components/dashboard/MarketTrends";
-import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { TraderStats } from "@/components/dashboard/TraderStats";
 import { ActiveTrades } from "@/components/dashboard/ActiveTrades";
 import { RiskControl } from "@/components/dashboard/RiskControl";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
+import { AnalysisCard } from "@/components/dashboard/analytics/AnalysisCard";
 
 export default function DashboardPage() {
   return (
@@ -49,10 +48,25 @@ export default function DashboardPage() {
           {/* Stats */}
           <StatsOverview />
 
-          {/* Charts Row */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <MarketTrendsChart />
-            <PerformanceChart />
+          {/* Real-time Market Analysis */}
+          <div>
+            <h2 className="text-xl font-bold mb-4">Real-time Market Analysis</h2>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <AnalysisCard endpointName="win_rate_by_price" />
+              <AnalysisCard endpointName="returns_by_hour" />
+              <AnalysisCard endpointName="volume_over_time" />
+              <AnalysisCard endpointName="maker_taker_gap_over_time" />
+              <AnalysisCard endpointName="ev_yes_vs_no" />
+              <AnalysisCard endpointName="mispricing_by_price" />
+              <AnalysisCard endpointName="longshot_volume_share" />
+              <AnalysisCard endpointName="trade_size_by_role" />
+              <AnalysisCard endpointName="maker_vs_taker_returns" />
+              <AnalysisCard endpointName="maker_returns_by_direction" />
+              <AnalysisCard endpointName="maker_win_rate_by_direction" />
+              <AnalysisCard endpointName="yes_vs_no_by_price" />
+              <AnalysisCard endpointName="maker_taker_returns_by_category" />
+              <AnalysisCard endpointName="win_rate_by_trade_size" />
+            </div>
           </div>
 
           {/* Traders & Activity Row */}
