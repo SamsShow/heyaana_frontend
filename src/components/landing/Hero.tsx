@@ -2,8 +2,9 @@
 
 import { motion, useScroll, useTransform } from "framer-motion";
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
 import { useRef } from "react";
+import { FlickeringGrid } from "@/components/ui/flickering-grid-hero";
+import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
 
 /* Small SVG star component for floating decorations */
 function Star({ className = "", size = 20, style }: { className?: string; size?: number; style?: React.CSSProperties }) {
@@ -21,20 +22,35 @@ function Star({ className = "", size = 20, style }: { className?: string; size?:
   );
 }
 
-/* Cursor arrow decoration */
-function CursorArrow({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-    >
-      <path d="M4 2L20 12L12 14L8 22L4 2Z" />
-    </svg>
-  );
-}
+/* Grid animation config tuned to HeyAnna brand colors */
+const GRID_CONFIG = {
+  background: {
+    color: "#2E5CFF",
+    maxOpacity: 0.15,
+    flickerChance: 0.12,
+    squareSize: 4,
+    gridGap: 4,
+  },
+  logo: {
+    color: "#2E5CFF",
+    maxOpacity: 0.6,
+    flickerChance: 0.18,
+    squareSize: 3,
+    gridGap: 6,
+  },
+} as const;
+
+/* Logo mask style — uses the HeyAnna logo as a CSS mask */
+const logoMaskStyle = {
+  WebkitMaskImage: `url('/heyannalogo.png')`,
+  WebkitMaskSize: "280px",
+  WebkitMaskPosition: "center",
+  WebkitMaskRepeat: "no-repeat",
+  maskImage: `url('/heyannalogo.png')`,
+  maskSize: "280px",
+  maskPosition: "center",
+  maskRepeat: "no-repeat",
+} as const;
 
 export function Hero() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -43,33 +59,36 @@ export function Hero() {
     offset: ["start start", "end start"],
   });
 
-  // Mascot parallax: starts lower (translateY 80px) and rises up as user scrolls
   const mascotY = useTransform(scrollYProgress, [0, 0.5], [80, -30]);
-  // Mascot opacity: fades in as user scrolls
   const mascotOpacity = useTransform(scrollYProgress, [0, 0.15], [0.3, 1]);
-  // Mascot scale: grows slightly
   const mascotScale = useTransform(scrollYProgress, [0, 0.3], [0.85, 1]);
 
   return (
     <section ref={sectionRef} className="relative overflow-hidden bg-navy-hero">
-      {/* Subtle grid background on entire hero */}
-      <div className="absolute inset-0 grid-bg opacity-40" />
+      {/* Flickering grid background — subtle blue squares across entire hero */}
+      <FlickeringGrid
+        className="absolute inset-0 z-0 [mask-image:radial-gradient(800px_circle_at_center,white,transparent)]"
+        {...GRID_CONFIG.background}
+      />
+
+      {/* HeyAnna logo flickering grid mask — large centered logo shape */}
+      <div
+        className="absolute inset-0 z-[1] flex items-center justify-center opacity-40"
+        style={logoMaskStyle}
+      >
+        <FlickeringGrid {...GRID_CONFIG.logo} />
+      </div>
 
       {/* Radial gradient glow behind content */}
-      <div className="absolute top-0 left-1/4 w-[800px] h-[800px] bg-blue-primary/5 rounded-full blur-[120px]" />
-      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-gold-accent/3 rounded-full blur-[100px]" />
+      <div className="absolute top-0 left-1/4 w-[800px] h-[800px] bg-blue-primary/5 rounded-full blur-[120px] z-[2]" />
+      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-gold-accent/3 rounded-full blur-[100px] z-[2]" />
 
       {/* Floating decorative stars */}
-      <Star className="absolute top-[12%] left-[8%] text-gold-accent animate-sparkle" size={24} />
-      <Star className="absolute top-[20%] left-[18%] text-gold-accent/60 animate-twinkle" size={14} />
-      <Star className="absolute top-[15%] right-[12%] text-gold-accent animate-sparkle" size={18} style={{ animationDelay: "1s" }} />
-      <Star className="absolute top-[40%] left-[5%] text-white/40 animate-twinkle" size={12} style={{ animationDelay: "2s" }} />
-      <Star className="absolute top-[35%] right-[8%] text-gold-accent/50 animate-sparkle" size={16} style={{ animationDelay: "1.5s" }} />
-      <Star className="absolute top-[25%] right-[30%] text-white/30 animate-twinkle" size={10} style={{ animationDelay: "3s" }} />
-
-      {/* Cursor arrows */}
-      <CursorArrow className="absolute top-[45%] left-[15%] text-white/20 animate-float-delayed" />
-      <CursorArrow className="absolute top-[28%] right-[20%] text-white/15 animate-float-slow rotate-45" />
+      <Star className="absolute top-[12%] left-[8%] text-gold-accent animate-sparkle z-[3]" size={24} />
+      <Star className="absolute top-[20%] left-[18%] text-gold-accent/60 animate-twinkle z-[3]" size={14} />
+      <Star className="absolute top-[15%] right-[12%] text-gold-accent animate-sparkle z-[3]" size={18} style={{ animationDelay: "1s" }} />
+      <Star className="absolute top-[40%] left-[5%] text-white/40 animate-twinkle z-[3]" size={12} style={{ animationDelay: "2s" }} />
+      <Star className="absolute top-[35%] right-[8%] text-gold-accent/50 animate-sparkle z-[3]" size={16} style={{ animationDelay: "1.5s" }} />
 
       {/* Main content — centered text */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-36 pb-0 w-full">
@@ -124,16 +143,17 @@ export function Hero() {
               href="https://t.me/+i9D5bDox8lNmNDk9"
               target="_blank"
               rel="noopener noreferrer"
-              className="group flex items-center gap-2 px-8 py-3.5 rounded-full bg-blue-primary text-white font-medium hover:bg-blue-dark transition-all glow-blue-strong glow-pulse text-base"
             >
-              Join Telegram
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <InteractiveHoverButton
+                text="Join Telegram"
+                className="w-full min-w-[180px] sm:w-[200px] border-blue-primary/40 bg-navy-hero text-white glow-pulse"
+              />
             </a>
             <a
               href="https://x.com/tryheyanna"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-8 py-3.5 rounded-full border border-white/20 hover:border-blue-primary/50 text-white font-medium transition-all hover:bg-white/5 text-base"
+              className="flex items-center justify-center w-full min-w-[180px] sm:w-[200px] px-8 py-3.5 rounded-full border border-white/20 hover:border-blue-primary/50 text-white font-medium transition-all hover:bg-white/5 text-base"
             >
               Follow on X
             </a>
@@ -153,7 +173,6 @@ export function Hero() {
 
       {/* Mascot — centered, overlapping the bottom edge with parallax */}
       <div className="relative z-10 flex justify-center mt-4 pb-0">
-        {/* Glow behind mascot */}
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-80 h-80 bg-blue-primary/8 rounded-full blur-[80px]" />
 
         <motion.div
@@ -164,7 +183,6 @@ export function Hero() {
           }}
           className="relative z-10"
         >
-          {/* Mascot stars */}
           <Star className="absolute -top-6 -right-6 text-gold-accent animate-sparkle" size={22} />
           <Star className="absolute -top-2 -left-8 text-gold-accent/70 animate-twinkle" size={16} style={{ animationDelay: "0.5s" }} />
 

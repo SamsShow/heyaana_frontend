@@ -1,8 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
 import Image from "next/image";
+import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
 
 export function CTA() {
   return (
@@ -48,16 +48,17 @@ export function CTA() {
                 href="https://t.me/+i9D5bDox8lNmNDk9"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group flex items-center gap-2 px-8 py-4 rounded-full bg-blue-primary text-white font-medium text-lg hover:bg-blue-dark transition-all glow-blue-strong"
               >
-                Join Telegram
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                <InteractiveHoverButton
+                  text="Join Telegram"
+                  className="w-full min-w-[180px] sm:w-[200px] border-blue-primary/40 bg-background text-white"
+                />
               </a>
               <a
                 href="https://x.com/tryheyanna"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 px-8 py-4 rounded-full border border-border hover:border-blue-primary/40 font-medium transition-all hover:bg-surface"
+                className="flex items-center justify-center w-full min-w-[180px] sm:w-[200px] px-8 py-3.5 rounded-full border border-border hover:border-blue-primary/40 font-medium transition-all hover:bg-surface text-base"
               >
                 Follow on X
               </a>
