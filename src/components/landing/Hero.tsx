@@ -137,23 +137,24 @@ export function Hero() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
+            className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-4 w-full max-w-md mx-auto sm:max-w-none"
           >
             <a
               href="https://t.me/+i9D5bDox8lNmNDk9"
               target="_blank"
               rel="noopener noreferrer"
+              className="w-full sm:w-auto flex justify-center"
             >
               <InteractiveHoverButton
                 text="Join Telegram"
-                className="w-full min-w-[180px] sm:w-[200px] border-blue-primary/40 bg-navy-hero text-white glow-pulse"
+                className="w-full sm:w-[200px] border-blue-primary/40 bg-navy-hero text-white glow-pulse"
               />
             </a>
             <a
               href="https://x.com/tryheyanna"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center w-full min-w-[180px] sm:w-[200px] px-8 py-3.5 rounded-full border border-white/20 hover:border-blue-primary/50 text-white font-medium transition-all hover:bg-white/5 text-base"
+              className="flex items-center justify-center w-full sm:w-[200px] px-8 py-3.5 rounded-full border border-white/20 hover:border-blue-primary/50 text-white font-medium transition-all hover:bg-white/5 text-base"
             >
               Follow on X
             </a>

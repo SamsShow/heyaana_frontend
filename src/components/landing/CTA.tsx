@@ -43,22 +43,23 @@ export function CTA() {
               get the edge prediction markets have been missing.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center lg:items-start gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center lg:items-start gap-4 w-full max-w-md mx-auto lg:mx-0 sm:max-w-none">
               <a
                 href="https://t.me/+i9D5bDox8lNmNDk9"
                 target="_blank"
                 rel="noopener noreferrer"
+                className="w-full sm:w-auto flex justify-center lg:justify-start"
               >
                 <InteractiveHoverButton
                   text="Join Telegram"
-                  className="w-full min-w-[180px] sm:w-[200px] border-blue-primary/40 bg-background text-white"
+                  className="w-full sm:w-[200px] border-blue-primary/40 bg-background text-white"
                 />
               </a>
               <a
                 href="https://x.com/tryheyanna"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center w-full min-w-[180px] sm:w-[200px] px-8 py-3.5 rounded-full border border-border hover:border-blue-primary/40 font-medium transition-all hover:bg-surface text-base"
+                className="flex items-center justify-center w-full sm:w-[200px] px-8 py-3.5 rounded-full border border-border hover:border-blue-primary/40 font-medium transition-all hover:bg-surface text-base"
               >
                 Follow on X
               </a>
