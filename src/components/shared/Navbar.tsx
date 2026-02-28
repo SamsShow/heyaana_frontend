@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ThemeToggle } from "./ThemeToggle";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 
@@ -10,61 +9,63 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-navy-hero/80 backdrop-blur-xl border-b border-border/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
+          <Link href="/" className="flex items-center gap-2.5 group">
             <Image
-              src="/heyanalogo.svg"
-              alt="HeyAna logo"
-              width={32}
-              height={32}
-              className="w-8 h-8 rounded-lg glow-red"
+              src="/heyannalogo.png"
+              alt="HeyAnna logo"
+              width={36}
+              height={36}
+              className="w-9 h-9 rounded-lg"
               priority
             />
-            <span className="text-lg font-bold tracking-tight">
-              Hey<span className="text-red-primary">Ana</span>
+            <span className="text-lg font-bold tracking-tight text-white">
+              Hey<span className="text-gold-accent">Anna</span>
             </span>
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-8">
-            <Link href="/#features" className="text-sm text-muted hover:text-foreground transition-colors">
-              Features
-            </Link>
-            <Link href="/#how-it-works" className="text-sm text-muted hover:text-foreground transition-colors">
-              How It Works
-            </Link>
-            <Link href="/#traders" className="text-sm text-muted hover:text-foreground transition-colors">
-              Top Traders
-            </Link>
-            <a href="https://kalshi.com" target="_blank" rel="noopener noreferrer" className="text-sm text-muted hover:text-foreground transition-colors">
-              Kalshi
+          <div className="hidden md:flex items-center gap-1">
+            {[
+              { label: "Features", href: "/#features" },
+              { label: "How It Works", href: "/#how-it-works" },
+            ].map((link) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                className="text-sm text-white/70 hover:text-white px-4 py-1.5 rounded-full hover:bg-white/5 transition-all"
+              >
+                {link.label}
+              </Link>
+            ))}
+            <a
+              href="https://x.com/tryheyanna"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-white/70 hover:text-white px-4 py-1.5 rounded-full hover:bg-white/5 transition-all"
+            >
+              Twitter / X
             </a>
           </div>
 
           {/* Actions */}
           <div className="hidden md:flex items-center gap-3">
-            <ThemeToggle />
-            <Link
-              href="/dashboard"
-              className="text-sm px-4 py-2 rounded-lg border border-border hover:border-red-primary/50 hover:text-red-primary transition-all"
+            <a
+              href="https://t.me/+i9D5bDox8lNmNDk9"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm px-5 py-2 rounded-full bg-blue-primary text-white font-medium hover:bg-blue-dark transition-all glow-blue"
             >
-              Dashboard
-            </Link>
-            <Link
-              href="/onboarding"
-              className="text-sm px-4 py-2 rounded-lg bg-red-primary text-white hover:bg-red-dark transition-all glow-red"
-            >
-              Get Started
-            </Link>
+              Join Telegram
+            </a>
           </div>
 
           {/* Mobile Hamburger */}
           <div className="md:hidden flex items-center gap-2">
-            <ThemeToggle />
-            <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2">
+            <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 text-white">
               {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
@@ -72,13 +73,20 @@ export function Navbar() {
 
         {/* Mobile Menu */}
         {mobileOpen && (
-          <div className="md:hidden border-t border-border py-4 space-y-3">
-            <Link href="/#features" className="block text-sm text-muted hover:text-foreground px-2 py-1" onClick={() => setMobileOpen(false)}>Features</Link>
-            <Link href="/#how-it-works" className="block text-sm text-muted hover:text-foreground px-2 py-1" onClick={() => setMobileOpen(false)}>How It Works</Link>
-            <Link href="/#traders" className="block text-sm text-muted hover:text-foreground px-2 py-1" onClick={() => setMobileOpen(false)}>Top Traders</Link>
+          <div className="md:hidden border-t border-border/30 py-4 space-y-3">
+            <Link href="/#features" className="block text-sm text-white/70 hover:text-white px-2 py-1" onClick={() => setMobileOpen(false)}>Features</Link>
+            <Link href="/#how-it-works" className="block text-sm text-white/70 hover:text-white px-2 py-1" onClick={() => setMobileOpen(false)}>How It Works</Link>
+            <a href="https://x.com/tryheyanna" target="_blank" rel="noopener noreferrer" className="block text-sm text-white/70 hover:text-white px-2 py-1" onClick={() => setMobileOpen(false)}>Twitter / X</a>
             <div className="flex gap-2 pt-2">
-              <Link href="/dashboard" className="flex-1 text-center text-sm px-4 py-2 rounded-lg border border-border" onClick={() => setMobileOpen(false)}>Dashboard</Link>
-              <Link href="/onboarding" className="flex-1 text-center text-sm px-4 py-2 rounded-lg bg-red-primary text-white" onClick={() => setMobileOpen(false)}>Get Started</Link>
+              <a
+                href="https://t.me/+i9D5bDox8lNmNDk9"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 text-center text-sm px-4 py-2 rounded-full bg-blue-primary text-white font-medium"
+                onClick={() => setMobileOpen(false)}
+              >
+                Join Telegram
+              </a>
             </div>
           </div>
         )}

@@ -15,13 +15,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HeyAna — AI-Powered Trade Copying for Prediction Markets",
-  description: "The smartest way to copy trades on Kalshi prediction markets. AI-powered insights, configurable risk, and cross-platform execution.",
-  keywords: ["prediction markets", "trade copying", "Kalshi", "AI trading", "HeyAna"],
+  title: "HeyAnna — The Terminal for Prediction Markets",
+  description: "One screen. Every venue. Real-time flows, mispricings, and edge the crowd hasn't spotted yet. When the world shakes, our AI calls you.",
+  keywords: ["prediction markets", "AI trading", "HeyAnna", "real-time signals", "market edge"],
   icons: {
-    icon: "/heyanalogo.svg",
-    shortcut: "/heyanalogo.svg",
-    apple: "/heyanalogo.svg",
+    icon: "/heyannalogo.png",
+    shortcut: "/heyannalogo.png",
+    apple: "/heyannalogo.png",
   },
 };
 

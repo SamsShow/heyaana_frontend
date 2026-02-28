@@ -1,64 +1,95 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Link from "next/link";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import Image from "next/image";
 
 export function CTA() {
   return (
     <section className="py-24 relative overflow-hidden">
-      <div className="absolute inset-0 radial-fade" />
-      <div className="absolute inset-0 grid-bg opacity-30" />
+      <div className="absolute inset-0 grid-bg opacity-20" />
 
-      {/* Glow orb */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-red-primary/5 rounded-full blur-3xl" />
+      {/* Glow orbs */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-blue-primary/5 rounded-full blur-[100px]" />
+      <div className="absolute top-1/3 left-1/3 w-[300px] h-[300px] bg-gold-accent/3 rounded-full blur-[80px]" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="max-w-3xl mx-auto text-center"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-red-primary/20 bg-red-primary/5 mb-8">
-            <Sparkles className="w-3.5 h-3.5 text-red-primary" />
-            <span className="text-xs font-mono text-red-primary uppercase tracking-widest">
-              Start Trading Smarter
-            </span>
-          </div>
+        <div className="flex flex-col lg:flex-row items-center gap-12">
+          {/* Left — Text content */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="flex-1 text-center lg:text-left"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-gold-accent/30 bg-gold-accent/10 mb-8">
+              <span className="w-1.5 h-1.5 rounded-full bg-gold-accent animate-pulse-blue" />
+              <span className="text-xs font-mono text-gold-accent uppercase tracking-widest">
+                Join the Signal
+              </span>
+            </div>
 
-          <h2 className="text-3xl sm:text-5xl font-bold mb-6 leading-tight">
-            Let AI Find the Best Trades.
-            <br />
-            <span className="text-red-primary">You Just Copy.</span>
-          </h2>
+            <h2 className="text-3xl sm:text-5xl font-bold mb-6 leading-tight">
+              When the world shakes,
+              <br />
+              our AI doesn&apos;t tweet about it —
+              <br />
+              <span className="text-blue-primary">it calls you.</span>
+            </h2>
 
-          <p className="text-lg text-muted mb-10 max-w-xl mx-auto leading-relaxed">
-            Join thousands of traders using HeyAna to automate prediction market
-            trading. Set up in minutes, profit for months.
-          </p>
+            <p className="text-lg text-muted mb-10 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+              While others react, you&apos;ve already moved. Join HeyAnna and
+              get the edge prediction markets have been missing.
+            </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/onboarding"
-              className="group flex items-center gap-2 px-8 py-4 rounded-lg bg-red-primary text-white font-medium text-lg hover:bg-red-dark transition-all glow-red-strong"
-            >
-              Get Started Free
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-2 px-8 py-4 rounded-lg border border-border hover:border-red-primary/30 font-medium transition-all"
-            >
-              Explore Dashboard
-            </Link>
-          </div>
+            <div className="flex flex-col sm:flex-row items-center lg:items-start gap-4">
+              <a
+                href="https://t.me/+i9D5bDox8lNmNDk9"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center gap-2 px-8 py-4 rounded-full bg-blue-primary text-white font-medium text-lg hover:bg-blue-dark transition-all glow-blue-strong"
+              >
+                Join Telegram
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </a>
+              <a
+                href="https://x.com/tryheyanna"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-8 py-4 rounded-full border border-border hover:border-blue-primary/40 font-medium transition-all hover:bg-surface"
+              >
+                Follow on X
+              </a>
+            </div>
 
-          <p className="text-xs text-muted mt-6">
-            No credit card required &bull; Connect your Kalshi account &bull; Cancel anytime
-          </p>
-        </motion.div>
+            <p className="text-xs text-muted mt-6">
+              No sign-up required &bull; Free signals &bull; Community-first
+            </p>
+          </motion.div>
+
+          {/* Right — Mascot */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.85, x: 40 }}
+            whileInView={{ opacity: 1, scale: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7, delay: 0.2 }}
+            className="flex-shrink-0 flex justify-center lg:justify-end relative"
+          >
+            {/* Glow behind mascot */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-56 h-56 sm:w-72 sm:h-72 bg-blue-primary/8 rounded-full blur-[60px]" />
+            </div>
+
+            <Image
+              src="/mascot_hero_transparent.png"
+              alt="HeyAnna mascot"
+              width={300}
+              height={300}
+              className="relative z-10 w-48 sm:w-60 lg:w-72 h-auto drop-shadow-xl animate-float"
+            />
+          </motion.div>
+        </div>
       </div>
     </section>
   );
