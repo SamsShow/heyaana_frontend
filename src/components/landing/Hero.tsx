@@ -156,15 +156,7 @@ export function Hero() {
             </a>
           </motion.div>
 
-          {/* Tagline */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
-            className="mt-6 text-sm text-white/40 font-mono"
-          >
-            We track the chaos. You take the position.
-          </motion.p>
+
         </div>
       </div>
 
