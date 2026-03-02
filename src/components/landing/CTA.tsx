@@ -31,16 +31,18 @@ export function CTA() {
             </div>
 
             <h2 className="text-3xl sm:text-5xl font-bold mb-6 leading-tight">
-              When the world shakes,
+              The Prediction Economy
               <br />
-              our AI doesn&apos;t tweet about it —
-              <br />
-              <span className="text-blue-primary">it calls you.</span>
+              <span className="text-blue-primary">Is Growing Up.</span>
             </h2>
 
+            <p className="text-lg text-muted mb-4 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+              The tools should too.
+            </p>
             <p className="text-lg text-muted mb-10 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-              While others react, you&apos;ve already moved. Join HeyAnna and
-              get the edge prediction markets have been missing.
+              This isn&apos;t for everyone. It&apos;s for traders who want control.
+              <br />
+              Join HeyAnna.
             </p>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center lg:items-start gap-4 w-full max-w-md mx-auto lg:mx-0 sm:max-w-none">

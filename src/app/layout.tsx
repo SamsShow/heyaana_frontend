@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "HeyAnna — The Terminal for Prediction Markets",
-  description: "One screen. Every venue. Real-time flows, mispricings, and edge the crowd hasn't spotted yet. When the world shakes, our AI calls you.",
+  description: "Own the market before it owns you. We track the chaos — you take the position. Global data, cross-venue intelligence, and AI that's already ahead.",
   keywords: ["prediction markets", "AI trading", "HeyAnna", "real-time signals", "market edge"],
   icons: {
     icon: "/heyannalogo.png",

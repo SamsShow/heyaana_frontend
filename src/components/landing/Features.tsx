@@ -6,26 +6,26 @@ import { Monitor, Zap, Phone, Crosshair } from "lucide-react";
 const features = [
   {
     icon: Monitor,
-    title: "One Screen, Every Venue",
-    description: "All prediction market data — unified in a single terminal. No more tab-switching between venues.",
+    title: "All The Markets. One Screen.",
+    description: "Full global market access. If it's moving anywhere, you see it here.",
     accent: "blue",
   },
   {
     icon: Crosshair,
-    title: "Real-Time Edge Detection",
-    description: "Spot mispricings and flow imbalances as they happen. See what the crowd hasn't seen yet.",
+    title: "Spot The Mispricing.",
+    description: "Cross-venue price gaps, liquidity shifts, and arbitrage — captured before the market catches up.",
     accent: "gold",
   },
   {
     icon: Phone,
-    title: "AI-Powered Alerts",
-    description: "When the world shakes, our AI doesn't tweet about it — it calls you. Instant, actionable signals.",
+    title: "Your Edge Doesn't Sleep.",
+    description: "Personalized AI alerts tied directly to your positions. No noise. No delay.",
     accent: "blue",
   },
   {
     icon: Zap,
-    title: "Move Before The Crowd",
-    description: "While others are still reacting, you've already moved. Speed is the edge that compounds.",
+    title: "Conviction, Backed By Data.",
+    description: "Resolution history, flow analytics, and live risk monitoring — to understand the move before you go big.",
     accent: "gold",
   },
 ];
@@ -45,13 +45,11 @@ export function Features() {
         >
           <span className="text-xs font-mono text-blue-primary uppercase tracking-widest">Features</span>
           <h2 className="text-3xl sm:text-4xl font-bold mt-3 mb-4">
-            What Makes{" "}
-            <span className="text-gradient-gold">HeyAnna</span>{" "}
-            Different
+            This Is What You&apos;re{" "}
+            <span className="text-gradient-gold">Trading With.</span>
           </h2>
           <p className="text-muted max-w-xl mx-auto">
-            The terminal prediction markets didn&apos;t know they needed —
-            built for traders who move first.
+            Global data. Cross-venue intelligence. And AI that&apos;s already ahead.
           </p>
         </motion.div>
 
@@ -69,8 +67,8 @@ export function Features() {
               <div className="flex items-start gap-4 mb-4">
                 <div
                   className={`p-3 rounded-xl transition-all duration-300 ${feature.accent === "gold"
-                      ? "bg-gold-accent/10 text-gold-accent group-hover:bg-gold-accent group-hover:text-white group-hover:shadow-lg group-hover:shadow-gold-accent/20"
-                      : "bg-blue-primary/10 text-blue-primary group-hover:bg-blue-primary group-hover:text-white group-hover:shadow-lg group-hover:shadow-blue-primary/20"
+                    ? "bg-gold-accent/10 text-gold-accent group-hover:bg-gold-accent group-hover:text-white group-hover:shadow-lg group-hover:shadow-gold-accent/20"
+                    : "bg-blue-primary/10 text-blue-primary group-hover:bg-blue-primary group-hover:text-white group-hover:shadow-lg group-hover:shadow-blue-primary/20"
                     }`}
                 >
                   <feature.icon className="w-6 h-6" />

@@ -113,12 +113,9 @@ export function Hero() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight leading-[1.1] mb-6 text-white"
           >
-            The Terminal{" "}
+            Own The Market{" "}
             <br className="hidden sm:block" />
-            Prediction Markets{" "}
-            <br className="hidden sm:block" />
-            <span className="text-gradient-gold">Didn&apos;t Know</span>{" "}
-            They Needed
+            <span className="text-gradient-gold">Before It Owns You.</span>
           </motion.h1>
 
           {/* Subheadline */}
@@ -128,8 +125,7 @@ export function Hero() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-base sm:text-lg text-white/60 max-w-2xl mx-auto mb-10 leading-relaxed"
           >
-            One screen. Every venue. Real-time flows, mispricings, and edge
-            the crowd hasn&apos;t spotted yet.
+            We track the chaos. You take the position.
           </motion.p>
 
           {/* CTA Buttons */}
@@ -167,7 +163,7 @@ export function Hero() {
             transition={{ duration: 0.8, delay: 0.6 }}
             className="mt-6 text-sm text-white/40 font-mono"
           >
-            While others react, you&apos;ve already moved.
+            We track the chaos. You take the position.
           </motion.p>
         </div>
       </div>
