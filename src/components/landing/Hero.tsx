@@ -1,204 +1,197 @@
 "use client";
 
-import { motion, useScroll, useTransform } from "framer-motion";
-import Image from "next/image";
 import { useRef } from "react";
-import { FlickeringGrid } from "@/components/ui/flickering-grid-hero";
-import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
-
-/* Small SVG star component for floating decorations */
-function Star({ className = "", size = 20, style }: { className?: string; size?: number; style?: React.CSSProperties }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      style={style}
-    >
-      <path d="M12 0L14.59 9.41L24 12L14.59 14.59L12 24L9.41 14.59L0 12L9.41 9.41L12 0Z" />
-    </svg>
-  );
-}
-
-/* Grid animation config tuned to HeyAnna brand colors */
-const GRID_CONFIG = {
-  background: {
-    color: "#2E5CFF",
-    maxOpacity: 0.15,
-    flickerChance: 0.12,
-    squareSize: 4,
-    gridGap: 4,
-  },
-  logo: {
-    color: "#2E5CFF",
-    maxOpacity: 0.6,
-    flickerChance: 0.18,
-    squareSize: 3,
-    gridGap: 6,
-  },
-} as const;
-
-/* Logo mask style — uses the HeyAnna logo as a CSS mask */
-const logoMaskStyle = {
-  WebkitMaskImage: `url('/heyannalogo.png')`,
-  WebkitMaskSize: "280px",
-  WebkitMaskPosition: "center",
-  WebkitMaskRepeat: "no-repeat",
-  maskImage: `url('/heyannalogo.png')`,
-  maskSize: "280px",
-  maskPosition: "center",
-  maskRepeat: "no-repeat",
-} as const;
+import Image from "next/image";
+import { motion, useScroll, useTransform } from "framer-motion";
 
 export function Hero() {
-  const sectionRef = useRef<HTMLElement>(null);
+  const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
-    target: sectionRef,
+    target: ref,
     offset: ["start start", "end start"],
   });
 
-  const mascotY = useTransform(scrollYProgress, [0, 0.5], [80, -30]);
-  const mascotOpacity = useTransform(scrollYProgress, [0, 0.15], [0.3, 1]);
-  const mascotScale = useTransform(scrollYProgress, [0, 0.3], [0.85, 1]);
+  const orbsY        = useTransform(scrollYProgress, [0, 1], ["0%", "40%"]);
+  const gridY        = useTransform(scrollYProgress, [0, 1], ["0%", "20%"]);
+  const watermarkY   = useTransform(scrollYProgress, [0, 1], ["0%", "55%"]);
+  const linesY       = useTransform(scrollYProgress, [0, 1], ["0%", "25%"]);
+  const contentY     = useTransform(scrollYProgress, [0, 1], ["0%", "12%"]);
 
   return (
-    <section ref={sectionRef} className="relative overflow-hidden bg-navy-hero">
-      {/* Flickering grid background — subtle blue squares across entire hero */}
-      <FlickeringGrid
-        className="absolute inset-0 z-0 [mask-image:radial-gradient(800px_circle_at_center,white,transparent)]"
-        {...GRID_CONFIG.background}
-      />
+    <section
+      ref={ref}
+      className="relative overflow-hidden min-h-screen flex items-center justify-center"
+    >
+      {/* Orbs — parallax slowest */}
+      <motion.div style={{ y: orbsY }} className="absolute inset-0 z-[1] pointer-events-none">
+        <div className="absolute top-[-200px] left-[-200px] w-[900px] h-[900px] bg-[#466EFF]/[0.07] rounded-full blur-[200px]" />
+        <div className="absolute bottom-[-150px] right-[-100px] w-[600px] h-[600px] bg-[#466EFF]/[0.04] rounded-full blur-[160px]" />
+        <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-blue-primary/[0.04] rounded-full blur-[120px]" />
+      </motion.div>
 
-      {/* HeyAnna logo flickering grid mask — large centered logo shape */}
-      <div
-        className="absolute inset-0 z-[1] flex items-center justify-center opacity-40"
-        style={logoMaskStyle}
+      {/* Grid — parallax mid */}
+      <motion.div style={{ y: gridY }} className="absolute inset-0 grid-bg opacity-30 z-[2] pointer-events-none" />
+
+      {/* Ghost HEYANNA watermark — fastest parallax */}
+      <motion.div
+        style={{ y: watermarkY }}
+        className="absolute inset-0 flex items-center justify-center z-[2] pointer-events-none overflow-hidden"
       >
-        <FlickeringGrid {...GRID_CONFIG.logo} />
-      </div>
-
-      {/* Radial gradient glow behind content */}
-      <div className="absolute top-0 left-1/4 w-[800px] h-[800px] bg-blue-primary/5 rounded-full blur-[120px] z-[2]" />
-      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-gold-accent/3 rounded-full blur-[100px] z-[2]" />
-
-      {/* Floating decorative stars */}
-      <Star className="absolute top-[12%] left-[8%] text-gold-accent animate-sparkle z-[3]" size={24} />
-      <Star className="absolute top-[20%] left-[18%] text-gold-accent/60 animate-twinkle z-[3]" size={14} />
-      <Star className="absolute top-[15%] right-[12%] text-gold-accent animate-sparkle z-[3]" size={18} style={{ animationDelay: "1s" }} />
-      <Star className="absolute top-[40%] left-[5%] text-white/40 animate-twinkle z-[3]" size={12} style={{ animationDelay: "2s" }} />
-      <Star className="absolute top-[35%] right-[8%] text-gold-accent/50 animate-sparkle z-[3]" size={16} style={{ animationDelay: "1.5s" }} />
-
-      {/* Main content — centered text */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-36 pb-0 w-full">
-        <div className="text-center max-w-4xl mx-auto">
-          {/* Badge */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-blue-primary/30 bg-blue-primary/10 mb-8"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-primary animate-pulse-blue" />
-            <span className="text-xs font-mono text-blue-light uppercase tracking-widest">
-              AI-Powered Terminal
-            </span>
-          </motion.div>
-
-          {/* Headline */}
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight leading-[1.1] mb-6 text-white"
-          >
-            Own The Market{" "}
-            <br className="hidden sm:block" />
-            <span className="text-gradient-gold">Before It Owns You.</span>
-          </motion.h1>
-
-          {/* Subheadline */}
-          <motion.p
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-base sm:text-lg text-white/60 max-w-2xl mx-auto mb-10 leading-relaxed"
-          >
-            We track the chaos. You take the position.
-          </motion.p>
-
-          {/* CTA Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-4 w-full max-w-md mx-auto sm:max-w-none"
-          >
-            <a
-              href="https://t.me/+i9D5bDox8lNmNDk9"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full sm:w-auto flex justify-center"
-            >
-              <InteractiveHoverButton
-                text="Join Telegram"
-                className="w-full sm:w-[200px] border-blue-primary/40 bg-navy-hero text-white glow-pulse"
-              />
-            </a>
-            <a
-              href="https://x.com/tryheyanna"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center w-full sm:w-[200px] px-8 py-3.5 rounded-full border border-white/20 hover:border-blue-primary/50 text-white font-medium transition-all hover:bg-white/5 text-base"
-            >
-              Follow on X
-            </a>
-          </motion.div>
-
-
-        </div>
-      </div>
-
-      {/* Mascot — centered, overlapping the bottom edge with parallax */}
-      <div className="relative z-10 flex justify-center mt-4 pb-0">
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-80 h-80 bg-blue-primary/8 rounded-full blur-[80px]" />
-
-        <motion.div
+        <span
+          className="font-bold uppercase tracking-tight select-none whitespace-nowrap"
           style={{
-            y: mascotY,
-            opacity: mascotOpacity,
-            scale: mascotScale,
+            fontSize: "clamp(80px, 18vw, 280px)",
+            color: "transparent",
+            WebkitTextStroke: "1px rgba(255,255,255,0.045)",
+            letterSpacing: "-0.02em",
           }}
-          className="relative z-10"
         >
-          <Star className="absolute -top-6 -right-6 text-gold-accent animate-sparkle" size={22} />
-          <Star className="absolute -top-2 -left-8 text-gold-accent/70 animate-twinkle" size={16} style={{ animationDelay: "0.5s" }} />
+          HEYANNA
+        </span>
+      </motion.div>
 
-          <Image
-            src="/heannaMas_transparent.png"
-            alt="HeyAnna mascot — a pixel art princess with a crown"
-            width={350}
-            height={350}
-            className="w-48 sm:w-64 lg:w-[300px] h-auto drop-shadow-2xl"
-            priority
-          />
-        </motion.div>
-      </div>
-
-      {/* Curved bottom edge */}
-      <div className="relative z-20 -mt-16 sm:-mt-20 lg:-mt-24">
-        <svg
-          viewBox="0 0 1440 120"
+      {/* Animated diagonal trend lines — parallax */}
+      <motion.svg
+        style={{ y: linesY }}
+        className="absolute inset-0 w-full h-full z-[3] pointer-events-none"
+        preserveAspectRatio="none"
+        viewBox="0 0 1440 900"
+      >
+        <motion.path
+          d="M-100 800 Q 200 700, 400 650 T 800 500 T 1200 300 T 1600 150"
           fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-full h-auto"
-          preserveAspectRatio="none"
+          stroke="#466EFF"
+          strokeWidth="1.5"
+          opacity="0.2"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 2.5, ease: "easeOut", delay: 0.5 }}
+        />
+        <motion.path
+          d="M-100 850 Q 300 750, 500 700 T 900 550 T 1300 350 T 1600 200"
+          fill="none"
+          stroke="#466EFF"
+          strokeWidth="0.8"
+          opacity="0.1"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 3, ease: "easeOut", delay: 0.8 }}
+        />
+      </motion.svg>
+
+      {/* Graph lines at bottom */}
+      <svg className="absolute bottom-0 left-0 right-0 h-48 z-[3] opacity-[0.15] pointer-events-none" preserveAspectRatio="none" viewBox="0 0 1440 200">
+        <path d="M0 180 Q 200 120, 400 140 T 800 100 T 1200 130 T 1440 80" stroke="#466EFF" strokeWidth="1" fill="none" />
+        <path d="M0 160 Q 300 100, 500 130 T 900 90 T 1300 110 T 1440 60" stroke="#7F9CFF" strokeWidth="0.8" fill="none" opacity="0.3" />
+      </svg>
+
+      {/* Main content — gentle parallax */}
+      <motion.div
+        style={{ y: contentY }}
+        className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
+      >
+        {/* Badge */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#466EFF]/20 bg-[#466EFF]/[0.06] mb-10"
         >
-          <path
-            d="M0 120V60C240 0 480 0 720 30C960 60 1200 90 1440 60V120H0Z"
-            fill="var(--background)"
-          />
+          <span className="w-1.5 h-1.5 rounded-full bg-[#466EFF]/60 animate-pulse-blue" />
+          <span className="text-xs font-display text-[#8BA4FF] uppercase tracking-widest">
+            AI-Powered Terminal
+          </span>
+        </motion.div>
+
+        {/* Giant headline */}
+        <motion.h1
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.1 }}
+          className="leading-[0.9] mb-8"
+        >
+          <span className="block text-6xl sm:text-8xl lg:text-9xl xl:text-[10rem] font-bold uppercase tracking-tight text-white">
+            Trade Before
+          </span>
+          <span className="flex items-center justify-center gap-3 sm:gap-5 lg:gap-7 text-6xl sm:text-8xl lg:text-9xl xl:text-[10rem] font-bold uppercase tracking-tight accent-blue">
+            <span>The</span>
+            <span className="inline-flex items-center justify-center shrink-0"
+              style={{ width: "0.75em", height: "0.75em" }}>
+              <Image
+                src="/heyannalogo.png"
+                alt="HeyAnna"
+                width={160}
+                height={160}
+                className="w-full h-full object-contain"
+              />
+            </span>
+            <span>Crowd</span>
+          </span>
+        </motion.h1>
+
+        {/* Italic serif tagline */}
+        <motion.p
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="text-lg sm:text-xl lg:text-2xl font-serif italic text-white/50 mb-6 max-w-2xl mx-auto"
+        >
+          → copy the smartest polymarket traders
+        </motion.p>
+
+        {/* Sub description */}
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="text-sm sm:text-base text-white/35 mb-12 max-w-lg mx-auto leading-relaxed"
+        >
+          Set up your prediction market strategy in under 5 minutes. Official Polymarket builder partner.
+        </motion.p>
+
+        {/* CTA Buttons */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.5 }}
+          className="flex flex-col sm:flex-row items-center justify-center gap-4"
+        >
+          <a
+            href="https://t.me/+i9D5bDox8lNmNDk9"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center px-10 py-4 rounded-sm bg-[#466EFF] text-white font-bold text-sm uppercase tracking-widest hover:bg-[#5A7FFF] transition-all duration-300 glow-primary hover:scale-[1.02]"
+          >
+            Start Trading
+            <svg className="ml-3 w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </a>
+          <a
+            href="https://x.com/tryheyanna"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center px-10 py-4 rounded-sm border border-white/15 hover:border-white/30 text-white/70 font-medium transition-all hover:bg-white/[0.03] text-sm uppercase tracking-widest"
+          >
+            Follow on X
+          </a>
+        </motion.div>
+
+        {/* Trust text */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.7 }}
+          className="text-xs text-white/20 mt-8 tracking-wide"
+        >
+          By signing up, you agree to our <span className="underline underline-offset-2">terms of service</span>
+        </motion.p>
+      </motion.div>
+
+      {/* Bottom curve */}
+      <div className="absolute bottom-0 left-0 right-0 z-20">
+        <svg viewBox="0 0 1440 80" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto" preserveAspectRatio="none">
+          <path d="M0 80V40C360 0 720 10 1080 30C1260 40 1380 50 1440 40V80H0Z" fill="var(--background)" />
         </svg>
       </div>
     </section>

@@ -1,26 +1,26 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Zap, Monitor, Bell, Trophy, TrendingUp, Crosshair, Globe, MessageCircle } from "lucide-react";
+import { Zap, Monitor, Bell, TrendingUp, Crosshair, Globe, Brain, Activity } from "lucide-react";
 
 const tickerItems = [
-    { icon: Zap, text: "Real-time mispricings detected" },
-    { icon: Monitor, text: "All venues. One screen." },
+    { icon: Zap, text: "Real-time signals detected" },
+    { icon: Monitor, text: "All venues. One terminal." },
     { icon: Bell, text: "AI-powered alerts" },
-    { icon: Trophy, text: "Move before the crowd" },
-    { icon: TrendingUp, text: "Edge the market missed" },
+    { icon: TrendingUp, text: "Move before the crowd" },
     { icon: Crosshair, text: "Signal-to-trade in seconds" },
-    { icon: Globe, text: "Cross-platform execution" },
-    { icon: MessageCircle, text: "Telegram-first signals" },
+    { icon: Globe, text: "Cross-platform intelligence" },
+    { icon: Brain, text: "Narrative analysis" },
+    { icon: Activity, text: "Whale activity tracking" },
 ];
 
 export function Ticker() {
     const items = [...tickerItems, ...tickerItems];
 
     return (
-        <div className="relative overflow-hidden py-4 bg-navy-mid border-y border-border/30">
-            <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-navy-mid to-transparent z-10" />
-            <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-navy-mid to-transparent z-10" />
+        <div className="relative overflow-hidden py-4 bg-[#080D1E] border-y border-[#466EFF]/10">
+            <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#0A0F20] to-transparent z-10" />
+            <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#0A0F20] to-transparent z-10" />
 
             <motion.div
                 className="flex gap-8 whitespace-nowrap"
@@ -38,7 +38,7 @@ export function Ticker() {
                         key={i}
                         className="text-sm font-mono text-white/50 flex-shrink-0 inline-flex items-center gap-2"
                     >
-                        <item.icon className="w-3.5 h-3.5 text-blue-primary/70" />
+                        <item.icon className="w-3.5 h-3.5 text-blue-primary/50" />
                         {item.text}
                     </span>
                 ))}

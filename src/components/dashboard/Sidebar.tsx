@@ -39,14 +39,14 @@ export function DashboardSidebar() {
       <div className="p-6 border-b border-border">
         <Link href="/" className="flex items-center gap-2">
           <Image
-            src="/heyanalogo.svg"
-            alt="HeyAna logo"
+            src="/heyannalogo.png"
+            alt="HeyAnna logo"
             width={32}
             height={32}
-            className="w-8 h-8 rounded-lg glow-red"
+            className="w-8 h-8"
           />
           <span className="text-lg font-bold tracking-tight">
-            Hey<span className="text-red-primary">Ana</span>
+            Hey<span className="text-blue-primary">Anna</span>
           </span>
         </Link>
       </div>
@@ -123,14 +123,14 @@ export function DashboardMobileHeader() {
     <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 border-b border-border bg-background/80 backdrop-blur-xl flex items-center justify-between px-4">
       <Link href="/" className="flex items-center gap-2">
         <Image
-          src="/heyanalogo.svg"
-          alt="HeyAna logo"
+          src="/heyannalogo.png"
+          alt="HeyAnna logo"
           width={28}
           height={28}
-          className="w-7 h-7 rounded-lg"
+          className="w-7 h-7"
         />
         <span className="text-base font-bold">
-          Hey<span className="text-red-primary">Ana</span>
+          Hey<span className="text-blue-primary">Anna</span>
         </span>
       </Link>
       <div className="flex items-center gap-2">
