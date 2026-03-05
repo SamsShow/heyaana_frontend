@@ -1,20 +1,41 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
+import Image from "next/image";
+import { useRef } from "react";
 
 export function Hero() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"],
+  });
+
+  // Layered scroll parallax: each layer moves at a different speed.
+  const orb1Y = useTransform(scrollYProgress, [0, 1], [-320, 320]);
+  const orb2Y = useTransform(scrollYProgress, [0, 1], [260, -260]);
+  const orb3Y = useTransform(scrollYProgress, [0, 1], [-180, 180]);
+  const orb2X = useTransform(scrollYProgress, [0, 1], [80, -80]);
+  const orb3X = useTransform(scrollYProgress, [0, 1], [-50, 60]);
+  const gridY = useTransform(scrollYProgress, [0, 1], [0, -90]);
+  const trendLineY = useTransform(scrollYProgress, [0, 1], [140, -140]);
+  const bottomGraphY = useTransform(scrollYProgress, [0, 1], [90, -30]);
+  const contentY = useTransform(scrollYProgress, [0, 1], [0, -130]);
+  const contentScale = useTransform(scrollYProgress, [0, 1], [1, 0.94]);
+
   return (
-    <section className="relative overflow-hidden bg-[#060B1A] min-h-screen flex items-center justify-center">
-      {/* Background gradient orbs — dramatic */}
-      <div className="absolute top-[-200px] left-[-200px] w-[900px] h-[900px] bg-[#466EFF]/[0.06] rounded-full blur-[200px] z-[1]" />
-      <div className="absolute bottom-[-150px] right-[-100px] w-[600px] h-[600px] bg-[#466EFF]/[0.04] rounded-full blur-[160px] z-[1]" />
-      <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-[#FFAA03]/[0.025] rounded-full blur-[120px] z-[1]" />
+    <section ref={sectionRef} className="relative overflow-hidden bg-[#060B1A] min-h-screen flex items-center justify-center">
+      {/* Background gradient orbs — parallax on scroll */}
+      <motion.div style={{ y: orb1Y }} className="absolute top-[-200px] left-[-200px] w-[900px] h-[900px] bg-[#466EFF]/[0.14] rounded-full blur-[180px] z-[1] pointer-events-none will-change-transform" />
+      <motion.div style={{ x: orb2X, y: orb2Y }} className="absolute bottom-[-150px] right-[-100px] w-[700px] h-[700px] bg-[#466EFF]/[0.09] rounded-full blur-[150px] z-[1] pointer-events-none will-change-transform" />
+      <motion.div style={{ x: orb3X, y: orb3Y }} className="absolute top-1/3 right-1/4 w-[450px] h-[450px] bg-[#FFAA03]/[0.07] rounded-full blur-[100px] z-[1] pointer-events-none will-change-transform" />
 
       {/* Subtle grid pattern overlay */}
-      <div className="absolute inset-0 grid-bg opacity-30 z-[2]" />
+      <motion.div style={{ y: gridY }} className="absolute inset-0 grid-bg opacity-30 z-[2]" />
 
       {/* Animated diagonal trend line */}
-      <svg
+      <motion.svg
+        style={{ y: trendLineY }}
         className="absolute inset-0 w-full h-full z-[3]"
         preserveAspectRatio="none"
         viewBox="0 0 1440 900"
@@ -39,21 +60,37 @@ export function Hero() {
           animate={{ pathLength: 1 }}
           transition={{ duration: 3, ease: "easeOut", delay: 0.8 }}
         />
-      </svg>
+      </motion.svg>
 
       {/* Graph lines at bottom */}
-      <svg className="absolute bottom-0 left-0 right-0 h-48 z-[3] opacity-[0.15]" preserveAspectRatio="none" viewBox="0 0 1440 200">
+      <motion.svg style={{ y: bottomGraphY }} className="absolute bottom-0 left-0 right-0 h-48 z-[3] opacity-[0.15]" preserveAspectRatio="none" viewBox="0 0 1440 200">
         <path d="M0 180 Q 200 120, 400 140 T 800 100 T 1200 130 T 1440 80" stroke="#466EFF" strokeWidth="1" fill="none" />
         <path d="M0 160 Q 300 100, 500 130 T 900 90 T 1300 110 T 1440 60" stroke="#FFAA03" strokeWidth="0.8" fill="none" opacity="0.5" />
-      </svg>
+      </motion.svg>
 
       {/* Main content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <motion.div style={{ y: contentY, scale: contentScale }} className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        {/* Logo */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="flex justify-center mb-8"
+        >
+          <Image
+            src="/heyannalogo.png"
+            alt="HeyAnna"
+            width={56}
+            height={56}
+            className="w-12 h-12 sm:w-14 sm:h-14 object-contain"
+          />
+        </motion.div>
+
         {/* Badge */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
           className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#466EFF]/20 bg-[#466EFF]/[0.06] mb-10"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-[#466EFF]/60 animate-pulse-blue" />
@@ -66,13 +103,13 @@ export function Hero() {
         <motion.h1
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.1 }}
+          transition={{ duration: 0.7, delay: 0.2 }}          
           className="leading-[0.9] mb-8"
         >
           <span className="block text-6xl sm:text-8xl lg:text-9xl xl:text-[10rem] font-bold uppercase tracking-tight text-white">
             Trade Before
           </span>
-          <span className="block text-6xl sm:text-8xl lg:text-9xl xl:text-[10rem] font-bold uppercase tracking-tight text-[#466EFF]">
+          <span className="block text-5xl sm:text-7xl lg:text-8xl xl:text-[9rem] font-serif italic font-bold tracking-tight text-[#466EFF]">
             The Crowd.
           </span>
         </motion.h1>
@@ -135,7 +172,7 @@ export function Hero() {
         >
           By signing up, you agree to our <span className="underline underline-offset-2">terms of service</span>
         </motion.p>
-      </div>
+      </motion.div>
 
       {/* Bottom curve */}
       <div className="absolute bottom-0 left-0 right-0 z-20">

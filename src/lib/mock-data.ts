@@ -1,3 +1,13 @@
+// Mock data — used as fallback when APIs are unavailable
+
+export const mockDashboardSummary: Record<string, unknown> = {
+  total_trades: 4821903,
+  total_volume: 52400000000,
+  overall_win_rate: 0.523,
+  avg_excess_return: 0.031,
+  unique_markets: 18420,
+};
+
 // Mock data used by onboarding flow
 
 export const topTraders = [

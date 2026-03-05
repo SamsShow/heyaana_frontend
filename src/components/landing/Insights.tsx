@@ -1,7 +1,8 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import { useRef } from "react";
 
 const articles = [
     {
@@ -28,9 +29,17 @@ const articles = [
 ];
 
 export function Insights() {
+    const sectionRef = useRef<HTMLElement>(null);
+    const { scrollYProgress } = useScroll({
+        target: sectionRef,
+        offset: ["start end", "end start"],
+    });
+    const gridY = useTransform(scrollYProgress, [0, 1], [24, -44]);
+    const cardsY = useTransform(scrollYProgress, [0, 1], [16, -24]);
+
     return (
-        <section id="insights" className="py-24 relative">
-            <div className="absolute inset-0 grid-bg opacity-20" />
+        <section ref={sectionRef} id="insights" className="py-24 relative">
+            <motion.div style={{ y: gridY }} className="absolute inset-0 grid-bg opacity-20" />
 
             <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header */}
@@ -42,10 +51,10 @@ export function Insights() {
                     className="flex flex-col sm:flex-row sm:items-end justify-between mb-12 gap-4"
                 >
                     <div>
-                        <span className="text-sm font-mono text-[#466EFF] uppercase tracking-widest">Insights</span>
+                        <span className="text-sm font-mono text-blue-primary uppercase tracking-widest">Insights</span>
                         <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mt-4 uppercase tracking-tight">
                             <span className="text-white">Intelligence</span>{" "}
-                            <span className="text-[#466EFF]">Feed</span>
+                            <span className="text-blue-primary">Feed</span>
                         </h2>
                     </div>
                     <a
@@ -58,7 +67,7 @@ export function Insights() {
                 </motion.div>
 
                 {/* Article Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <motion.div style={{ y: cardsY }} className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {articles.map((article, i) => (
                         <motion.a
                             key={article.title}
@@ -67,7 +76,7 @@ export function Insights() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.5, delay: i * 0.12 }}
-                            className="glass-card p-6 sm:p-7 group cursor-pointer block"
+                            className="glass-card metal-hover p-6 sm:p-7 group cursor-pointer block"
                         >
                             {/* Category */}
                             <span className={`text-[10px] font-mono uppercase tracking-[0.15em] ${article.categoryColor}`}>
@@ -88,7 +97,7 @@ export function Insights() {
                             <span className="text-xs font-mono text-white/35">{article.readTime}</span>
                         </motion.a>
                     ))}
-                </div>
+                </motion.div>
             </div>
         </section>
     );

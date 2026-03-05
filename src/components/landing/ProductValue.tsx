@@ -1,7 +1,8 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
 import { Activity, Brain, Bell } from "lucide-react";
+import { useRef } from "react";
 
 const features = [
     {
@@ -36,9 +37,17 @@ const features = [
 ];
 
 export function ProductValue() {
+    const sectionRef = useRef<HTMLElement>(null);
+    const { scrollYProgress } = useScroll({
+        target: sectionRef,
+        offset: ["start end", "end start"],
+    });
+    const dotsY = useTransform(scrollYProgress, [0, 1], [30, -45]);
+    const cardsY = useTransform(scrollYProgress, [0, 1], [24, -24]);
+
     return (
-        <section id="features" className="py-24 relative">
-            <div className="absolute inset-0 terminal-dots opacity-30" />
+        <section ref={sectionRef} id="features" className="py-24 relative">
+            <motion.div style={{ y: dotsY }} className="absolute inset-0 terminal-dots opacity-30" />
             <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Section Header */}
                 <motion.div
@@ -59,7 +68,7 @@ export function ProductValue() {
                 </motion.div>
 
                 {/* Feature Cards */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                <motion.div style={{ y: cardsY }} className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
                     {features.map((feature, i) => (
                         <motion.div
                             key={feature.title}
@@ -67,7 +76,7 @@ export function ProductValue() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.5, delay: i * 0.15 }}
-                            className="glass-card p-6 sm:p-7 group"
+                            className="glass-card metal-hover p-6 sm:p-7 group"
                         >
                             {/* Card header */}
                             <div className="flex items-center gap-3 mb-5">
@@ -142,7 +151,7 @@ export function ProductValue() {
                             </div>
                         </motion.div>
                     ))}
-                </div>
+                </motion.div>
             </div>
         </section>
     );

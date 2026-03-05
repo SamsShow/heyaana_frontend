@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { useRef } from "react";
 
 /* Pure CSS/HTML dashboard mockup — no images needed */
 const trendingMarkets = [
@@ -18,10 +19,19 @@ const whaleAlerts = [
 ];
 
 export function ProductDemo() {
+    const sectionRef = useRef<HTMLElement>(null);
+    const { scrollYProgress } = useScroll({
+        target: sectionRef,
+        offset: ["start end", "end start"],
+    });
+    const gridY = useTransform(scrollYProgress, [0, 1], [36, -54]);
+    const glowY = useTransform(scrollYProgress, [0, 1], [-20, 65]);
+    const panelY = useTransform(scrollYProgress, [0, 1], [30, -30]);
+
     return (
-        <section className="py-24 relative overflow-hidden">
-            <div className="absolute inset-0 grid-bg opacity-20" />
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-primary/5 blur-[120px]" />
+        <section ref={sectionRef} className="py-24 relative overflow-hidden">
+            <motion.div style={{ y: gridY }} className="absolute inset-0 grid-bg opacity-20" />
+            <motion.div style={{ y: glowY }} className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-primary/5 blur-[120px]" />
 
             <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Section Header */}
@@ -44,8 +54,9 @@ export function ProductDemo() {
 
                 {/* Dashboard Mockup */}
                 <motion.div
-                    initial={{ opacity: 0, y: 40 }}
-                    whileInView={{ opacity: 1, y: 0 }}
+                    style={{ y: panelY }}
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.7, delay: 0.1 }}
                     className="relative max-w-6xl mx-auto"
@@ -53,7 +64,7 @@ export function ProductDemo() {
                     {/* Outer glow */}
                     <div className="absolute -inset-4 bg-blue-primary/5 blur-2xl" />
 
-                    <div className="relative glass-card rounded-none! overflow-hidden">
+                    <div className="relative glass-card metal-hover rounded-none! overflow-hidden">
                         {/* Terminal header bar */}
                         <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-[#060B1A]/60">
                             <div className="flex items-center gap-2">

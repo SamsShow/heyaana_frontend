@@ -34,7 +34,7 @@ export function AnalysisCard({ endpointName, className = "" }: AnalysisCardProps
 
     if (isLoading) {
         return (
-            <div className={`p-6 rounded-xl border border-border bg-surface/50 h-[400px] flex items-center justify-center ${className}`}>
+            <div className={`glass-card p-6 h-[400px] flex items-center justify-center ${className}`}>
                 <div className="flex flex-col items-center gap-2 text-muted">
                     <Loader2 className="w-8 h-8 animate-spin" />
                     <p className="text-sm font-mono">Loading data...</p>
@@ -45,7 +45,7 @@ export function AnalysisCard({ endpointName, className = "" }: AnalysisCardProps
 
     if (error || !data) {
         return (
-            <div className={`p-6 rounded-xl border border-border bg-surface/50 h-[400px] flex items-center justify-center ${className}`}>
+            <div className={`glass-card p-6 h-[400px] flex items-center justify-center ${className}`}>
                 <div className="flex flex-col items-center gap-2 text-red-500">
                     <p className="text-sm font-mono text-center">Failed to load analysis.</p>
                 </div>
@@ -57,7 +57,7 @@ export function AnalysisCard({ endpointName, className = "" }: AnalysisCardProps
 
     if (!chart || !chart.data || chart.data.length === 0) {
         return (
-            <div className={`p-6 rounded-xl border border-border bg-surface/50 h-[400px] flex items-center justify-center ${className}`}>
+            <div className={`glass-card p-6 h-[400px] flex items-center justify-center ${className}`}>
                 <div className="flex flex-col items-center gap-2 text-muted">
                     <h3 className="text-lg font-semibold text-foreground">{chart?.title || name}</h3>
                     <p className="text-sm font-mono text-center">No chart data available.</p>
@@ -297,7 +297,7 @@ export function AnalysisCard({ endpointName, className = "" }: AnalysisCardProps
     };
 
     return (
-        <div className={`p-6 rounded-xl border border-border bg-surface/50 flex flex-col h-[400px] ${className}`}>
+        <div className={`glass-card shine-effect p-6 flex flex-col h-[400px] ${className}`}>
             <div className="mb-6 flex-shrink-0">
                 <h3 className="text-lg font-semibold">{chart.title || name}</h3>
                 <p className="text-xs text-muted mt-1">{description}</p>

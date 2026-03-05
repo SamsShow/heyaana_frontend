@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import { fetcher, DashboardResponse, refreshCache } from "@/lib/api";
+import { mockDashboardSummary } from "@/lib/mock-data";
 import { Loader2, RefreshCw, Clock, TrendingUp, BarChart3, Activity, Zap } from "lucide-react";
 import { useState } from "react";
 
@@ -51,17 +52,12 @@ export function DashboardSummary() {
         );
     }
 
-    if (error || !data) {
-        return (
-            <div className="p-6 rounded-xl border border-red-500/20 bg-red-500/5 flex items-center justify-center h-[140px]">
-                <p className="text-sm font-mono text-red-400">Failed to load dashboard summary.</p>
-            </div>
-        );
-    }
-
-    const summary = data.summary;
-    const pendingCount = data.pending_analyses?.length ?? 0;
-    const refreshedAt = data.refreshed_at
+    const isMock = (error || !data) && !isLoading;
+    const summary = isMock ? mockDashboardSummary : data!.summary;
+    const pendingCount = isMock ? 0 : (data?.pending_analyses?.length ?? 0);
+    const refreshedAt = isMock
+        ? "Offline — showing sample data"
+        : data?.refreshed_at
         ? new Date(data.refreshed_at).toLocaleString()
         : "Unknown";
 
@@ -82,6 +78,11 @@ export function DashboardSummary() {
                     <div className="flex items-center gap-2 mt-1 text-xs text-muted font-mono">
                         <Clock className="w-3 h-3" />
                         <span>Last updated: {refreshedAt}</span>
+                        {isMock && (
+                            <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                sample
+                            </span>
+                        )}
                         {pendingCount > 0 && (
                             <span className="ml-2 text-amber-400 flex items-center gap-1">
                                 <Loader2 className="w-3 h-3 animate-spin" />
@@ -106,7 +107,7 @@ export function DashboardSummary() {
                     {stats.map((stat) => (
                         <div
                             key={stat.key}
-                            className="p-4 rounded-xl border border-border bg-surface/50 flex flex-col gap-2"
+                            className="glass-card shine-effect p-4 flex flex-col gap-2"
                         >
                             <div className="flex items-center gap-2 text-muted">
                                 {stat.icon}
