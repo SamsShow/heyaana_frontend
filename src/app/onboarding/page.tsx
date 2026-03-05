@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { Suspense, useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -28,7 +28,7 @@ const STEPS = [
   { id: 5, title: "Launch", subtitle: "Start trading" },
 ];
 
-export default function OnboardingPage() {
+function OnboardingPageContent() {
   const [step, setStep] = useState(1);
   const [selectedMarkets, setSelectedMarkets] = useState<string[]>(["Politics", "Crypto", "Tech"]);
   const [riskLevel, setRiskLevel] = useState<"conservative" | "moderate" | "aggressive">("moderate");
@@ -569,5 +569,19 @@ export default function OnboardingPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-muted" />
+        </div>
+      }
+    >
+      <OnboardingPageContent />
+    </Suspense>
   );
 }
