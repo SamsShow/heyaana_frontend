@@ -6,6 +6,10 @@ import { mockDashboardSummary } from "@/lib/mock-data";
 import { Loader2, RefreshCw, Clock, TrendingUp, BarChart3, Activity, Zap } from "lucide-react";
 import { useState } from "react";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function formatNumber(n: unknown): string {
     if (typeof n !== "number") return String(n ?? "—");
     if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -52,9 +56,11 @@ export function DashboardSummary() {
         );
     }
 
-    const isMock = (error || !data) && !isLoading;
-    const summary = isMock ? mockDashboardSummary : data!.summary;
-    const pendingCount = isMock ? 0 : (data?.pending_analyses?.length ?? 0);
+    const apiSummary = isRecord(data?.summary) ? data.summary : null;
+    const hasApiSummary = Boolean(apiSummary && Object.keys(apiSummary).length > 0);
+    const isMock = (error || !hasApiSummary) && !isLoading;
+    const summary = isMock ? mockDashboardSummary : (apiSummary ?? mockDashboardSummary);
+    const pendingCount = isMock ? 0 : (Array.isArray(data?.pending_analyses) ? data.pending_analyses.length : 0);
     const refreshedAt = isMock
         ? "Offline — showing sample data"
         : data?.refreshed_at
@@ -107,7 +113,7 @@ export function DashboardSummary() {
                     {stats.map((stat) => (
                         <div
                             key={stat.key}
-                            className="glass-card shine-effect p-4 flex flex-col gap-2"
+                            className="terminal-card p-4 flex flex-col gap-2"
                         >
                             <div className="flex items-center gap-2 text-muted">
                                 {stat.icon}
