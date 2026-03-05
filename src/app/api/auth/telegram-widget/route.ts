@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const upstream = await fetch(
-      `${API2_BASE_URL}/auth/telegram-widget?${query.toString()}`,
+      `${API2_BASE_URL}/auth/telegram?${query.toString()}`,
       { method: "GET" },
     );
 
