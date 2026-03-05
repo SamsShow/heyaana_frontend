@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const upstream = await fetch(
-      `${API2_BASE_URL}/auth/telegram?${query.toString()}`,
+      `${API2_BASE_URL}/auth/telegram-widget?${query.toString()}`,
       { method: "GET" },
     );
 
@@ -40,22 +40,16 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const contentType = upstream.headers.get("content-type") ?? "";
-    if (!contentType.includes("application/json")) {
-      const body = await upstream.text().catch(() => "");
-      const detail = encodeURIComponent(`Backend returned non-JSON (${upstream.status}): ${body.slice(0, 80)}`);
-      return NextResponse.redirect(
-        new URL(`/onboarding?tg_error=widget_auth_failed&tg_detail=${detail}`, req.url),
-      );
-    }
+    const body = await upstream.text();
 
-    const data = await upstream.json();
-    const token: string | undefined =
-      data.access_token ?? data.token ?? data.jwt;
+    // The backend returns an HTML page showing the JWT — extract it via regex
+    const jwtMatch = body.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/);
+    const token = jwtMatch?.[0];
 
     if (!token) {
+      const detail = encodeURIComponent(`No JWT found in response: ${body.slice(0, 120)}`);
       return NextResponse.redirect(
-        new URL(`/onboarding?tg_error=missing_token`, req.url),
+        new URL(`/onboarding?tg_error=missing_token&tg_detail=${detail}`, req.url),
       );
     }
 

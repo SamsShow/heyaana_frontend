@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import useSWR from "swr";
 import { topTraders } from "@/lib/mock-data";
 import {
   enableCopyTrading,
   disableCopyTrading,
   followTrader,
   unfollowTrader,
+  proxyFetcher,
 } from "@/lib/api";
 import {
   Loader2,
@@ -23,9 +25,24 @@ export function CopyTrading() {
   const { isAuthenticated } = useAuth();
   const [enabled, setEnabled] = useState(false);
   const [togglingEnabled, setTogglingEnabled] = useState(false);
-  const [followed, setFollowed] = useState<Set<number>>(new Set());
-  const [pendingFollow, setPendingFollow] = useState<Set<number>>(new Set());
+  const [pendingFollow, setPendingFollow] = useState<Set<string>>(new Set());
   const [statusMsg, setStatusMsg] = useState<{ ok: boolean; message: string } | null>(null);
+
+  // Load currently-followed traders from the API
+  const { data: followingData, mutate: mutateFollowing } = useSWR<unknown>(
+    isAuthenticated ? "/api/proxy/copy-trading/following" : null,
+    proxyFetcher,
+    { revalidateOnFocus: false },
+  );
+
+  // Derive the set of followed usernames from the API response
+  const followed = new Set<string>(
+    Array.isArray(followingData)
+      ? (followingData as Array<{ leader_username?: string; username?: string }>)
+          .map((f) => f.leader_username ?? f.username ?? "")
+          .filter(Boolean)
+      : [],
+  );
 
   async function handleToggleCopyTrading() {
     setTogglingEnabled(true);
@@ -50,21 +67,16 @@ export function CopyTrading() {
     }
   }
 
-  async function handleFollowToggle(id: number) {
-    setPendingFollow((prev) => new Set(prev).add(id));
+  async function handleFollowToggle(username: string) {
+    setPendingFollow((prev) => new Set(prev).add(username));
     setStatusMsg(null);
     try {
-      if (followed.has(id)) {
-        await unfollowTrader(id);
-        setFollowed((prev) => {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
+      if (followed.has(username)) {
+        await unfollowTrader(username);
       } else {
-        await followTrader(id);
-        setFollowed((prev) => new Set(prev).add(id));
+        await followTrader(username);
       }
+      await mutateFollowing();
     } catch (err) {
       setStatusMsg({
         ok: false,
@@ -73,7 +85,7 @@ export function CopyTrading() {
     } finally {
       setPendingFollow((prev) => {
         const next = new Set(prev);
-        next.delete(id);
+        next.delete(username);
         return next;
       });
     }
@@ -178,8 +190,8 @@ export function CopyTrading() {
 
         <div className="space-y-2">
           {topTraders.map((trader) => {
-            const isFollowing = followed.has(trader.id);
-            const isPending = pendingFollow.has(trader.id);
+            const isFollowing = followed.has(trader.username);
+            const isPending = pendingFollow.has(trader.username);
 
             return (
               <div
@@ -231,7 +243,7 @@ export function CopyTrading() {
 
                   {/* Follow / Unfollow */}
                   <button
-                    onClick={() => handleFollowToggle(trader.id)}
+                    onClick={() => handleFollowToggle(trader.username)}
                     disabled={isPending}
                     className={`shrink-0 min-w-[76px] flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-lg transition-all border disabled:opacity-50 ${
                       isFollowing

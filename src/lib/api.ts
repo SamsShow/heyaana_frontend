@@ -288,22 +288,22 @@ export async function disableCopyTrading(): Promise<unknown> {
     return data;
 }
 
-export async function followTrader(traderId: number | string, allocation?: number): Promise<unknown> {
+export async function followTrader(leaderUsername: string): Promise<unknown> {
     const res = await fetch("/api/proxy/copy-trading/follow", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trader_id: traderId, ...(allocation != null && { allocation }) }),
+        body: JSON.stringify({ leader_username: leaderUsername }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Failed to follow trader");
     return data;
 }
 
-export async function unfollowTrader(traderId: number | string): Promise<unknown> {
+export async function unfollowTrader(leaderUsername: string): Promise<unknown> {
     const res = await fetch("/api/proxy/copy-trading/unfollow", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trader_id: traderId }),
+        body: JSON.stringify({ leader_username: leaderUsername }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Failed to unfollow trader");
