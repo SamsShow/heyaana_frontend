@@ -12,6 +12,7 @@ import {
   Activity,
   Settings,
   Bell,
+  Copy,
   MessageCircle,
   LogOut,
 } from "lucide-react";
@@ -122,8 +123,8 @@ const mobileNavItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Home" },
   { href: "/dashboard/analytics", icon: TrendingUp, label: "Analytics" },
   { href: "/dashboard/markets", icon: Activity, label: "Markets" },
+  { href: "/dashboard/copy-trading", icon: Copy, label: "Copy" },
   { href: "/dashboard/profile", icon: Settings, label: "Profile" },
-  { href: "#", icon: Bell, label: "Alerts" },
 ];
 
 export function MobileTopBar() {

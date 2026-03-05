@@ -272,6 +272,44 @@ export async function postTrade(trade: TradeRequest) {
     return data;
 }
 
+// ─── Copy trading ─────────────────────────────────────────
+
+export async function enableCopyTrading(): Promise<unknown> {
+    const res = await fetch("/api/proxy/copy-trading/enable", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Failed to enable copy trading");
+    return data;
+}
+
+export async function disableCopyTrading(): Promise<unknown> {
+    const res = await fetch("/api/proxy/copy-trading/disable", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Failed to disable copy trading");
+    return data;
+}
+
+export async function followTrader(traderId: number | string, allocation?: number): Promise<unknown> {
+    const res = await fetch("/api/proxy/copy-trading/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trader_id: traderId, ...(allocation != null && { allocation }) }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Failed to follow trader");
+    return data;
+}
+
+export async function unfollowTrader(traderId: number | string): Promise<unknown> {
+    const res = await fetch("/api/proxy/copy-trading/unfollow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trader_id: traderId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Failed to unfollow trader");
+    return data;
+}
+
 // ─── API helper functions ─────────────────────────────────
 
 export async function refreshCache(): Promise<Record<string, string>> {

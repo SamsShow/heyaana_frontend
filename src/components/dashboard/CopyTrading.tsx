@@ -1,0 +1,258 @@
+"use client";
+
+import { useState } from "react";
+import { topTraders } from "@/lib/mock-data";
+import {
+  enableCopyTrading,
+  disableCopyTrading,
+  followTrader,
+  unfollowTrader,
+} from "@/lib/api";
+import {
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Copy,
+  TrendingUp,
+  Zap,
+  Users,
+} from "lucide-react";
+import { useAuth } from "@/lib/useAuth";
+
+export function CopyTrading() {
+  const { isAuthenticated } = useAuth();
+  const [enabled, setEnabled] = useState(false);
+  const [togglingEnabled, setTogglingEnabled] = useState(false);
+  const [followed, setFollowed] = useState<Set<number>>(new Set());
+  const [pendingFollow, setPendingFollow] = useState<Set<number>>(new Set());
+  const [statusMsg, setStatusMsg] = useState<{ ok: boolean; message: string } | null>(null);
+
+  async function handleToggleCopyTrading() {
+    setTogglingEnabled(true);
+    setStatusMsg(null);
+    try {
+      if (enabled) {
+        await disableCopyTrading();
+        setEnabled(false);
+        setStatusMsg({ ok: true, message: "Copy trading disabled." });
+      } else {
+        await enableCopyTrading();
+        setEnabled(true);
+        setStatusMsg({ ok: true, message: "Copy trading enabled!" });
+      }
+    } catch (err) {
+      setStatusMsg({
+        ok: false,
+        message: err instanceof Error ? err.message : "Failed",
+      });
+    } finally {
+      setTogglingEnabled(false);
+    }
+  }
+
+  async function handleFollowToggle(id: number) {
+    setPendingFollow((prev) => new Set(prev).add(id));
+    setStatusMsg(null);
+    try {
+      if (followed.has(id)) {
+        await unfollowTrader(id);
+        setFollowed((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      } else {
+        await followTrader(id);
+        setFollowed((prev) => new Set(prev).add(id));
+      }
+    } catch (err) {
+      setStatusMsg({
+        ok: false,
+        message: err instanceof Error ? err.message : "Request failed",
+      });
+    } finally {
+      setPendingFollow((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-muted">
+        <Copy className="w-8 h-8 mb-3 opacity-30" />
+        <p className="text-sm font-mono">Log in to use copy trading</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Enable / disable toggle */}
+      <div className="rounded-xl border border-border bg-surface/50 p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold">Copy Trading</h2>
+            <p className="text-xs text-muted mt-0.5">
+              {enabled
+                ? "Active — mirroring selected traders"
+                : "Inactive — enable to mirror top traders"}
+            </p>
+          </div>
+          <button
+            onClick={handleToggleCopyTrading}
+            disabled={togglingEnabled}
+            aria-pressed={enabled}
+            aria-label={enabled ? "Disable copy trading" : "Enable copy trading"}
+            className={`relative inline-flex items-center h-7 rounded-full transition-colors disabled:opacity-50 ${
+              enabled ? "bg-emerald-500" : "bg-surface-hover border border-border"
+            }`}
+            style={{ width: "3.25rem" }}
+          >
+            {togglingEnabled ? (
+              <Loader2 className="w-4 h-4 animate-spin mx-auto text-muted" />
+            ) : (
+              <span
+                className={`inline-block w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                  enabled ? "translate-x-7" : "translate-x-1"
+                }`}
+              />
+            )}
+          </button>
+        </div>
+
+        {statusMsg && (
+          <div
+            className={`mt-3 flex items-center gap-2 text-xs font-mono px-3 py-2 rounded-lg ${
+              statusMsg.ok
+                ? "bg-emerald-500/10 text-emerald-400"
+                : "bg-red-500/10 text-red-400"
+            }`}
+          >
+            {statusMsg.ok ? (
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 shrink-0" />
+            )}
+            {statusMsg.message}
+          </div>
+        )}
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-xl border border-border bg-surface/30 p-4">
+          <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1">
+            Following
+          </div>
+          <div className="text-xl font-bold font-mono">{followed.size}</div>
+        </div>
+        <div className="rounded-xl border border-border bg-surface/30 p-4">
+          <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1">
+            Status
+          </div>
+          <div
+            className={`text-sm font-bold font-mono ${
+              enabled ? "text-emerald-400" : "text-muted"
+            }`}
+          >
+            {enabled ? "Active" : "Off"}
+          </div>
+        </div>
+        <div className="rounded-xl border border-border bg-surface/30 p-4">
+          <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1">
+            Traders
+          </div>
+          <div className="text-xl font-bold font-mono">{topTraders.length}</div>
+        </div>
+      </div>
+
+      {/* Traders list */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <Users className="w-4 h-4 text-muted" />
+          <h3 className="text-sm font-semibold">Top Traders</h3>
+        </div>
+
+        <div className="space-y-2">
+          {topTraders.map((trader) => {
+            const isFollowing = followed.has(trader.id);
+            const isPending = pendingFollow.has(trader.id);
+
+            return (
+              <div
+                key={trader.id}
+                className={`rounded-xl border p-4 transition-all ${
+                  isFollowing
+                    ? "border-blue-primary/30 bg-blue-primary/5"
+                    : "border-border bg-surface/30"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  {/* Avatar */}
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-primary/30 to-purple-500/30 flex items-center justify-center text-xs font-bold font-mono shrink-0">
+                    {trader.avatar}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold truncate">{trader.name}</span>
+                      {trader.streak > 5 && (
+                        <span className="text-[10px] bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded font-mono flex items-center gap-0.5">
+                          <Zap className="w-2.5 h-2.5" />
+                          {trader.streak}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                      <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-0.5">
+                        <TrendingUp className="w-3 h-3" />
+                        {trader.winRate}% win
+                      </span>
+                      <span className="text-[10px] font-mono text-muted">{trader.pnl}</span>
+                      <span className="text-[10px] font-mono text-muted">
+                        {trader.trades} trades
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 mt-1 flex-wrap">
+                      {trader.markets.map((m) => (
+                        <span
+                          key={m}
+                          className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-surface-hover text-muted border border-border/50"
+                        >
+                          {m}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Follow / Unfollow */}
+                  <button
+                    onClick={() => handleFollowToggle(trader.id)}
+                    disabled={isPending}
+                    className={`shrink-0 min-w-[76px] flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-lg transition-all border disabled:opacity-50 ${
+                      isFollowing
+                        ? "border-red-500/30 text-red-400 hover:bg-red-500/10"
+                        : "border-blue-primary/30 text-blue-primary hover:bg-blue-primary/10"
+                    }`}
+                  >
+                    {isPending ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : isFollowing ? (
+                      "Unfollow"
+                    ) : (
+                      "Follow"
+                    )}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
