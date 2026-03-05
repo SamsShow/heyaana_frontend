@@ -40,6 +40,15 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const contentType = upstream.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
+      const body = await upstream.text().catch(() => "");
+      const detail = encodeURIComponent(`Backend returned non-JSON (${upstream.status}): ${body.slice(0, 80)}`);
+      return NextResponse.redirect(
+        new URL(`/onboarding?tg_error=widget_auth_failed&tg_detail=${detail}`, req.url),
+      );
+    }
+
     const data = await upstream.json();
     const token: string | undefined =
       data.access_token ?? data.token ?? data.jwt;
