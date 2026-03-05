@@ -8,7 +8,11 @@ export async function GET(
 ) {
   const { marketId } = await params;
   try {
-    const res = await fetch(`${API2_BASE_URL}/markets/${marketId}`);
+    const isNumericId = /^\d+$/.test(marketId);
+    const upstreamPath = isNumericId
+      ? `/markets/${marketId}`
+      : `/markets/by-condition/${encodeURIComponent(marketId)}`;
+    const res = await fetch(`${API2_BASE_URL}${upstreamPath}`);
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch (err) {

@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import { fetcher, Market, Trade } from "@/lib/api";
+import { fetcher, Market, normalizeMarket, Trade } from "@/lib/api";
 import { parseMarketTitle } from "@/lib/market-title";
 import { Loader2, X, Clock, Volume2, BarChart3, ArrowUpRight, ArrowDownRight } from "lucide-react";
 
@@ -20,11 +20,12 @@ function formatTime(iso: string): string {
 }
 
 export function MarketDetail({ ticker, onClose }: MarketDetailProps) {
-    const { data: market, isLoading: loadingMarket } = useSWR<Market>(
-        `/market/${ticker}`,
+    const { data: marketRaw, isLoading: loadingMarket } = useSWR<Market>(
+        `/api/proxy/markets/${encodeURIComponent(ticker)}`,
         fetcher,
         { revalidateOnFocus: false }
     );
+    const market = marketRaw ? normalizeMarket(marketRaw) : null;
 
     const { data: trades, isLoading: loadingTrades } = useSWR<Trade[]>(
         `/market/${ticker}/trades?limit=50`,

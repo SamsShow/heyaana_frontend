@@ -8,7 +8,7 @@ import { PriceChart } from "@/components/dashboard/market/PriceChart";
 import { TradePanel } from "@/components/dashboard/market/TradePanel";
 import { PositionCard } from "@/components/dashboard/market/PositionCard";
 import { MarketTabs } from "@/components/dashboard/market/MarketTabs";
-import { fetcher, formatVolume, Market, Trade } from "@/lib/api";
+import { fetcher, formatVolume, Market, normalizeMarket, Trade } from "@/lib/api";
 import { parseMarketTitle } from "@/lib/market-title";
 import {
   ChevronLeft,
@@ -46,11 +46,12 @@ export default function MarketDetailPage({
   const { ticker } = use(params);
   const decodedTicker = decodeURIComponent(ticker);
 
-  const { data: market, isLoading: loadingMarket } = useSWR<Market>(
-    `/market/${decodedTicker}`,
+  const { data: marketRaw, isLoading: loadingMarket } = useSWR<Market>(
+    `/api/proxy/markets/${encodeURIComponent(decodedTicker)}`,
     fetcher,
     { revalidateOnFocus: false },
   );
+  const market = marketRaw ? normalizeMarket(marketRaw) : null;
 
   const {
     data: trades,

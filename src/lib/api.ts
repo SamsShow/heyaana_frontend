@@ -1,7 +1,10 @@
 const API_BASE_URL = "https://api.heyanna.trade/api/v1";
 
 export async function fetcher(url: string) {
-    const res = await fetch(url.startsWith("http") ? url : `${API_BASE_URL}${url}`);
+    const requestUrl = url.startsWith("http") || url.startsWith("/api/")
+        ? url
+        : `${API_BASE_URL}${url}`;
+    const res = await fetch(requestUrl);
     if (!res.ok) {
         const error = new Error("An error occurred while fetching the data.");
         error.name = await res.text();
@@ -55,6 +58,7 @@ export type DashboardResponse = {
 // ─── Market types ─────────────────────────────────────────
 
 export type Market = {
+    id?: number;
     ticker: string;
     event_ticker: string;
     market_type: string;
@@ -157,6 +161,85 @@ export type Api2Market = {
     }>;
     [key: string]: unknown;
 };
+
+type RawMarket = Partial<Market> &
+  Partial<Api2Market> & {
+    event_title?: string;
+    outcomes?: string[];
+    odds_cents?: Record<string, number>;
+  };
+
+function toNumber(value: unknown): number | null {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string") {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+}
+
+function readOdds(odds: Record<string, number> | undefined, key: "yes" | "no"): number | null {
+    if (!odds) return null;
+    const direct = odds[key] ?? odds[key.toUpperCase()] ?? odds[key[0].toUpperCase() + key.slice(1)];
+    return toNumber(direct);
+}
+
+export function normalizeMarket(raw: RawMarket): Market {
+    const yesFromOdds = readOdds(raw.odds_cents, "yes");
+    const noFromOdds = readOdds(raw.odds_cents, "no");
+    const yesBid = toNumber(raw.yes_bid) ?? toNumber(raw.yes_price) ?? yesFromOdds;
+    const noBid = toNumber(raw.no_bid) ?? toNumber(raw.no_price) ?? noFromOdds;
+    const lastPrice = toNumber(raw.last_price) ?? yesBid;
+    const computedNo = noBid ?? (lastPrice !== null ? Math.max(0, 100 - lastPrice) : null);
+
+    const ticker =
+        raw.ticker ??
+        raw.slug ??
+        raw.condition_id ??
+        (raw.id != null ? String(raw.id) : null) ??
+        (toNumber((raw as { market_id?: unknown }).market_id) != null
+            ? String(toNumber((raw as { market_id?: unknown }).market_id))
+            : null) ??
+        "UNKNOWN";
+    const eventTicker =
+        raw.event_ticker ??
+        raw.event_title ??
+        raw.category ??
+        "UNKNOWN";
+    const title =
+        raw.question ??
+        raw.title ??
+        raw.event_title ??
+        ticker;
+    const status =
+        raw.status ??
+        (raw.closed ? "closed" : raw.active === false ? "closed" : "open");
+    const yesSubtitle = raw.yes_sub_title ?? raw.outcomes?.[0] ?? "Yes";
+    const noSubtitle = raw.no_sub_title ?? raw.outcomes?.[1] ?? "No";
+
+    return {
+        id: toNumber(raw.id) ?? toNumber((raw as { market_id?: unknown }).market_id) ?? undefined,
+        ticker,
+        event_ticker: eventTicker,
+        market_type: raw.market_type ?? "binary",
+        title,
+        yes_sub_title: yesSubtitle,
+        no_sub_title: noSubtitle,
+        status,
+        yes_bid: yesBid,
+        yes_ask: toNumber(raw.yes_ask) ?? yesBid,
+        no_bid: computedNo,
+        no_ask: toNumber(raw.no_ask) ?? computedNo,
+        last_price: lastPrice,
+        volume: toNumber(raw.volume) ?? 0,
+        volume_24h: toNumber(raw.volume_24h) ?? 0,
+        open_interest: toNumber(raw.open_interest) ?? toNumber(raw.liquidity) ?? 0,
+        result: raw.result ?? raw.outcome ?? "",
+        created_time: raw.created_time ?? null,
+        open_time: raw.open_time ?? null,
+        close_time: raw.close_time ?? raw.end_date ?? null,
+    };
+}
 
 // ─── Trade request ────────────────────────────────────────
 

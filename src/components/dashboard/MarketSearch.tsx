@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
-import { fetcher, formatVolume, Market } from "@/lib/api";
+import { fetcher, formatVolume, Market, normalizeMarket } from "@/lib/api";
 import { parseMarketTitle } from "@/lib/market-title";
 import { Search, Loader2, TrendingUp, Flame, Zap } from "lucide-react";
 
@@ -44,23 +44,27 @@ export function MarketSearch({
 
     const isSearching = debouncedQuery.length > 0;
 
-    // Always use api1 search — either user query or category preset keyword
+    // Use api2 proxy endpoints — search query or trending fallback
     const activeQuery = isSearching
         ? debouncedQuery
         : (CATEGORIES.find((c) => c.id === activeCategory)?.query ?? "");
+    const endpoint = activeQuery
+        ? `/api/proxy/markets/search?q=${encodeURIComponent(activeQuery)}`
+        : "/api/proxy/markets/trending";
 
     const { data, isLoading } = useSWR<
         { markets?: Market[]; results?: Market[] } | Market[]
     >(
-        `/market/search?query=${encodeURIComponent(activeQuery)}&limit=20`,
+        endpoint,
         fetcher,
         { revalidateOnFocus: false },
     );
 
     // Normalize response shape
-    const markets: Market[] = Array.isArray(data)
+    const rawMarkets: Market[] = Array.isArray(data)
         ? data
         : (data?.results ?? data?.markets ?? []);
+    const markets: Market[] = rawMarkets.map((m) => normalizeMarket(m));
 
     const handleSelect = useCallback(
         (ticker: string) => {
