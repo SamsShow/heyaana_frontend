@@ -87,7 +87,7 @@ function OnboardingPageContent() {
             ? "Telegram auth response missing token."
             : tgError === "internal_error"
               ? "Server error during Telegram auth. Please try again or use Dev Login below."
-              : "Telegram login failed. Please try again.";
+              : `Telegram login failed (${tgError}). Please try again.`;
     setLoginError(readable);
   }, [searchParams]);
 

@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 import { useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   loginTelegram,
   loginManual as loginManualApi,
@@ -20,12 +20,17 @@ async function meFetcher(url: string): Promise<UserProfile | null> {
 
 export function useAuth() {
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Don't probe /me on unauthenticated pages — avoids a noisy 401 in the console
+  const skipFetch = pathname === "/" || pathname === "/onboarding";
+
   const {
     data: user,
     error,
     isLoading,
     mutate,
-  } = useSWR<UserProfile | null>(ME_KEY, meFetcher, {
+  } = useSWR<UserProfile | null>(skipFetch ? null : ME_KEY, meFetcher, {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
   });
