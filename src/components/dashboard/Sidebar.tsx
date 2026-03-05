@@ -4,24 +4,20 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
+import { WalletConnect } from "@/components/dashboard/WalletConnect";
 import {
   LayoutDashboard,
   TrendingUp,
-  Users,
-  ShieldCheck,
   Activity,
   Settings,
   Bell,
   MessageCircle,
-  Home,
 } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
-  { href: "/dashboard#markets", icon: TrendingUp, label: "Markets" },
-  { href: "/dashboard#traders", icon: Users, label: "Traders" },
-  { href: "/dashboard#trades", icon: Activity, label: "Active Trades" },
-  { href: "/dashboard#risk", icon: ShieldCheck, label: "Risk Control" },
+  { href: "/dashboard#analytics", icon: TrendingUp, label: "Analytics" },
+  { href: "/dashboard#markets", icon: Activity, label: "Markets" },
 ];
 
 const bottomItems = [
@@ -118,27 +114,62 @@ export function DashboardSidebar() {
   );
 }
 
-export function DashboardMobileHeader() {
+const mobileNavItems = [
+  { href: "/dashboard", icon: LayoutDashboard, label: "Home" },
+  { href: "/dashboard#analytics", icon: TrendingUp, label: "Analytics" },
+  { href: "/dashboard#markets", icon: Activity, label: "Markets" },
+  { href: "#", icon: Bell, label: "Alerts" },
+  { href: "#", icon: Settings, label: "Settings" },
+];
+
+export function MobileTopBar() {
   return (
-    <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 border-b border-border bg-background/80 backdrop-blur-xl flex items-center justify-between px-4">
+    <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-12 border-b border-border bg-background/80 backdrop-blur-xl flex items-center justify-between px-4">
       <Link href="/" className="flex items-center gap-2">
         <Image
           src="/heyannalogo.png"
           alt="HeyAnna logo"
-          width={28}
-          height={28}
-          className="w-7 h-7"
+          width={24}
+          height={24}
+          className="w-6 h-6"
         />
-        <span className="text-base font-bold">
+        <span className="text-sm font-bold">
           Hey<span className="text-blue-primary">Anna</span>
         </span>
       </Link>
       <div className="flex items-center gap-2">
-        <Link href="/" className="p-2 rounded-lg border border-border hover:bg-surface transition-all">
-          <Home className="w-4 h-4 text-muted" />
-        </Link>
+        <WalletConnect compact />
         <ThemeToggle />
       </div>
     </div>
   );
+}
+
+export function MobileBottomNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav className="lg:hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-3 py-2 rounded-2xl border border-border bg-background/80 backdrop-blur-xl shadow-lg shadow-black/30">
+      {mobileNavItems.map((item) => {
+        const isActive = pathname === item.href;
+        return (
+          <Link
+            key={item.label}
+            href={item.href}
+            className={`flex flex-col items-center gap-1 px-3.5 py-1.5 rounded-xl transition-all ${
+              isActive ? "bg-surface text-foreground" : "text-muted hover:text-foreground"
+            }`}
+          >
+            <item.icon className={`w-5 h-5 ${isActive ? "text-blue-primary" : ""}`} />
+            <span className="text-[9px] font-mono">{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+/** @deprecated Use MobileTopBar + MobileBottomNav instead */
+export function DashboardMobileHeader() {
+  return <MobileTopBar />;
 }

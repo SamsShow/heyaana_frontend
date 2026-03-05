@@ -72,14 +72,23 @@ export function Navbar() {
           </div>
 
           {/* CTA */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-2">
             <a
               href="https://t.me/+i9D5bDox8lNmNDk9"
               target="_blank"
               rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-full border border-white/15 hover:border-[#26A5E4]/50 text-white/60 hover:text-[#26A5E4] transition-all hover:bg-[#26A5E4]/[0.06]"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.919l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.978.64z"/>
+              </svg>
+              Telegram
+            </a>
+            <a
+              href="/dashboard"
               className="text-sm px-5 py-2 rounded-full bg-blue-primary text-white font-medium hover:bg-blue-dark transition-all glow-blue"
             >
-              Get Early Access
+              Start Trading
             </a>
           </div>
 
@@ -110,10 +119,20 @@ export function Navbar() {
                 href="https://t.me/+i9D5bDox8lNmNDk9"
                 target="_blank"
                 rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 flex-1 text-center text-sm px-4 py-2 rounded-full border border-white/15 text-white/60 hover:text-[#26A5E4]"
+                onClick={() => setMobileOpen(false)}
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.919l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.978.64z"/>
+                </svg>
+                Telegram
+              </a>
+              <a
+                href="/dashboard"
                 className="flex-1 text-center text-sm px-4 py-2 rounded-full bg-blue-primary text-white font-medium"
                 onClick={() => setMobileOpen(false)}
               >
-                Get Early Access
+                Start Trading
               </a>
             </div>
           </div>

@@ -34,11 +34,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
 
   if (!mounted) {
-    return (
-      <html lang="en" className="dark">
-        <body className="antialiased bg-background text-foreground">{children}</body>
-      </html>
-    );
+    return <>{children}</>;
   }
 
   return (

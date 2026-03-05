@@ -32,10 +32,10 @@ export function ProductDemo() {
                     transition={{ duration: 0.5 }}
                     className="text-center mb-12"
                 >
-                    <span className="text-sm font-display text-blue-light uppercase tracking-widest">Product</span>
+                    <span className="text-sm font-mono text-gold-accent uppercase tracking-widest">Product</span>
                     <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mt-4 mb-5 uppercase tracking-tight">
                         <span className="text-white">Everything.</span>{" "}
-                        <span className="accent-blue">One Terminal.</span>
+                        <span className="text-blue-primary">One Terminal.</span>
                     </h2>
                     <p className="text-white/50 max-w-2xl mx-auto text-base sm:text-lg">
                         Instead of scanning Twitter, markets, and news feeds manually, HeyAnna surfaces the highest-signal information automatically.
@@ -106,7 +106,7 @@ export function ProductDemo() {
                                                     <td className="py-2.5 pr-4 text-xs font-mono text-white/40 hidden sm:table-cell">{m.volume}</td>
                                                     <td className="py-2.5">
                                                         <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full ${m.signal === "strong" ? "bg-green-500/15 text-green-400 border border-green-500/20" :
-                                                                m.signal === "moderate" ? "bg-blue-light/15 text-blue-light border border-blue-light/20" :
+                                                                m.signal === "moderate" ? "bg-gold-accent/15 text-gold-accent border border-gold-accent/20" :
                                                                     "bg-white/5 text-white/30 border border-white/10"
                                                             }`}>
                                                             {m.signal.toUpperCase()}
@@ -123,7 +123,7 @@ export function ProductDemo() {
                             <div className="terminal-card p-4 sm:p-5">
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-light" />
+                                        <span className="w-1.5 h-1.5 rounded-full bg-gold-accent" />
                                         Whale Activity
                                     </h3>
                                     <span className="text-[10px] font-mono text-white/30">REAL-TIME</span>
@@ -147,7 +147,7 @@ export function ProductDemo() {
                                                 <div className="text-xs text-white/60 truncate">{alert.market}</div>
                                                 <div className="flex items-center gap-2 mt-0.5">
                                                     <span className="text-[10px] font-mono text-white/30">{alert.wallet}</span>
-                                                    <span className="text-[10px] font-mono text-blue-light">{alert.amount}</span>
+                                                    <span className="text-[10px] font-mono text-gold-accent">{alert.amount}</span>
                                                 </div>
                                             </div>
                                             <span className="text-[9px] text-white/20 font-mono">{alert.time}</span>
@@ -180,7 +180,7 @@ export function ProductDemo() {
                                                         className="h-full rounded-full"
                                                         style={{
                                                             background: values[i] > 80
-                                                                ? "linear-gradient(90deg, #466EFF, #a5baff)"
+                                                                ? "linear-gradient(90deg, #466EFF, #FFAA03)"
                                                                 : values[i] > 60
                                                                     ? "linear-gradient(90deg, #466EFF, #7F9CFF)"
                                                                     : "linear-gradient(90deg, #3458D6, #466EFF)"

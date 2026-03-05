@@ -34,7 +34,7 @@ export function IntelligenceEdge() {
                             viewport={{ once: true }}
                             transition={{ duration: 0.5, delay: 0.2 }}
                         >
-                            <span className="text-sm font-display text-blue-light uppercase tracking-widest">Intelligence Edge</span>
+                            <span className="text-sm font-mono text-gold-accent uppercase tracking-widest">Intelligence Edge</span>
 
                             <h2 className="text-4xl sm:text-5xl lg:text-7xl font-bold mt-4 mb-6 leading-tight uppercase tracking-tight">
                                 <span className="text-white">Move With</span>

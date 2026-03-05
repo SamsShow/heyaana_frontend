@@ -27,7 +27,9 @@ const steps = [
 export function HowItWorks() {
   return (
     <section id="how-it-works" className="py-24 relative overflow-hidden">
-      <div className="absolute inset-0 terminal-dots opacity-15" />
+      <div className="absolute inset-0 bg-[#060B1A]" />
+      <div className="absolute inset-0 radial-fade opacity-60" />
+      <div className="absolute inset-0 terminal-dots opacity-20" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
@@ -38,10 +40,10 @@ export function HowItWorks() {
           transition={{ duration: 0.5 }}
           className="text-center mb-16"
         >
-          <span className="text-sm font-display text-blue-primary uppercase tracking-widest">How It Works</span>
+          <span className="text-sm font-mono text-blue-primary uppercase tracking-widest">How It Works</span>
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mt-4 mb-5 uppercase tracking-tight text-white">
             <span>From Signal to</span>{" "}
-            <span className="accent-blue">Edge</span>
+            <span className="text-blue-primary">Edge</span>
           </h2>
           <p className="text-white/50 max-w-xl mx-auto text-base sm:text-lg">
             Three steps to staying ahead of every prediction market.

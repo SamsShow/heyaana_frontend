@@ -19,7 +19,7 @@ const features = [
         icon: Brain,
         title: "AI Market Intelligence",
         description: "Our AI analyzes market movements, narratives, and liquidity shifts to surface the highest-signal opportunities.",
-        accent: "blue",
+        accent: "gold",
         bars: [85, 62, 91, 45, 78, 95, 67, 88],
     },
     {
@@ -48,10 +48,10 @@ export function ProductValue() {
                     transition={{ duration: 0.5 }}
                     className="text-center mb-16"
                 >
-                    <span className="text-sm font-display text-blue-primary uppercase tracking-widest">Features</span>
+                    <span className="text-sm font-mono text-blue-primary uppercase tracking-widest">Features</span>
                     <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mt-4 mb-5 uppercase tracking-tight">
                         <span className="text-white">Simplify</span>{" "}
-                        <span className="accent-blue">Trading</span>
+                        <span className="text-blue-primary">Trading</span>
                     </h2>
                     <p className="text-white/50 max-w-xl mx-auto text-base sm:text-lg">
                         Everything you need to find, analyze, and act on prediction market signals.
@@ -71,7 +71,10 @@ export function ProductValue() {
                         >
                             {/* Card header */}
                             <div className="flex items-center gap-3 mb-5">
-                                <div className="p-2.5 transition-all duration-300 bg-blue-primary/10 text-blue-primary group-hover:bg-blue-primary group-hover:text-white group-hover:shadow-lg group-hover:shadow-blue-primary/20">
+                                <div className={`p-2.5 rounded-xl transition-all duration-300 ${feature.accent === "gold"
+                                        ? "bg-gold-accent/10 text-gold-accent group-hover:bg-gold-accent group-hover:text-white group-hover:shadow-lg group-hover:shadow-gold-accent/20"
+                                        : "bg-blue-primary/10 text-blue-primary group-hover:bg-blue-primary group-hover:text-white group-hover:shadow-lg group-hover:shadow-blue-primary/20"
+                                    }`}>
                                     <feature.icon className="w-5 h-5" />
                                 </div>
                                 <h3 className="text-lg font-bold text-white uppercase tracking-wide">{feature.title}</h3>
@@ -110,7 +113,7 @@ export function ProductValue() {
                                                 className="flex-1 rounded-sm origin-bottom"
                                                 style={{
                                                     height: `${h}%`,
-                                                    background: h > 80 ? "#466EFF" : "rgba(70,110,255,0.5)",
+                                                    background: h > 80 ? "linear-gradient(to top, #FFAA03, #FFD066)" : "linear-gradient(to top, #466EFF, #7F9CFF)",
                                                     opacity: 0.7,
                                                 }}
                                             />
@@ -122,8 +125,8 @@ export function ProductValue() {
                                     <div className="space-y-2">
                                         {feature.alerts.map((alert) => (
                                             <div key={alert.text} className="flex items-start gap-2">
-                                                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded mt-0.5 ${alert.type === "WHALE" ? "bg-blue-primary/20 text-blue-light" :
-                                                        alert.type === "SIGNAL" ? "bg-blue-dark/30 text-blue-light" :
+                                                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded mt-0.5 ${alert.type === "WHALE" ? "bg-gold-accent/20 text-gold-accent" :
+                                                        alert.type === "SIGNAL" ? "bg-blue-primary/20 text-blue-light" :
                                                             "bg-green-500/20 text-green-400"
                                                     }`}>
                                                     {alert.type}

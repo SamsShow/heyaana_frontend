@@ -6,7 +6,7 @@ import { ArrowRight } from "lucide-react";
 const articles = [
     {
         category: "Prediction Markets",
-        categoryColor: "text-blue-light",
+        categoryColor: "text-gold-accent",
         title: "How Prediction Markets Work",
         description: "Understand the mechanics behind prediction markets. Learn how odds form, how trading works, and why these markets matter.",
         readTime: "9 min read",
@@ -20,7 +20,7 @@ const articles = [
     },
     {
         category: "Market Analysis",
-        categoryColor: "text-blue-light",
+        categoryColor: "text-gold-accent",
         title: "Understanding Market Narratives",
         description: "How narratives move prediction markets, and how to detect when a narrative shift is about to create an opportunity.",
         readTime: "8 min read",
@@ -42,10 +42,10 @@ export function Insights() {
                     className="flex flex-col sm:flex-row sm:items-end justify-between mb-12 gap-4"
                 >
                     <div>
-                        <span className="text-sm font-display text-blue-primary uppercase tracking-widest">Insights</span>
+                        <span className="text-sm font-mono text-[#466EFF] uppercase tracking-widest">Insights</span>
                         <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mt-4 uppercase tracking-tight">
                             <span className="text-white">Intelligence</span>{" "}
-                            <span className="accent-blue">Feed</span>
+                            <span className="text-[#466EFF]">Feed</span>
                         </h2>
                     </div>
                     <a
