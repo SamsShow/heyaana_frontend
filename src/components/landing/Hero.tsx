@@ -116,7 +116,7 @@ export function Hero() {
           <span className="flex items-center justify-center gap-3 sm:gap-5 lg:gap-7 text-6xl sm:text-8xl lg:text-9xl xl:text-[10rem] font-bold uppercase tracking-tight accent-blue">
             <span>The</span>
             <span className="inline-flex items-center justify-center shrink-0"
-              style={{ width: "0.75em", height: "0.75em" }}>
+              style={{ width: "1em", height: "1em" }}>
               <Image
                 src="/heyannalogo.png"
                 alt="HeyAnna"
