@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
@@ -37,10 +37,15 @@ export default function OnboardingPage() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [devUserId, setDevUserId] = useState("1");
+  const [currentHostname, setCurrentHostname] = useState<string | null>(null);
   const telegramRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
-  const { isAuthenticated, loginManual } = useAuth();
+  const searchParams = useSearchParams();
+  const { isAuthenticated, loginManual, login } = useAuth();
+  const telegramBotUsername = (
+    process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? "heyanna_ai_bot"
+  ).replace(/^@/, "");
 
   const next = () => setStep((s) => Math.min(s + 1, 5));
   const prev = () => setStep((s) => Math.max(s - 1, 1));
@@ -64,6 +69,61 @@ export default function OnboardingPage() {
     }
   }, [isAuthenticated, router]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCurrentHostname(window.location.hostname);
+    }
+  }, []);
+
+  useEffect(() => {
+    const tgError = searchParams.get("tg_error");
+    if (!tgError) return;
+    const readable =
+      tgError === "missing_hash"
+        ? "Telegram widget payload missing hash."
+        : tgError === "widget_auth_failed"
+          ? "Telegram widget auth failed. Check bot domain + username."
+          : tgError === "missing_token"
+            ? "Telegram auth response missing token."
+            : "Telegram login failed. Please try again.";
+    setLoginError(readable);
+  }, [searchParams]);
+
+  // If opened inside Telegram Mini App, prefer secure initData auth.
+  useEffect(() => {
+    if (step !== 1) return;
+    if (typeof window === "undefined") return;
+    const telegram = (
+      window as Window & {
+        Telegram?: { WebApp?: { initData?: string } };
+      }
+    ).Telegram;
+    const initData = telegram?.WebApp?.initData;
+    if (!initData) return;
+
+    let cancelled = false;
+    (async () => {
+      setLoginLoading(true);
+      setLoginError(null);
+      try {
+        await login(initData);
+        if (!cancelled) next();
+      } catch (err) {
+        if (!cancelled) {
+          setLoginError(
+            err instanceof Error ? err.message : "Telegram Mini App login failed",
+          );
+        }
+      } finally {
+        if (!cancelled) setLoginLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [step, login]);
+
   // Handle dev login
   const handleDevLogin = useCallback(async () => {
     setLoginLoading(true);
@@ -81,44 +141,27 @@ export default function OnboardingPage() {
   // Load Telegram Login Widget script
   useEffect(() => {
     if (step !== 1 || !telegramRef.current) return;
+    if (!telegramBotUsername) return;
 
     // Clear previous widget
     telegramRef.current.innerHTML = "";
 
-    // Expose callback on window for the Telegram widget
-    (window as unknown as Record<string, unknown>).__onTelegramAuth = async (user: Record<string, unknown>) => {
-      // The widget callback receives user data — we need to send it to our backend
-      // For the widget flow, the backend handles verification at /auth/telegram-widget
-      // We'll construct init_data from the widget response
-      setLoginLoading(true);
-      setLoginError(null);
-      try {
-        // Use manual login with the telegram user id from the widget
-        const telegramId = user.id as number;
-        await loginManual(telegramId);
-        next();
-      } catch (err) {
-        setLoginError(err instanceof Error ? err.message : "Telegram login failed");
-      } finally {
-        setLoginLoading(false);
-      }
-    };
-
     const script = document.createElement("script");
     script.src = "https://telegram.org/js/telegram-widget.js?22";
     script.async = true;
-    script.setAttribute("data-telegram-login", "heyanna_bot"); // Replace with your bot username
+    script.setAttribute("data-telegram-login", telegramBotUsername);
     script.setAttribute("data-size", "large");
     script.setAttribute("data-radius", "8");
-    script.setAttribute("data-onauth", "__onTelegramAuth(user)");
+    script.setAttribute(
+      "data-auth-url",
+      `${window.location.origin}/api/auth/telegram-widget?next=/dashboard`,
+    );
     script.setAttribute("data-request-access", "write");
 
     telegramRef.current.appendChild(script);
 
-    return () => {
-      delete (window as unknown as Record<string, unknown>).__onTelegramAuth;
-    };
-  }, [step, loginManual]);
+    return;
+  }, [step, telegramBotUsername]);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -205,8 +248,21 @@ export default function OnboardingPage() {
                         <div className="text-xs text-muted">Sign in to get started</div>
                       </div>
                     </div>
-                    <div ref={telegramRef} className="flex items-center" />
+                    <div className="flex items-center">
+                      <div ref={telegramRef} className="flex items-center" />
+                    </div>
                   </div>
+
+                  <p className="text-[11px] text-muted font-mono">
+                    Bot:{" "}
+                    <span className="text-foreground">
+                      @{telegramBotUsername}
+                    </span>
+                  </p>
+                  <p className="text-[11px] text-muted font-mono">
+                    Current host:{" "}
+                    <span className="text-foreground">{currentHostname ?? "unknown"}</span>
+                  </p>
 
                   {/* Dev Login (visible in all environments for now) */}
                   <div className="w-full p-5 rounded-xl border border-dashed border-border bg-surface/30">

@@ -3,9 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BarChart2, Activity, Gift, User, ArrowRight } from "lucide-react";
+import { Home, BarChart2, Activity, Gift, User, ArrowRight, LogOut } from "lucide-react";
 import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { MobileTopBar, MobileBottomNav } from "@/components/dashboard/Sidebar";
+import { useAuth } from "@/lib/useAuth";
 
 interface DashboardChromeProps {
   title: string;
@@ -27,6 +28,7 @@ function isItemActive(pathname: string, href: string): boolean {
 
 export function DashboardChrome({ title, children }: DashboardChromeProps) {
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -84,7 +86,17 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
             </Link>
           </div>
 
-          <UserBadge />
+          <div className="flex items-center gap-2">
+            <UserBadge />
+            <button
+              onClick={logout}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-mono text-muted hover:text-foreground hover:bg-surface transition-all"
+              aria-label="Logout"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Logout
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto pt-12 pb-24 lg:pt-0 lg:pb-0">{children}</main>

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { WalletConnect } from "@/components/dashboard/WalletConnect";
+import { useAuth } from "@/lib/useAuth";
 import {
   LayoutDashboard,
   TrendingUp,
@@ -12,6 +13,7 @@ import {
   Settings,
   Bell,
   MessageCircle,
+  LogOut,
 } from "lucide-react";
 
 const navItems = [
@@ -125,6 +127,8 @@ const mobileNavItems = [
 ];
 
 export function MobileTopBar() {
+  const { logout } = useAuth();
+
   return (
     <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-12 border-b border-border bg-background/80 backdrop-blur-xl flex items-center justify-between px-4">
       <Link href="/" className="flex items-center gap-2">
@@ -141,6 +145,13 @@ export function MobileTopBar() {
       </Link>
       <div className="flex items-center gap-2">
         <WalletConnect compact />
+        <button
+          onClick={logout}
+          className="inline-flex items-center justify-center rounded-lg border border-border p-1.5 text-muted hover:text-foreground hover:bg-surface transition-all"
+          aria-label="Logout"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+        </button>
         <ThemeToggle />
       </div>
     </div>

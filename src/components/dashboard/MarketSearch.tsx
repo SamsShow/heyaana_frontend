@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import { fetcher, formatVolume, Market } from "@/lib/api";
+import { parseMarketTitle } from "@/lib/market-title";
 import { Search, Loader2, TrendingUp, Flame, Zap } from "lucide-react";
 
 interface MarketSearchProps {
@@ -158,6 +159,7 @@ function MarketCard({
 }) {
     const yesPrice = market.yes_bid ?? market.last_price ?? 0;
     const noPrice = market.no_bid ?? (market.last_price ? 100 - market.last_price : 0);
+    const parsedTitle = parseMarketTitle(market.title);
 
     return (
         <button
@@ -179,8 +181,11 @@ function MarketCard({
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium leading-snug line-clamp-2 group-hover:text-foreground">
-                        {market.title}
+                        {parsedTitle.displayTitle}
                     </p>
+                    {parsedTitle.subtitle && (
+                        <p className="mt-1 text-[11px] text-muted line-clamp-1">{parsedTitle.subtitle}</p>
+                    )}
 
                     {/* Price buttons */}
                     <div className="flex items-center gap-2 mt-2">

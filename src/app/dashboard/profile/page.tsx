@@ -3,6 +3,10 @@
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { useAuth } from "@/lib/useAuth";
+import {
+  WalletConnectKitButton,
+  hasWalletConnectProjectId,
+} from "@/lib/walletconnect-kit";
 
 export default function ProfilePage() {
   const { user, isLoading } = useAuth();
@@ -33,6 +37,15 @@ export default function ProfilePage() {
               <div>
                 <span className="text-muted">Wallet:</span>{" "}
                 <span className="break-all">{isLoading ? "Loading…" : (user?.wallet_address ?? "Not connected")}</span>
+              </div>
+              <div className="pt-3 space-y-2">
+                <div className="text-xs text-muted">EVM wallet connection</div>
+                <WalletConnectKitButton />
+                {!hasWalletConnectProjectId && (
+                  <p className="text-[11px] text-yellow-500">
+                    Set <code>NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code> to enable WalletConnect QR flows.
+                  </p>
+                )}
               </div>
             </div>
 

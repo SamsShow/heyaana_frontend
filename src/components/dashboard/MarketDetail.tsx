@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import { fetcher, Market, Trade } from "@/lib/api";
+import { parseMarketTitle } from "@/lib/market-title";
 import { Loader2, X, Clock, Volume2, BarChart3, ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 interface MarketDetailProps {
@@ -50,12 +51,17 @@ export function MarketDetail({ ticker, onClose }: MarketDetailProps) {
         );
     }
 
+    const parsedTitle = parseMarketTitle(market.title);
+
     return (
         <div className="rounded-xl border border-border bg-surface/50 overflow-hidden">
             {/* Header */}
             <div className="p-4 border-b border-border flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-semibold leading-snug">{market.title}</h3>
+                    <h3 className="text-base font-semibold leading-snug">{parsedTitle.displayTitle}</h3>
+                    {parsedTitle.subtitle && (
+                        <p className="text-xs text-muted mt-1">{parsedTitle.subtitle}</p>
+                    )}
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                         <span className="text-[10px] font-mono text-muted">{market.ticker}</span>
                         <span className="text-[10px] font-mono text-muted">•</span>

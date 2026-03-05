@@ -9,6 +9,7 @@ import { TradePanel } from "@/components/dashboard/market/TradePanel";
 import { PositionCard } from "@/components/dashboard/market/PositionCard";
 import { MarketTabs } from "@/components/dashboard/market/MarketTabs";
 import { fetcher, formatVolume, Market, Trade } from "@/lib/api";
+import { parseMarketTitle } from "@/lib/market-title";
 import {
   ChevronLeft,
   Clock,
@@ -94,6 +95,7 @@ export default function MarketDetailPage({
 
   const yesPrice = market.yes_bid ?? market.last_price ?? 0;
   const noPrice = market.no_bid ?? (market.last_price ? 100 - market.last_price : 0);
+  const parsedTitle = parseMarketTitle(market.title);
 
   return (
     <DashboardChrome title="Markets">
@@ -121,8 +123,13 @@ export default function MarketDetailPage({
                   </div>
                   <div className="flex-1 min-w-0">
                     <h1 className="text-xl md:text-2xl font-semibold leading-tight">
-                      {market.title}
+                      {parsedTitle.displayTitle}
                     </h1>
+                    {parsedTitle.subtitle && (
+                      <p className="text-sm text-muted mt-1 leading-relaxed">
+                        {parsedTitle.subtitle}
+                      </p>
+                    )}
                     <div className="flex items-center gap-3 mt-2 flex-wrap">
                       <span className="text-sm text-muted font-mono flex items-center gap-1">
                         <Volume2 className="w-3.5 h-3.5" />
