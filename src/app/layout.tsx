@@ -3,7 +3,6 @@ import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/theme";
-import { WalletConnectKitProvider } from "@/lib/walletconnect-kit";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,7 +42,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} antialiased bg-background text-foreground`}
       >
         <ThemeProvider>
-          <WalletConnectKitProvider>{children}</WalletConnectKitProvider>
+          {children}
         </ThemeProvider>
         <Analytics />
       </body>

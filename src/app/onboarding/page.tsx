@@ -82,10 +82,12 @@ function OnboardingPageContent() {
       tgError === "missing_hash"
         ? "Telegram widget payload missing hash."
         : tgError === "widget_auth_failed"
-          ? "Telegram widget auth failed. Check bot domain + username."
+          ? "Telegram widget auth failed — ensure the bot domain matches this host."
           : tgError === "missing_token"
             ? "Telegram auth response missing token."
-            : "Telegram login failed. Please try again.";
+            : tgError === "internal_error"
+              ? "Server error during Telegram auth. Please try again or use Dev Login below."
+              : "Telegram login failed. Please try again.";
     setLoginError(readable);
   }, [searchParams]);
 
