@@ -33,8 +33,10 @@ export async function GET(req: NextRequest) {
     );
 
     if (!upstream.ok) {
+      const errBody = await upstream.text().catch(() => "");
+      const detail = encodeURIComponent(errBody.slice(0, 120) || String(upstream.status));
       return NextResponse.redirect(
-        new URL(`/onboarding?tg_error=widget_auth_failed`, req.url),
+        new URL(`/onboarding?tg_error=widget_auth_failed&tg_detail=${detail}`, req.url),
       );
     }
 
@@ -59,8 +61,10 @@ export async function GET(req: NextRequest) {
     return res;
   } catch (err) {
     console.error("[auth/telegram-widget]", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    const detail = encodeURIComponent(msg.slice(0, 120));
     return NextResponse.redirect(
-      new URL(`/onboarding?tg_error=internal_error`, req.url),
+      new URL(`/onboarding?tg_error=internal_error&tg_detail=${detail}`, req.url),
     );
   }
 }

@@ -78,15 +78,16 @@ function OnboardingPageContent() {
   useEffect(() => {
     const tgError = searchParams.get("tg_error");
     if (!tgError) return;
+    const detail = searchParams.get("tg_detail");
     const readable =
       tgError === "missing_hash"
         ? "Telegram widget payload missing hash."
         : tgError === "widget_auth_failed"
-          ? "Telegram widget auth failed — ensure the bot domain matches this host."
+          ? `Telegram widget auth failed — ensure the bot domain matches this host.${detail ? ` (${detail})` : ""}`
           : tgError === "missing_token"
             ? "Telegram auth response missing token."
             : tgError === "internal_error"
-              ? "Server error during Telegram auth. Please try again or use Dev Login below."
+              ? `Server error during Telegram auth.${detail ? ` ${detail}` : " Please try again or use Dev Login below."}`
               : `Telegram login failed (${tgError}). Please try again.`;
     setLoginError(readable);
   }, [searchParams]);
