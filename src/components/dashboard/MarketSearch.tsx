@@ -1,32 +1,75 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import useSWR from "swr";
-import { fetcher, Market } from "@/lib/api";
-import { Search, Loader2, TrendingUp } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { fetcher, formatVolume, Market } from "@/lib/api";
+import { Search, Loader2, TrendingUp, Flame, Zap } from "lucide-react";
 
 interface MarketSearchProps {
-    onSelectMarket: (ticker: string) => void;
+    onSelectMarket?: (ticker: string) => void;
     selectedTicker?: string;
+    /** If true, clicking a market navigates to /dashboard/markets/[ticker] */
+    navigateOnSelect?: boolean;
+    /** Max height for the list */
+    maxHeight?: string;
 }
 
-export function MarketSearch({ onSelectMarket, selectedTicker }: MarketSearchProps) {
+const CATEGORIES = [
+    { id: "trending", label: "Trending", icon: Flame, query: "" },
+    { id: "sports", label: "Sports", icon: Zap, query: "sports game" },
+    { id: "crypto", label: "Crypto", icon: TrendingUp, query: "crypto bitcoin" },
+    { id: "politics", label: "Politics", icon: null, query: "election president" },
+    { id: "entertainment", label: "Entertain.", icon: null, query: "entertainment" },
+] as const;
+
+type CategoryId = (typeof CATEGORIES)[number]["id"];
+
+export function MarketSearch({
+    onSelectMarket,
+    selectedTicker,
+    navigateOnSelect = false,
+    maxHeight,
+}: MarketSearchProps) {
+    const router = useRouter();
     const [query, setQuery] = useState("");
     const [debouncedQuery, setDebouncedQuery] = useState("");
+    const [activeCategory, setActiveCategory] = useState<CategoryId>("trending");
 
     useEffect(() => {
         const timer = setTimeout(() => setDebouncedQuery(query), 300);
         return () => clearTimeout(timer);
     }, [query]);
 
-    const { data, isLoading } = useSWR<{ markets?: Market[] } | Market[]>(
-        debouncedQuery.length >= 2 ? `/market/search?query=${encodeURIComponent(debouncedQuery)}&limit=20` : null,
+    const isSearching = debouncedQuery.length > 0;
+
+    // Always use api1 search — either user query or category preset keyword
+    const activeQuery = isSearching
+        ? debouncedQuery
+        : (CATEGORIES.find((c) => c.id === activeCategory)?.query ?? "");
+
+    const { data, isLoading } = useSWR<
+        { markets?: Market[]; results?: Market[] } | Market[]
+    >(
+        `/market/search?query=${encodeURIComponent(activeQuery)}&limit=20`,
         fetcher,
-        { revalidateOnFocus: false }
+        { revalidateOnFocus: false },
     );
 
-    // Normalize data — API might return array or object with markets key
-    const markets: Market[] = Array.isArray(data) ? data : (data?.markets ?? []);
+    // Normalize response shape
+    const markets: Market[] = Array.isArray(data)
+        ? data
+        : (data?.results ?? data?.markets ?? []);
+
+    const handleSelect = useCallback(
+        (ticker: string) => {
+            if (navigateOnSelect) {
+                router.push(`/dashboard/markets/${encodeURIComponent(ticker)}`);
+            }
+            onSelectMarket?.(ticker);
+        },
+        [navigateOnSelect, router, onSelectMarket],
+    );
 
     return (
         <div className="flex flex-col h-full">
@@ -35,7 +78,7 @@ export function MarketSearch({ onSelectMarket, selectedTicker }: MarketSearchPro
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                 <input
                     type="text"
-                    placeholder="Search markets by title or ticker…"
+                    placeholder="Search markets…"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     className="w-full pl-9 pr-4 py-2.5 text-sm font-mono bg-surface border border-border rounded-lg focus:outline-none focus:border-blue-primary/50 focus:ring-1 focus:ring-blue-primary/20 placeholder:text-muted/50 transition-all"
@@ -45,64 +88,129 @@ export function MarketSearch({ onSelectMarket, selectedTicker }: MarketSearchPro
                 )}
             </div>
 
+            {/* Category tabs (hidden while searching) */}
+            {!isSearching && (
+                <div className="flex items-center gap-1 mt-3 overflow-x-auto pb-1">
+                    {CATEGORIES.map((cat) => {
+                        const Icon = cat.icon;
+                        return (
+                            <button
+                                key={cat.id}
+                                onClick={() => setActiveCategory(cat.id)}
+                                className={`flex items-center gap-1 px-3 py-1.5 text-xs font-mono rounded-full whitespace-nowrap transition-all ${
+                                    activeCategory === cat.id
+                                        ? "bg-blue-primary/10 text-blue-primary border border-blue-primary/30"
+                                        : "text-muted hover:text-foreground border border-transparent hover:border-border"
+                                }`}
+                            >
+                                {Icon && <Icon className="w-3 h-3" />}
+                                {cat.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+
             {/* Results */}
-            <div className="mt-3 flex-1 overflow-y-auto space-y-1 max-h-[600px]">
-                {debouncedQuery.length < 2 && (
+            <div
+                className="mt-3 flex-1 overflow-y-auto space-y-1.5"
+                style={maxHeight ? { maxHeight } : { maxHeight: "600px" }}
+            >
+                {isLoading && markets.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-12 text-muted">
-                        <Search className="w-8 h-8 mb-2 opacity-30" />
-                        <p className="text-sm font-mono">Type at least 2 characters to search</p>
+                        <Loader2 className="w-6 h-6 mb-2 animate-spin opacity-50" />
+                        <p className="text-xs font-mono">Loading markets…</p>
                     </div>
                 )}
 
-                {debouncedQuery.length >= 2 && !isLoading && markets.length === 0 && (
+                {!isLoading && markets.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-12 text-muted">
-                        <p className="text-sm font-mono">No markets found for &quot;{debouncedQuery}&quot;</p>
+                        <Search className="w-6 h-6 mb-2 opacity-30" />
+                        <p className="text-sm font-mono">
+                            {isSearching
+                                ? `No markets found for "${debouncedQuery}"`
+                                : "No markets available"}
+                        </p>
                     </div>
                 )}
 
                 {markets.map((market) => (
-                    <button
+                    <MarketCard
                         key={market.ticker}
-                        onClick={() => onSelectMarket(market.ticker)}
-                        className={`w-full text-left p-3 rounded-lg border transition-all ${
-                            selectedTicker === market.ticker
-                                ? "border-blue-primary/40 bg-blue-primary/5"
-                                : "border-border hover:border-border hover:bg-surface"
-                        }`}
-                    >
-                        <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm leading-snug line-clamp-2">{market.title}</p>
-                                <div className="flex items-center gap-2 mt-1.5">
-                                    <span className="text-[10px] font-mono text-muted">{market.ticker}</span>
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
-                                        market.status === "open"
-                                            ? "bg-green-500/10 text-green-400"
-                                            : market.status === "closed"
-                                            ? "bg-red-500/10 text-red-400"
-                                            : "bg-amber-500/10 text-amber-400"
-                                    }`}>
-                                        {market.status}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="text-right shrink-0">
-                                {market.last_price !== null && (
-                                    <div className="text-sm font-mono font-medium">
-                                        {market.last_price}¢
-                                    </div>
-                                )}
-                                {market.volume_24h > 0 && (
-                                    <div className="flex items-center gap-1 text-[10px] text-muted font-mono mt-0.5">
-                                        <TrendingUp className="w-3 h-3" />
-                                        {market.volume_24h.toLocaleString()}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </button>
+                        market={market}
+                        isSelected={selectedTicker === market.ticker}
+                        onClick={() => handleSelect(market.ticker)}
+                    />
                 ))}
             </div>
         </div>
     );
+}
+
+function MarketCard({
+    market,
+    isSelected,
+    onClick,
+}: {
+    market: Market;
+    isSelected: boolean;
+    onClick: () => void;
+}) {
+    const yesPrice = market.yes_bid ?? market.last_price ?? 0;
+    const noPrice = market.no_bid ?? (market.last_price ? 100 - market.last_price : 0);
+
+    return (
+        <button
+            onClick={onClick}
+            className={`w-full text-left p-3 rounded-xl border transition-all group ${
+                isSelected
+                    ? "border-blue-primary/40 bg-blue-primary/5"
+                    : "border-border hover:border-border hover:bg-surface/80"
+            }`}
+        >
+            <div className="flex items-start gap-3">
+                {/* Icon */}
+                <div className="w-10 h-10 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">
+                    <span className="text-base">
+                        {getCategoryEmoji(market.event_ticker)}
+                    </span>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium leading-snug line-clamp-2 group-hover:text-foreground">
+                        {market.title}
+                    </p>
+
+                    {/* Price buttons */}
+                    <div className="flex items-center gap-2 mt-2">
+                        <span className="text-xs font-mono px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            Yes {yesPrice}¢
+                        </span>
+                        <span className="text-xs font-mono px-2 py-1 rounded-md bg-red-500/10 text-red-400 border border-red-500/20">
+                            No {noPrice}¢
+                        </span>
+                        {market.volume > 0 && (
+                            <span className="text-[10px] font-mono text-muted ml-auto flex items-center gap-1">
+                                <TrendingUp className="w-3 h-3" />
+                                {formatVolume(market.volume)}
+                            </span>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </button>
+    );
+}
+
+function getCategoryEmoji(eventTicker: string): string {
+    const lower = (eventTicker ?? "").toLowerCase();
+    if (lower.includes("nba") || lower.includes("nfl") || lower.includes("sport") || lower.includes("game"))
+        return "🏈";
+    if (lower.includes("crypto") || lower.includes("btc") || lower.includes("eth"))
+        return "₿";
+    if (lower.includes("election") || lower.includes("politic") || lower.includes("president"))
+        return "🏛️";
+    if (lower.includes("ai") || lower.includes("tech")) return "🤖";
+    return "📊";
 }

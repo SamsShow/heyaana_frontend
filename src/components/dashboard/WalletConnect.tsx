@@ -1,11 +1,16 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useWallet } from "@/lib/wallet";
-import { Wallet, ChevronDown, LogOut, Copy, Check, AlertCircle, Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/useAuth";
+import { ChevronDown, LogOut, Copy, Check, User, Loader2 } from "lucide-react";
 
-export function WalletConnect({ compact = false }: { compact?: boolean }) {
-    const { address, balance, isConnected, isConnecting, error, truncated, connect, disconnect } = useWallet();
+/**
+ * UserBadge — shows the authenticated user's name / telegram ID
+ * with a dropdown for wallet address + logout.
+ * Replaces the old MetaMask WalletConnect component.
+ */
+export function UserBadge({ compact = false }: { compact?: boolean }) {
+    const { user, isLoading, isAuthenticated, logout } = useAuth();
     const [open, setOpen] = useState(false);
     const [copied, setCopied] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -22,43 +27,30 @@ export function WalletConnect({ compact = false }: { compact?: boolean }) {
     }, []);
 
     const copyAddress = async () => {
-        if (!address) return;
-        await navigator.clipboard.writeText(address);
+        if (!user?.wallet_address) return;
+        await navigator.clipboard.writeText(user.wallet_address);
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
     };
 
-    // Not connected
-    if (!isConnected) {
+    const truncateAddress = (addr: string) =>
+        `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+
+    if (isLoading) {
         return (
-            <div className="relative">
-                <button
-                    onClick={connect}
-                    disabled={isConnecting}
-                    className={`flex items-center gap-1.5 font-mono font-medium transition-all rounded border ${
-                        compact
-                            ? "px-2 py-1 text-[10px] border-blue-primary/40 bg-blue-primary/10 text-blue-primary hover:bg-blue-primary/20"
-                            : "px-3 py-1.5 text-xs border-blue-primary/40 bg-blue-primary/10 text-blue-primary hover:bg-blue-primary/20"
-                    } disabled:opacity-50`}
-                >
-                    {isConnecting ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : (
-                        <Wallet className="w-3 h-3" />
-                    )}
-                    {isConnecting ? "Connecting…" : "Connect Wallet"}
-                </button>
-                {error && (
-                    <div className="absolute top-full mt-1 right-0 flex items-center gap-1 text-[10px] text-red-400 font-mono whitespace-nowrap bg-background border border-red-500/20 px-2 py-1 rounded-lg z-50">
-                        <AlertCircle className="w-3 h-3 shrink-0" />
-                        {error}
-                    </div>
-                )}
+            <div className={`flex items-center gap-1.5 font-mono text-muted ${compact ? "text-[10px]" : "text-xs"}`}>
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Loading…
             </div>
         );
     }
 
-    // Connected
+    if (!isAuthenticated || !user) {
+        return null; // Middleware should redirect, but just in case
+    }
+
+    const displayName = user.first_name ?? user.username ?? `User ${user.telegram_id}`;
+
     return (
         <div className="relative" ref={dropdownRef}>
             <button
@@ -68,10 +60,10 @@ export function WalletConnect({ compact = false }: { compact?: boolean }) {
                 }`}
             >
                 <div className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
-                <span className="text-foreground">{truncated}</span>
-                {balance && !compact && (
+                <span className="text-foreground">{displayName}</span>
+                {user.wallet_address && !compact && (
                     <span className="text-muted border-l border-border pl-1.5 ml-0.5">
-                        {balance} ETH
+                        {truncateAddress(user.wallet_address)}
                     </span>
                 )}
                 <ChevronDown className={`w-3 h-3 text-muted transition-transform ${open ? "rotate-180" : ""}`} />
@@ -79,30 +71,32 @@ export function WalletConnect({ compact = false }: { compact?: boolean }) {
 
             {open && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-background border border-border rounded-xl shadow-xl shadow-black/30 z-50 overflow-hidden">
-                    {/* Address */}
+                    {/* User info */}
                     <div className="px-3 py-2.5 border-b border-border">
-                        <div className="text-[10px] text-muted font-mono uppercase tracking-wider mb-1">Connected</div>
-                        <div className="text-xs font-mono text-foreground break-all">{address}</div>
-                        {balance && (
-                            <div className="text-[10px] text-muted font-mono mt-1">{balance} ETH</div>
+                        <div className="text-[10px] text-muted font-mono uppercase tracking-wider mb-1">Signed in</div>
+                        <div className="text-xs font-mono text-foreground">{displayName}</div>
+                        {user.wallet_address && (
+                            <div className="text-[10px] text-muted font-mono mt-1 break-all">{user.wallet_address}</div>
                         )}
                     </div>
 
                     {/* Actions */}
                     <div className="p-1">
+                        {user.wallet_address && (
+                            <button
+                                onClick={copyAddress}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono rounded-lg hover:bg-surface transition-all text-left"
+                            >
+                                {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5 text-muted" />}
+                                {copied ? "Copied!" : "Copy wallet address"}
+                            </button>
+                        )}
                         <button
-                            onClick={copyAddress}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono rounded-lg hover:bg-surface transition-all text-left"
-                        >
-                            {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5 text-muted" />}
-                            {copied ? "Copied!" : "Copy address"}
-                        </button>
-                        <button
-                            onClick={() => { disconnect(); setOpen(false); }}
+                            onClick={() => { logout(); setOpen(false); }}
                             className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono rounded-lg hover:bg-surface transition-all text-left text-red-400 hover:text-red-300"
                         >
                             <LogOut className="w-3.5 h-3.5" />
-                            Disconnect
+                            Sign out
                         </button>
                     </div>
                 </div>
@@ -110,3 +104,6 @@ export function WalletConnect({ compact = false }: { compact?: boolean }) {
         </div>
     );
 }
+
+// Legacy re-export for backwards compat (can be removed later)
+export { UserBadge as WalletConnect };

@@ -1,22 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
   ArrowLeft,
   Check,
-  ChevronRight,
   Shield,
   TrendingUp,
   Zap,
   MessageCircle,
   Bot,
   Flame,
+  Loader2,
 } from "lucide-react";
 import { marketCategories, topTraders } from "@/lib/mock-data";
+import { useAuth } from "@/lib/useAuth";
 
 const STEPS = [
   { id: 1, title: "Connect", subtitle: "Link your account" },
@@ -32,6 +34,13 @@ export default function OnboardingPage() {
   const [riskLevel, setRiskLevel] = useState<"conservative" | "moderate" | "aggressive">("moderate");
   const [maxExposure, setMaxExposure] = useState(25);
   const [selectedTraders, setSelectedTraders] = useState<number[]>([1, 2]);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [devUserId, setDevUserId] = useState("1");
+  const telegramRef = useRef<HTMLDivElement>(null);
+
+  const router = useRouter();
+  const { isAuthenticated, loginManual } = useAuth();
 
   const next = () => setStep((s) => Math.min(s + 1, 5));
   const prev = () => setStep((s) => Math.max(s - 1, 1));
@@ -48,6 +57,69 @@ export default function OnboardingPage() {
     );
   };
 
+  // If already authenticated, go directly to dashboard.
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [isAuthenticated, router]);
+
+  // Handle dev login
+  const handleDevLogin = useCallback(async () => {
+    setLoginLoading(true);
+    setLoginError(null);
+    try {
+      await loginManual(Number(devUserId));
+      next(); // move past connect step
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setLoginLoading(false);
+    }
+  }, [loginManual, devUserId]);
+
+  // Load Telegram Login Widget script
+  useEffect(() => {
+    if (step !== 1 || !telegramRef.current) return;
+
+    // Clear previous widget
+    telegramRef.current.innerHTML = "";
+
+    // Expose callback on window for the Telegram widget
+    (window as unknown as Record<string, unknown>).__onTelegramAuth = async (user: Record<string, unknown>) => {
+      // The widget callback receives user data — we need to send it to our backend
+      // For the widget flow, the backend handles verification at /auth/telegram-widget
+      // We'll construct init_data from the widget response
+      setLoginLoading(true);
+      setLoginError(null);
+      try {
+        // Use manual login with the telegram user id from the widget
+        const telegramId = user.id as number;
+        await loginManual(telegramId);
+        next();
+      } catch (err) {
+        setLoginError(err instanceof Error ? err.message : "Telegram login failed");
+      } finally {
+        setLoginLoading(false);
+      }
+    };
+
+    const script = document.createElement("script");
+    script.src = "https://telegram.org/js/telegram-widget.js?22";
+    script.async = true;
+    script.setAttribute("data-telegram-login", "heyanna_bot"); // Replace with your bot username
+    script.setAttribute("data-size", "large");
+    script.setAttribute("data-radius", "8");
+    script.setAttribute("data-onauth", "__onTelegramAuth(user)");
+    script.setAttribute("data-request-access", "write");
+
+    telegramRef.current.appendChild(script);
+
+    return () => {
+      delete (window as unknown as Record<string, unknown>).__onTelegramAuth;
+    };
+  }, [step, loginManual]);
+
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       {/* Background */}
@@ -59,14 +131,14 @@ export default function OnboardingPage() {
         <div className="flex items-center justify-between mb-8">
           <Link href="/" className="flex items-center gap-2">
             <Image
-              src="/heyanalogo.svg"
-              alt="HeyAna logo"
+              src="/heyannalogo.png"
+              alt="HeyAnna logo"
               width={32}
               height={32}
               className="w-8 h-8 rounded-lg glow-red"
             />
             <span className="text-lg font-bold">
-              Hey<span className="text-red-primary">Ana</span>
+              Hey<span className="text-red-primary">Anna</span>
             </span>
           </Link>
           <Link href="/dashboard" className="text-xs text-muted hover:text-foreground transition-colors">
@@ -118,37 +190,65 @@ export default function OnboardingPage() {
               <div className="space-y-6">
                 <div className="text-center mb-8">
                   <h2 className="text-3xl font-bold mb-2">Connect Your Account</h2>
-                  <p className="text-muted">Link your Kalshi account to start copying trades</p>
+                  <p className="text-muted">Sign in with Telegram to start trading on Polymarket</p>
                 </div>
 
                 <div className="space-y-4 max-w-md mx-auto">
-                  <button className="w-full flex items-center justify-between p-5 rounded-xl border border-border hover:border-red-primary/30 bg-surface/50 hover:bg-surface transition-all group">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-red-primary/10 flex items-center justify-center">
-                        <TrendingUp className="w-6 h-6 text-red-primary" />
-                      </div>
-                      <div className="text-left">
-                        <div className="font-semibold">Kalshi Account</div>
-                        <div className="text-xs text-muted">Connect via API key</div>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-muted group-hover:text-red-primary transition-colors" />
-                  </button>
-
-                  <button className="w-full flex items-center justify-between p-5 rounded-xl border border-border hover:border-red-primary/30 bg-surface/50 hover:bg-surface transition-all group">
+                  {/* Telegram Login Widget */}
+                  <div className="w-full flex items-center justify-between p-5 rounded-xl border border-border bg-surface/50">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
                         <MessageCircle className="w-6 h-6 text-blue-400" />
                       </div>
                       <div className="text-left">
                         <div className="font-semibold">Telegram</div>
-                        <div className="text-xs text-muted">Connect for mobile alerts</div>
+                        <div className="text-xs text-muted">Sign in to get started</div>
                       </div>
                     </div>
-                    <span className="text-[10px] font-mono text-muted border border-border rounded px-2 py-0.5">SOON</span>
-                  </button>
+                    <div ref={telegramRef} className="flex items-center" />
+                  </div>
 
-                  <button className="w-full flex items-center justify-between p-5 rounded-xl border border-border hover:border-red-primary/30 bg-surface/50 hover:bg-surface transition-all group">
+                  {/* Dev Login (visible in all environments for now) */}
+                  <div className="w-full p-5 rounded-xl border border-dashed border-border bg-surface/30">
+                    <div className="flex items-center gap-4 mb-3">
+                      <div className="w-12 h-12 rounded-xl bg-yellow-500/10 flex items-center justify-center">
+                        <Zap className="w-6 h-6 text-yellow-400" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-semibold">Dev Login</div>
+                        <div className="text-xs text-muted">Quick login with Telegram user ID</div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        value={devUserId}
+                        onChange={(e) => setDevUserId(e.target.value)}
+                        placeholder="Telegram User ID"
+                        className="flex-1 px-3 py-2 text-sm font-mono rounded-lg border border-border bg-background text-foreground placeholder:text-muted focus:outline-none focus:border-red-primary/50"
+                      />
+                      <button
+                        onClick={handleDevLogin}
+                        disabled={loginLoading || !devUserId}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-primary text-white text-sm font-medium hover:bg-red-dark transition-all disabled:opacity-50"
+                      >
+                        {loginLoading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <ArrowRight className="w-4 h-4" />
+                        )}
+                        Login
+                      </button>
+                    </div>
+                  </div>
+
+                  {loginError && (
+                    <div className="text-center text-sm text-red-400 font-mono bg-red-500/5 border border-red-500/20 rounded-lg px-4 py-2">
+                      {loginError}
+                    </div>
+                  )}
+
+                  <button className="w-full flex items-center justify-between p-5 rounded-xl border border-border hover:border-red-primary/30 bg-surface/50 hover:bg-surface transition-all group opacity-50 cursor-not-allowed" disabled>
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
                         <Bot className="w-6 h-6 text-purple-400" />
@@ -158,7 +258,7 @@ export default function OnboardingPage() {
                         <div className="text-xs text-muted">Enable AI intelligence layer</div>
                       </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-muted group-hover:text-red-primary transition-colors" />
+                    <span className="text-[10px] font-mono text-muted border border-border rounded px-2 py-0.5">SOON</span>
                   </button>
                 </div>
               </div>
@@ -352,7 +452,7 @@ export default function OnboardingPage() {
                     <Zap className="w-10 h-10 text-red-primary" />
                   </div>
                   <h2 className="text-3xl font-bold mb-2">You&apos;re All Set!</h2>
-                  <p className="text-muted">HeyAna will now automatically copy trades from your selected traders</p>
+                  <p className="text-muted">HeyAnna will now automatically copy trades from your selected traders</p>
                 </div>
 
                 <div className="max-w-md mx-auto p-6 rounded-xl border border-border bg-surface/50 text-left space-y-3">

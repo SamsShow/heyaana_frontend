@@ -16,8 +16,8 @@ import {
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
-  { href: "/dashboard#analytics", icon: TrendingUp, label: "Analytics" },
-  { href: "/dashboard#markets", icon: Activity, label: "Markets" },
+  { href: "/dashboard/analytics", icon: TrendingUp, label: "Analytics" },
+  { href: "/dashboard/markets", icon: Activity, label: "Markets" },
 ];
 
 const bottomItems = [
@@ -53,7 +53,9 @@ export function DashboardSidebar() {
           Trading
         </div>
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = item.href === "/dashboard"
+            ? pathname === "/dashboard"
+            : pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link
               key={item.label}
@@ -116,10 +118,10 @@ export function DashboardSidebar() {
 
 const mobileNavItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Home" },
-  { href: "/dashboard#analytics", icon: TrendingUp, label: "Analytics" },
-  { href: "/dashboard#markets", icon: Activity, label: "Markets" },
+  { href: "/dashboard/analytics", icon: TrendingUp, label: "Analytics" },
+  { href: "/dashboard/markets", icon: Activity, label: "Markets" },
+  { href: "/dashboard/profile", icon: Settings, label: "Profile" },
   { href: "#", icon: Bell, label: "Alerts" },
-  { href: "#", icon: Settings, label: "Settings" },
 ];
 
 export function MobileTopBar() {
@@ -151,7 +153,11 @@ export function MobileBottomNav() {
   return (
     <nav className="lg:hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-3 py-2 rounded-2xl border border-border bg-background/80 backdrop-blur-xl shadow-lg shadow-black/30">
       {mobileNavItems.map((item) => {
-        const isActive = pathname === item.href;
+        const isActive = item.href === "/dashboard"
+          ? pathname === "/dashboard"
+          : item.href.startsWith("/dashboard")
+            ? pathname === item.href || pathname.startsWith(`${item.href}/`)
+            : false;
         return (
           <Link
             key={item.label}
