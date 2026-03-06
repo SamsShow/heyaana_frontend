@@ -5,9 +5,9 @@ import { useState } from "react";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { useAuth } from "@/lib/useAuth";
-import { proxyFetcher, Portfolio, Position, closePosition, exportPrivateKey } from "@/lib/api";
+import { proxyFetcher, Portfolio, Position, closePosition, exportPrivateKey, unfollowTrader } from "@/lib/api";
 import Link from "next/link";
-import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2, X, AlertCircle, CheckCircle2, ExternalLink, KeyRound, ShieldAlert, Copy, Eye, EyeOff, Users } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2, X, AlertCircle, CheckCircle2, ExternalLink, KeyRound, ShieldAlert, Copy, Eye, EyeOff, Users, UserMinus } from "lucide-react";
 
 function stripMarkdown(text: string): string {
   return text
@@ -41,6 +41,7 @@ export default function ProfilePage() {
   const { user, isLoading, isAuthenticated } = useAuth();
   const [closingId, setClosingId] = useState<string | null>(null);
   const [closeResult, setCloseResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [unfollowingId, setUnfollowingId] = useState<string | null>(null);
 
   // Private key export flow: null → 'warning' → 'confirmed' → 'revealed'
   const [pkStep, setPkStep] = useState<null | 'warning' | 'loading' | 'revealed'>(null);
@@ -97,7 +98,7 @@ export default function ProfilePage() {
   );
 
   type FollowingEntry = { username?: string; leader_username?: string; first_name?: string; [key: string]: unknown };
-  const { data: followingRaw, isLoading: followingLoading } = useSWR<unknown>(
+  const { data: followingRaw, isLoading: followingLoading, mutate: mutateFollowing } = useSWR<unknown>(
     isAuthenticated ? "/api/proxy/copy-trading/following" : null,
     proxyFetcher,
     { revalidateOnFocus: true },
@@ -167,6 +168,19 @@ export default function ProfilePage() {
       setCloseResult({ ok: false, message: err instanceof Error ? err.message : "Failed to close position" });
     } finally {
       setClosingId(null);
+    }
+  }
+
+  async function handleUnfollow(username: string) {
+    setUnfollowingId(username);
+    try {
+      await unfollowTrader(username);
+      mutateFollowing();
+    } catch {
+      // silently revalidate to keep UI consistent
+      mutateFollowing();
+    } finally {
+      setUnfollowingId(null);
     }
   }
 
@@ -413,9 +427,16 @@ export default function ProfilePage() {
                         <p className="text-sm font-semibold truncate">{displayName}</p>
                         {username && <p className="text-[10px] font-mono text-muted">@{username}</p>}
                       </div>
-                      <span className="text-[10px] font-mono px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        Copying
-                      </span>
+                      <button
+                        onClick={() => handleUnfollow(username)}
+                        disabled={unfollowingId === username}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
+                      >
+                        {unfollowingId === username
+                          ? <Loader2 className="w-3 h-3 animate-spin" />
+                          : <UserMinus className="w-3 h-3" />}
+                        Unfollow
+                      </button>
                     </div>
                   );
                 })}
