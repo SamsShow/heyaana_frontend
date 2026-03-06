@@ -255,7 +255,7 @@ function MarketDetailContent() {
               </div>
 
               {/* Position card */}
-              <PositionCard ticker={decodedTicker} marketTitle={market.title} />
+              <PositionCard ticker={decodedConditionId} marketTitle={market.title} />
 
               {/* Trading panel */}
               <TradePanel
