@@ -67,10 +67,9 @@ export async function loginTelegram(initData: string) {
 
 /** Login via Telegram Login Widget (user object with hash) */
 export async function loginWidgetTelegram(user: any) {
+  // Call our own API route (same origin) to avoid CORS on the api2 call.
   const params = new URLSearchParams(user);
-  const res = await api2Fetch(`/auth/telegram-widget?${params}`, undefined, {
-    method: "GET",
-  });
+  const res = await fetch(`/api/auth/telegram-widget?${params}`);
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
