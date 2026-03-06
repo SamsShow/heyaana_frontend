@@ -27,9 +27,9 @@ const STAT_ICONS: Record<string, React.ReactNode> = {
 
 export function DashboardSummary() {
     const { data, error, isLoading, mutate } = useSWR<DashboardResponse>(
-        "/dashboard",
+        "/api/v1/dashboard",
         fetcher,
-        { revalidateOnFocus: false, errorRetryCount: 0 }
+        { revalidateOnFocus: false }
     );
     const [refreshing, setRefreshing] = useState(false);
 

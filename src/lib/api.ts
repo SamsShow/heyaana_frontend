@@ -1,16 +1,20 @@
-import { API2_BASE_URL, TOKEN_STORAGE_KEY } from "./auth-api";
+import { API1_BASE_URL, API2_BASE_URL, TOKEN_STORAGE_KEY } from "./auth-api";
 
 export async function fetcher(url: string) {
-    let path = url;
-    if (path.startsWith("/api/proxy")) {
-        path = path.replace(/^\/api\/proxy/, "");
-    } else if (path.startsWith("/api/auth")) {
-        path = path.replace(/^\/api\/auth/, "");
-    }
+    let requestUrl: string;
 
-    const requestUrl = path.startsWith("http")
-        ? path
-        : `${API2_BASE_URL}${path}`;
+    if (url.startsWith("/api/v1/")) {
+        // Analysis, dashboard, and market endpoints — api.heyanna.trade (no auth needed)
+        requestUrl = `${API1_BASE_URL}${url}`;
+    } else {
+        let path = url;
+        if (path.startsWith("/api/proxy")) {
+            path = path.replace(/^\/api\/proxy/, "");
+        } else if (path.startsWith("/api/auth")) {
+            path = path.replace(/^\/api\/auth/, "");
+        }
+        requestUrl = path.startsWith("http") ? path : `${API2_BASE_URL}${path}`;
+    }
 
     const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : null;
     const headers: Record<string, string> = {
@@ -18,7 +22,7 @@ export async function fetcher(url: string) {
         "User-Agent":
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
     };
-    if (token) {
+    if (token && !url.startsWith("/api/v1/")) {
         headers["Authorization"] = `Bearer ${token}`;
     }
 
@@ -398,8 +402,9 @@ export async function cancelTrade(orderId: string) {
 // ─── API helper functions ─────────────────────────────────
 
 export async function refreshCache(): Promise<Record<string, string>> {
-    // /refresh is not available in the API; this is a no-op stub.
-    return {};
+    const res = await fetch(`${API1_BASE_URL}/api/v1/refresh`, { method: "POST" });
+    if (!res.ok) throw new Error("Failed to refresh cache");
+    return res.json();
 }
 
 // ─── Formatting helpers ───────────────────────────────────

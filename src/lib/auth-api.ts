@@ -5,6 +5,9 @@
  * so the raw JWT never reaches client code — it lives only in an HttpOnly cookie.
  */
 
+/** Analysis, dashboard, and market data API */
+export const API1_BASE_URL = "https://api.heyanna.trade";
+/** Trading, auth, copy-trading, and portfolio API */
 export const API2_BASE_URL = "https://api2.heyanna.trade";
 
 // ─── Token storage key ─────────────────────────────────────
