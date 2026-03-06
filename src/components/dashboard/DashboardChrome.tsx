@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BarChart2, Activity, Gift, User, ArrowRight, LogOut, Copy } from "lucide-react";
+import { Home, BarChart2, Activity, Gift, User, ArrowRight, LogOut, Copy, Users } from "lucide-react";
 import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { MobileTopBar, MobileBottomNav } from "@/components/dashboard/Sidebar";
 import { useAuth } from "@/lib/useAuth";
@@ -18,6 +18,7 @@ const navItems = [
   { icon: BarChart2, label: "Analytics", href: "/dashboard/analytics" },
   { icon: Activity, label: "Markets", href: "/dashboard/markets" },
   { icon: Copy, label: "Copy Trade", href: "/dashboard/copy-trading" },
+  { icon: Users, label: "Social", href: "/dashboard/social" },
   { icon: Gift, label: "Referral", href: "/dashboard/referral" },
   { icon: User, label: "Profile", href: "/dashboard/profile" },
 ];

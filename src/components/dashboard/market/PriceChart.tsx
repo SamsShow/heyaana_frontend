@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import useSWR from "swr";
 import {
   AreaChart,
   Area,
@@ -9,10 +10,11 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { Trade } from "@/lib/api";
+import { Trade, proxyFetcher } from "@/lib/api";
 
 interface PriceChartProps {
-  trades: Trade[];
+  trades?: Trade[];
+  marketId?: number;
   isLoading?: boolean;
 }
 
@@ -25,11 +27,62 @@ const RANGE_MS: Record<TimeRange, number> = {
   ALL: Infinity,
 };
 
-export function PriceChart({ trades, isLoading }: PriceChartProps) {
+const RANGE_INTERVAL: Record<TimeRange, string> = {
+  "1D": "1h",
+  "1W": "6h",
+  "2W": "1d",
+  ALL: "1w",
+};
+
+type PriceHistoryPoint = {
+  t?: number;
+  timestamp?: number;
+  time?: number;
+  p?: number;
+  price?: number;
+  yes_price?: number;
+  [key: string]: unknown;
+};
+
+export function PriceChart({ trades, marketId, isLoading }: PriceChartProps) {
   const [range, setRange] = useState<TimeRange>("1W");
 
+  // Fetch from price history API if marketId is provided
+  const { data: priceHistory, isLoading: historyLoading } = useSWR<unknown>(
+    marketId
+      ? `/api/proxy/price/${marketId}/history?interval=${RANGE_INTERVAL[range]}`
+      : null,
+    proxyFetcher,
+    { revalidateOnFocus: false },
+  );
+
   const chartData = useMemo(() => {
-    if (!trades || trades.length === 0) return [];
+    // Prefer price history API data if available
+    if (priceHistory) {
+      const historyArray: PriceHistoryPoint[] = Array.isArray(priceHistory)
+        ? priceHistory
+        : typeof priceHistory === "object" && priceHistory !== null
+          ? (Object.values(priceHistory).find(Array.isArray) as PriceHistoryPoint[] | undefined) ?? []
+          : [];
+
+      if (historyArray.length > 0) {
+        return historyArray.map((pt) => {
+          const ts = pt.t ?? pt.timestamp ?? pt.time ?? 0;
+          const price = pt.p ?? pt.price ?? pt.yes_price ?? 0;
+          return {
+            time: typeof ts === "number" && ts < 1e12 ? ts * 1000 : ts,
+            price: typeof price === "number" ? price : 0,
+            label: new Date(typeof ts === "number" && ts < 1e12 ? ts * 1000 : ts).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+            }),
+          };
+        });
+      }
+    }
+
+    // Fallback: derive from trade data
+    if (!Array.isArray(trades) || trades.length === 0) return [];
 
     const now = Date.now();
     const cutoff = now - RANGE_MS[range];
@@ -50,14 +103,14 @@ export function PriceChart({ trades, isLoading }: PriceChartProps) {
         day: "numeric",
       }),
     }));
-  }, [trades, range]);
+  }, [trades, range, priceHistory]);
 
   const latestPrice = chartData.length > 0 ? chartData[chartData.length - 1].price : null;
   const firstPrice = chartData.length > 0 ? chartData[0].price : null;
   const isUp = latestPrice !== null && firstPrice !== null && latestPrice >= firstPrice;
   const strokeColor = isUp ? "#10B981" : "#EF4444";
 
-  if (isLoading) {
+  if (isLoading || historyLoading) {
     return (
       <div className="h-[280px] flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-border border-t-blue-primary rounded-full animate-spin" />

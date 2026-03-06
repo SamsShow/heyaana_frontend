@@ -27,8 +27,12 @@ export function MarketDetail({ ticker, onClose }: MarketDetailProps) {
     );
     const market = marketRaw ? normalizeMarket(marketRaw) : null;
 
+    // Fetch trades using condition_id from loaded market
+    const tradesKey = market?.condition_id
+        ? `/api/proxy/data/trades?market=${encodeURIComponent(market.condition_id)}&limit=50`
+        : null;
     const { data: trades, isLoading: loadingTrades } = useSWR<Trade[]>(
-        `/market/${ticker}/trades?limit=50`,
+        tradesKey,
         fetcher,
         { revalidateOnFocus: false }
     );

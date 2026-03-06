@@ -7,11 +7,12 @@ import { useAuth } from "@/lib/useAuth";
 
 interface TradePanelProps {
   market: Market;
+  conditionId?: string;
   marketId?: number;
   onTradeSuccess?: () => void;
 }
 
-export function TradePanel({ market, marketId, onTradeSuccess }: TradePanelProps) {
+export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: TradePanelProps) {
   const { isAuthenticated } = useAuth();
   const [side, setSide] = useState<"Yes" | "No">("Yes");
   const [amount, setAmount] = useState("");
@@ -23,7 +24,7 @@ export function TradePanel({ market, marketId, onTradeSuccess }: TradePanelProps
 
   async function handleTrade() {
     if (!amount || Number(amount) <= 0) return;
-    if (!marketId) {
+    if (!conditionId && !marketId) {
       setResult({ ok: false, message: "Market ID not available for trading" });
       return;
     }
@@ -32,7 +33,7 @@ export function TradePanel({ market, marketId, onTradeSuccess }: TradePanelProps
     setResult(null);
     try {
       await postTrade({
-        market_id: marketId,
+        ...(conditionId ? { condition_id: conditionId } : { market_id: marketId }),
         side,
         amount: Number(amount),
         auto_prepare: true,

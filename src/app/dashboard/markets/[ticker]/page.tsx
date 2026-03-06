@@ -53,11 +53,15 @@ export default function MarketDetailPage({
   );
   const market = marketRaw ? normalizeMarket(marketRaw) : null;
 
+  // Fetch trades using condition_id from the loaded market data
+  const tradesKey = market?.condition_id
+    ? `/api/proxy/data/trades?market=${encodeURIComponent(market.condition_id)}&limit=50`
+    : null;
   const {
     data: trades,
     isLoading: loadingTrades,
     mutate: mutateTrades,
-  } = useSWR<Trade[]>(`/market/${decodedTicker}/trades?limit=50`, fetcher, {
+  } = useSWR<Trade[]>(tradesKey, fetcher, {
     revalidateOnFocus: false,
   });
 
@@ -178,6 +182,7 @@ export default function MarketDetailPage({
               <div className="rounded-xl border border-border bg-surface/30 p-4 md:p-5">
                 <PriceChart
                   trades={trades ?? []}
+                  marketId={market.id}
                   isLoading={loadingTrades}
                 />
               </div>
@@ -244,6 +249,8 @@ export default function MarketDetailPage({
               {/* Trading panel */}
               <TradePanel
                 market={market}
+                conditionId={market.condition_id}
+                marketId={market.id}
                 onTradeSuccess={() => mutateTrades()}
               />
 

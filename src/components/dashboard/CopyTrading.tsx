@@ -21,6 +21,15 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
 
+type SocialTrader = {
+  user_id?: number;
+  username?: string;
+  first_name?: string;
+  trade_count?: number;
+  recent_trades?: unknown[];
+  [key: string]: unknown;
+};
+
 export function CopyTrading() {
   const { isAuthenticated } = useAuth();
   const [enabled, setEnabled] = useState(false);
@@ -34,6 +43,39 @@ export function CopyTrading() {
     proxyFetcher,
     { revalidateOnFocus: false },
   );
+
+  // Load real traders from social feed
+  const { data: socialFeedRaw } = useSWR<unknown>(
+    "/api/proxy/social/feed?limit=20",
+    proxyFetcher,
+    { revalidateOnFocus: false },
+  );
+
+  // Derive real traders list: use social feed data if available, else fallback to mock
+  const traders = (() => {
+    const feedArray = Array.isArray(socialFeedRaw) ? socialFeedRaw : [];
+    // Deduplicate by username and build trader summaries
+    const seen = new Map<string, SocialTrader>();
+    for (const item of feedArray as SocialTrader[]) {
+      const username = item.username;
+      if (!username) continue;
+      if (!seen.has(username)) {
+        seen.set(username, item);
+      }
+    }
+    const realTraders = Array.from(seen.values())
+      .filter((t) => t.username)
+      .map((t) => ({
+        id: t.user_id ?? 0,
+        username: t.username!,
+        name: t.first_name ?? t.username!,
+        avatar: (t.first_name ?? t.username ?? "?").slice(0, 2).toUpperCase(),
+        trades: t.trade_count ?? (t.recent_trades ? (t.recent_trades as unknown[]).length : 0),
+      }));
+    return realTraders.length > 0 ? realTraders : topTraders;
+  })();
+
+  const isMockData = traders === topTraders;
 
   // Derive the set of followed usernames from the API response
   const followed = new Set<string>(
@@ -177,7 +219,7 @@ export function CopyTrading() {
           <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1">
             Traders
           </div>
-          <div className="text-xl font-bold font-mono">{topTraders.length}</div>
+          <div className="text-xl font-bold font-mono">{traders.length}</div>
         </div>
       </div>
 
@@ -189,7 +231,7 @@ export function CopyTrading() {
         </div>
 
         <div className="space-y-2">
-          {topTraders.map((trader) => {
+          {traders.map((trader) => {
             const isFollowing = followed.has(trader.username);
             const isPending = pendingFollow.has(trader.username);
 
@@ -212,33 +254,41 @@ export function CopyTrading() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold truncate">{trader.name}</span>
-                      {trader.streak > 5 && (
+                      {"streak" in trader && (trader as { streak: number }).streak > 5 && (
                         <span className="text-[10px] bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded font-mono flex items-center gap-0.5">
                           <Zap className="w-2.5 h-2.5" />
-                          {trader.streak}
+                          {(trader as { streak: number }).streak}
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                      <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-0.5">
-                        <TrendingUp className="w-3 h-3" />
-                        {trader.winRate}% win
-                      </span>
-                      <span className="text-[10px] font-mono text-muted">{trader.pnl}</span>
+                      {"winRate" in trader && (
+                        <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-0.5">
+                          <TrendingUp className="w-3 h-3" />
+                          {(trader as { winRate: number }).winRate}% win
+                        </span>
+                      )}
+                      {"pnl" in trader && (
+                        <span className="text-[10px] font-mono text-muted">
+                          {(trader as { pnl: string }).pnl}
+                        </span>
+                      )}
                       <span className="text-[10px] font-mono text-muted">
                         {trader.trades} trades
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 mt-1 flex-wrap">
-                      {trader.markets.map((m) => (
-                        <span
-                          key={m}
-                          className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-surface-hover text-muted border border-border/50"
-                        >
-                          {m}
-                        </span>
-                      ))}
-                    </div>
+                    {"markets" in trader && (
+                      <div className="flex items-center gap-1 mt-1 flex-wrap">
+                        {((trader as { markets: string[] }).markets).map((m) => (
+                          <span
+                            key={m}
+                            className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-surface-hover text-muted border border-border/50"
+                          >
+                            {m}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Follow / Unfollow */}

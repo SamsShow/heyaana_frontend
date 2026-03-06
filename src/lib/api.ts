@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://api.heyanna.trade/api/v1";
+const API_BASE_URL = "https://api2.heyanna.trade";
 
 export async function fetcher(url: string) {
     const requestUrl = url.startsWith("http") || url.startsWith("/api/")
@@ -59,6 +59,7 @@ export type DashboardResponse = {
 
 export type Market = {
     id?: number;
+    condition_id?: string;
     ticker: string;
     event_ticker: string;
     market_type: string;
@@ -219,6 +220,7 @@ export function normalizeMarket(raw: RawMarket): Market {
 
     return {
         id: toNumber(raw.id) ?? toNumber((raw as { market_id?: unknown }).market_id) ?? undefined,
+        condition_id: raw.condition_id ?? undefined,
         ticker,
         event_ticker: eventTicker,
         market_type: raw.market_type ?? "binary",
@@ -244,7 +246,8 @@ export function normalizeMarket(raw: RawMarket): Market {
 // ─── Trade request ────────────────────────────────────────
 
 export type TradeRequest = {
-    market_id: number;
+    condition_id?: string;
+    market_id?: number;
     side: "Yes" | "No";
     amount: number;
     auto_prepare?: boolean;
@@ -307,6 +310,19 @@ export async function unfollowTrader(leaderUsername: string): Promise<unknown> {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Failed to unfollow trader");
+    return data;
+}
+
+// ─── Trade cancel ─────────────────────────────────────────
+
+export async function cancelTrade(orderId: string) {
+    const res = await fetch("/api/proxy/trade/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: orderId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Cancel failed");
     return data;
 }
 
