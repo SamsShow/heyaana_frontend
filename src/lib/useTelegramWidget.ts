@@ -14,7 +14,8 @@ interface TelegramUser {
 
 interface UseTelegramWidgetOptions {
     botUsername: string;
-    onAuth: (user: TelegramUser) => void;
+    onAuth?: (user: TelegramUser) => void;
+    authUrl?: string; // Redirect-based flow
     buttonSize?: "large" | "medium" | "small";
     cornerRadius?: number;
     requestAccess?: "write";
@@ -24,6 +25,7 @@ interface UseTelegramWidgetOptions {
 export function useTelegramWidget({
     botUsername,
     onAuth,
+    authUrl,
     buttonSize = "medium",
     cornerRadius,
     requestAccess = "write",
@@ -32,10 +34,12 @@ export function useTelegramWidget({
     const [scriptLoaded, setScriptLoaded] = useState(false);
 
     useEffect(() => {
-        // Define the global callback
-        (window as any).onTelegramAuth = (user: TelegramUser) => {
-            onAuth(user);
-        };
+        // Define the global callback if onAuth is provided
+        if (onAuth) {
+            (window as any).onTelegramAuth = (user: TelegramUser) => {
+                onAuth(user);
+            };
+        }
 
         // Check if script already exists
         if (document.getElementById("telegram-widget-script")) {
@@ -51,9 +55,11 @@ export function useTelegramWidget({
         document.head.appendChild(script);
 
         return () => {
-            // We don't necessarily want to remove the script on unmount 
+            // We don't necessarily want to remove the script on unmount
             // as it might be used by other components, but we can clean up the callback
-            // (window as any).onTelegramAuth = undefined;
+            if (onAuth) {
+                (window as any).onTelegramAuth = undefined;
+            }
         };
     }, [onAuth]);
 
@@ -70,14 +76,20 @@ export function useTelegramWidget({
             widget.setAttribute("data-radius", cornerRadius.toString());
         }
         widget.setAttribute("data-request-access", requestAccess);
-        widget.setAttribute("data-onauth", "onTelegramAuth(user)");
+
+        if (authUrl) {
+            widget.setAttribute("data-auth-url", authUrl);
+        } else {
+            widget.setAttribute("data-onauth", "onTelegramAuth(user)");
+        }
+
         if (!showUserPhoto) {
             widget.setAttribute("data-userpic", "false");
         }
         widget.async = true;
 
         container.appendChild(widget);
-    }, [botUsername, buttonSize, cornerRadius, requestAccess, showUserPhoto, scriptLoaded]);
+    }, [botUsername, buttonSize, cornerRadius, requestAccess, showUserPhoto, scriptLoaded, authUrl]);
 
     return { scriptLoaded, renderWidget };
 }

@@ -5,18 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  ArrowRight,
-  ArrowLeft,
-  Check,
-  Shield,
-  TrendingUp,
-  Zap,
-  MessageCircle,
-  Bot,
-  Flame,
-  Loader2,
-} from "lucide-react";
+import { ChevronRight, ArrowLeft, Send, Sparkles, Wand2, Shield, Zap, Globe, Lock, Coins, TrendingUp, Users, Info, HelpCircle, Mail, MessageSquare, Twitter, Github, Globe2, Wallet, LogIn, ChevronDown, Check, Copy, LogOut, MessageCircle, ArrowRight, Bot, Flame, Loader2 } from "lucide-react";
+import { useTelegramWidget } from "@/lib/useTelegramWidget";
+import { API2_BASE_URL } from "@/lib/auth-api";
 import { marketCategories, topTraders } from "@/lib/mock-data";
 import { useAuth } from "@/lib/useAuth";
 
@@ -43,9 +34,7 @@ function OnboardingPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, loginManual, login, loginWidget } = useAuth();
-  const telegramBotUsername = (
-    process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? "heyanna_ai_bot"
-  ).replace(/^@/, "");
+  const TELEGRAM_BOT_USERNAME = (process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "heyanna_ai_bot").replace(/^@/, "");
 
   const next = () => setStep((s) => Math.min(s + 1, 5));
   const prev = () => setStep((s) => Math.max(s - 1, 1));
@@ -133,11 +122,18 @@ function OnboardingPageContent() {
     };
   }, [step, login]);
 
+  // Use the new useTelegramWidget hook for the redirect flow
+  const { renderWidget } = useTelegramWidget({
+    botUsername: TELEGRAM_BOT_USERNAME,
+    authUrl: `${API2_BASE_URL}/auth/telegram-widget`,
+    buttonSize: "large",
+    cornerRadius: 12,
+  });
 
   // Load Telegram Login Widget script
   useEffect(() => {
     if (step !== 1 || !telegramRef.current) return;
-    if (!telegramBotUsername) return;
+    if (!TELEGRAM_BOT_USERNAME) return;
 
     // Clear previous widget
     telegramRef.current.innerHTML = "";
@@ -145,7 +141,7 @@ function OnboardingPageContent() {
     const script = document.createElement("script");
     script.src = "https://telegram.org/js/telegram-widget.js?22";
     script.async = true;
-    script.setAttribute("data-telegram-login", telegramBotUsername);
+    script.setAttribute("data-telegram-login", TELEGRAM_BOT_USERNAME);
     script.setAttribute("data-size", "large");
     script.setAttribute("data-radius", "8");
     script.setAttribute("data-onauth", "onTelegramAuth(user)");
@@ -170,7 +166,7 @@ function OnboardingPageContent() {
     telegramRef.current.appendChild(script);
 
     return;
-  }, [step, telegramBotUsername]);
+  }, [step, TELEGRAM_BOT_USERNAME]);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -263,7 +259,7 @@ function OnboardingPageContent() {
                   <p className="text-[11px] text-muted font-mono">
                     Bot:{" "}
                     <span className="text-foreground">
-                      @{telegramBotUsername}
+                      @{TELEGRAM_BOT_USERNAME}
                     </span>
                   </p>
                   <p className="text-[11px] text-muted font-mono">

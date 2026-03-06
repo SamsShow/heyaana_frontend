@@ -3,9 +3,18 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/lib/useAuth";
 import { ChevronDown, LogOut, Copy, Check, User, Loader2, LogIn } from "lucide-react";
+import {
+    loginTelegram,
+    loginWidgetTelegram,
+    loginManual as loginManualApi,
+    logout as logoutApi,
+    api2Fetch,
+    API2_BASE_URL,
+    type UserProfile,
+} from "../../lib/auth-api";
 import { useTelegramWidget } from "@/lib/useTelegramWidget";
 
-const TELEGRAM_BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? "heyannabot";
+const TELEGRAM_BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? "heyanna_ai_bot";
 
 /**
  * UserBadge — shows the authenticated user's name / telegram ID
@@ -20,9 +29,7 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
 
     const { renderWidget } = useTelegramWidget({
         botUsername: TELEGRAM_BOT_USERNAME,
-        onAuth: (user) => {
-            loginWidget(user);
-        },
+        authUrl: `${API2_BASE_URL}/auth/telegram-widget`,
         buttonSize: compact ? "small" : "medium",
         cornerRadius: 8,
     });
