@@ -33,6 +33,7 @@ const bottomItems = [
 
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-64 border-r border-border bg-background z-40 flex flex-col">
@@ -65,11 +66,10 @@ export function DashboardSidebar() {
             <Link
               key={item.label}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
-                isActive
-                  ? "bg-red-primary/10 text-red-primary border border-red-primary/20"
-                  : "text-muted hover:text-foreground hover:bg-surface"
-              }`}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${isActive
+                ? "bg-red-primary/10 text-red-primary border border-red-primary/20"
+                : "text-muted hover:text-foreground hover:bg-surface"
+                }`}
             >
               <item.icon className="w-4 h-4" />
               {item.label}
@@ -107,10 +107,10 @@ export function DashboardSidebar() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-red-primary/10 text-red-primary flex items-center justify-center text-xs font-bold font-mono">
-              SS
+              {user?.username?.[0]?.toUpperCase() ?? user?.first_name?.[0]?.toUpperCase() ?? "U"}
             </div>
             <div>
-              <div className="text-sm font-medium">Sam</div>
+              <div className="text-sm font-medium">{user?.username ?? user?.first_name ?? "User"}</div>
               <div className="text-[10px] text-muted">Connected</div>
             </div>
           </div>
@@ -177,9 +177,8 @@ export function MobileBottomNav() {
           <Link
             key={item.label}
             href={item.href}
-            className={`flex flex-col items-center gap-1 px-3.5 py-1.5 rounded-xl transition-all ${
-              isActive ? "bg-surface text-foreground" : "text-muted hover:text-foreground"
-            }`}
+            className={`flex flex-col items-center gap-1 px-3.5 py-1.5 rounded-xl transition-all ${isActive ? "bg-surface text-foreground" : "text-muted hover:text-foreground"
+              }`}
           >
             <item.icon className={`w-5 h-5 ${isActive ? "text-blue-primary" : ""}`} />
             <span className="text-[9px] font-mono">{item.label}</span>

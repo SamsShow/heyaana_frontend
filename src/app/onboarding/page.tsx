@@ -36,8 +36,8 @@ function OnboardingPageContent() {
   const [selectedTraders, setSelectedTraders] = useState<number[]>([1, 2]);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [devUserId, setDevUserId] = useState("1");
   const [currentHostname, setCurrentHostname] = useState<string | null>(null);
+  const [showDevLogin, setShowDevLogin] = useState(false);
   const telegramRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
@@ -92,6 +92,12 @@ function OnboardingPageContent() {
     setLoginError(readable);
   }, [searchParams]);
 
+  useEffect(() => {
+    if (searchParams.get("dev") === "true") {
+      setShowDevLogin(true);
+    }
+  }, [searchParams]);
+
   // If opened inside Telegram Mini App, prefer secure initData auth.
   useEffect(() => {
     if (step !== 1) return;
@@ -127,19 +133,6 @@ function OnboardingPageContent() {
     };
   }, [step, login]);
 
-  // Handle dev login
-  const handleDevLogin = useCallback(async () => {
-    setLoginLoading(true);
-    setLoginError(null);
-    try {
-      await loginManual(Number(devUserId));
-      next(); // move past connect step
-    } catch (err) {
-      setLoginError(err instanceof Error ? err.message : "Login failed");
-    } finally {
-      setLoginLoading(false);
-    }
-  }, [loginManual, devUserId]);
 
   // Load Telegram Login Widget script
   useEffect(() => {
@@ -212,10 +205,10 @@ function OnboardingPageContent() {
               <div className="flex flex-col items-center">
                 <div
                   className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-mono font-bold transition-all ${step > s.id
-                      ? "bg-green-500 text-white"
-                      : step === s.id
-                        ? "bg-red-primary text-white glow-red"
-                        : "bg-surface border border-border text-muted"
+                    ? "bg-green-500 text-white"
+                    : step === s.id
+                      ? "bg-red-primary text-white glow-red"
+                      : "bg-surface border border-border text-muted"
                     }`}
                 >
                   {step > s.id ? <Check className="w-4 h-4" /> : s.id}
@@ -278,39 +271,44 @@ function OnboardingPageContent() {
                     <span className="text-foreground">{currentHostname ?? "unknown"}</span>
                   </p>
 
-                  {/* Dev Login (visible in all environments for now) */}
-                  <div className="w-full p-5 rounded-xl border border-dashed border-border bg-surface/30">
-                    <div className="flex items-center gap-4 mb-3">
-                      <div className="w-12 h-12 rounded-xl bg-yellow-500/10 flex items-center justify-center">
-                        <Zap className="w-6 h-6 text-yellow-400" />
+                  {/* Dev Login (hidden by default, use ?dev=true to show) */}
+                  {showDevLogin && (
+                    <div className="w-full p-5 rounded-xl border border-dashed border-border bg-surface/30">
+                      <div className="flex items-center gap-4 mb-3">
+                        <div className="w-12 h-12 rounded-xl bg-yellow-500/10 flex items-center justify-center">
+                          <Zap className="w-6 h-6 text-yellow-400" />
+                        </div>
+                        <div className="text-left">
+                          <div className="font-semibold text-sm">Dev Login</div>
+                          <div className="text-[10px] text-muted font-mono tracking-tight leading-none italic opacity-70">Testing/Debug Only</div>
+                        </div>
                       </div>
-                      <div className="text-left">
-                        <div className="font-semibold">Dev Login</div>
-                        <div className="text-xs text-muted">Quick login with Telegram user ID</div>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          defaultValue="1"
+                          id="dev-user-id"
+                          placeholder="Telegram User ID"
+                          className="flex-1 px-3 py-2 text-sm font-mono rounded-lg border border-border bg-background text-foreground placeholder:text-muted focus:outline-none focus:border-red-primary/50"
+                        />
+                        <button
+                          onClick={() => {
+                            const val = (document.getElementById("dev-user-id") as HTMLInputElement)?.value;
+                            if (val) loginManual(Number(val)).then(() => next());
+                          }}
+                          disabled={loginLoading}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-primary text-white text-sm font-medium hover:bg-red-dark transition-all disabled:opacity-50"
+                        >
+                          {loginLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <ArrowRight className="w-4 h-4" />
+                          )}
+                          Login
+                        </button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        value={devUserId}
-                        onChange={(e) => setDevUserId(e.target.value)}
-                        placeholder="Telegram User ID"
-                        className="flex-1 px-3 py-2 text-sm font-mono rounded-lg border border-border bg-background text-foreground placeholder:text-muted focus:outline-none focus:border-red-primary/50"
-                      />
-                      <button
-                        onClick={handleDevLogin}
-                        disabled={loginLoading || !devUserId}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-primary text-white text-sm font-medium hover:bg-red-dark transition-all disabled:opacity-50"
-                      >
-                        {loginLoading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <ArrowRight className="w-4 h-4" />
-                        )}
-                        Login
-                      </button>
-                    </div>
-                  </div>
+                  )}
 
                   {loginError && (
                     <div className="text-center text-sm text-red-400 font-mono bg-red-500/5 border border-red-500/20 rounded-lg px-4 py-2">
@@ -350,8 +348,8 @@ function OnboardingPageContent() {
                         key={cat.name}
                         onClick={() => toggleMarket(cat.name)}
                         className={`p-4 rounded-xl border text-center transition-all ${isSelected
-                            ? "border-red-primary bg-red-primary/10 glow-red"
-                            : "border-border bg-surface/50 hover:border-red-primary/20"
+                          ? "border-red-primary bg-red-primary/10 glow-red"
+                          : "border-border bg-surface/50 hover:border-red-primary/20"
                           }`}
                       >
                         <div className="text-2xl mb-1">{cat.icon}</div>
@@ -417,8 +415,8 @@ function OnboardingPageContent() {
                         setMaxExposure(level.key === "conservative" ? 10 : level.key === "moderate" ? 25 : 50);
                       }}
                       className={`p-5 rounded-xl border text-left transition-all ${riskLevel === level.key
-                          ? "border-red-primary bg-red-primary/5 glow-red"
-                          : "border-border bg-surface/50 hover:border-red-primary/20"
+                        ? "border-red-primary bg-red-primary/5 glow-red"
+                        : "border-border bg-surface/50 hover:border-red-primary/20"
                         }`}
                     >
                       <level.icon className={`w-6 h-6 mb-3 ${riskLevel === level.key ? "text-red-primary" : "text-muted"}`} />
@@ -471,8 +469,8 @@ function OnboardingPageContent() {
                         key={trader.id}
                         onClick={() => toggleTrader(trader.id)}
                         className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all text-left ${isSelected
-                            ? "border-red-primary bg-red-primary/5 glow-red"
-                            : "border-border bg-surface/50 hover:border-red-primary/20"
+                          ? "border-red-primary bg-red-primary/5 glow-red"
+                          : "border-border bg-surface/50 hover:border-red-primary/20"
                           }`}
                       >
                         <div className="flex items-center gap-3">
@@ -559,8 +557,8 @@ function OnboardingPageContent() {
               onClick={prev}
               disabled={step === 1}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm transition-all ${step === 1
-                  ? "text-muted/30 cursor-not-allowed"
-                  : "text-muted hover:text-foreground border border-border hover:border-red-primary/30"
+                ? "text-muted/30 cursor-not-allowed"
+                : "text-muted hover:text-foreground border border-border hover:border-red-primary/30"
                 }`}
             >
               <ArrowLeft className="w-4 h-4" />

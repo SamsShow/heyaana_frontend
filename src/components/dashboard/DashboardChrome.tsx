@@ -30,7 +30,7 @@ function isItemActive(pathname: string, href: string): boolean {
 
 export function DashboardChrome({ title, children }: DashboardChromeProps) {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -46,9 +46,8 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
               <Link
                 key={item.label}
                 href={item.href}
-                className={`flex items-center gap-2.5 px-3 py-2.5 text-sm transition-all rounded-lg ${
-                  active ? "bg-surface text-foreground" : "text-muted hover:text-foreground hover:bg-surface"
-                }`}
+                className={`flex items-center gap-2.5 px-3 py-2.5 text-sm transition-all rounded-lg ${active ? "bg-surface text-foreground" : "text-muted hover:text-foreground hover:bg-surface"
+                  }`}
               >
                 <item.icon className="w-4 h-4 shrink-0" />
                 {item.label}
@@ -60,10 +59,10 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
         <div className="px-4 pt-4 border-t border-border">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-blue-primary/20 text-blue-primary flex items-center justify-center text-[10px] font-bold font-mono shrink-0">
-              SS
+              {user?.username?.[0]?.toUpperCase() ?? user?.first_name?.[0]?.toUpperCase() ?? "U"}
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-medium truncate">Sam</div>
+              <div className="text-xs font-medium truncate">{user?.username ?? user?.first_name ?? "User"}</div>
               <div className="text-[9px] text-muted font-mono">Connected</div>
             </div>
           </div>
