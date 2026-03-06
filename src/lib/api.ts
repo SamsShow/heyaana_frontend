@@ -472,6 +472,23 @@ export async function closePosition(conditionId: string, size?: number): Promise
     return data;
 }
 
+// ─── Export private key ───────────────────────────────────
+
+export async function exportPrivateKey(): Promise<string> {
+    const res = await fetch(`${API2_BASE_URL}/me/wallet/private-key`, {
+        headers: {
+            "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+        }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Failed to export private key");
+    const key = data.private_key ?? data.key ?? data.privateKey;
+    if (!key) throw new Error("Private key not found in response");
+    return key as string;
+}
+
 // ─── Trade cancel ─────────────────────────────────────────
 
 export async function cancelTrade(orderId: string) {
