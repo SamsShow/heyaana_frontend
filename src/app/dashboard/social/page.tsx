@@ -27,8 +27,8 @@ type FeedTrade = {
   amount?: number;
   status?: string;
   tx_hash?: string;
-  executed_at?: string;
-  created_at?: string;
+  executed_at?: string | number;
+  created_at?: string | number;
   copied_from_user_id?: number;
   copied_from_username?: string;
   [key: string]: unknown;
@@ -39,7 +39,7 @@ export default function SocialFeedPage() {
   const [pendingFollow, setPendingFollow] = useState<Set<string>>(new Set());
 
   const { data: feedRaw, isLoading } = useSWR<unknown>(
-    "/api/proxy/social/feed?limit=50",
+    "/api/proxy/trades?limit=50",
     proxyFetcher,
     { revalidateOnFocus: false, refreshInterval: 30000 },
   );
@@ -58,7 +58,12 @@ export default function SocialFeedPage() {
       : [],
   );
 
-  const feed: FeedTrade[] = Array.isArray(feedRaw) ? feedRaw : [];
+  const feedArr = Array.isArray(feedRaw)
+    ? feedRaw
+    : Array.isArray((feedRaw as { trades?: FeedTrade[] })?.trades)
+      ? (feedRaw as { trades: FeedTrade[] }).trades
+      : [];
+  const feed: FeedTrade[] = feedArr;
 
   async function handleFollowToggle(username: string) {
     if (!username) return;
@@ -95,7 +100,7 @@ export default function SocialFeedPage() {
               <h1 className="text-xl font-bold">Social Feed</h1>
             </div>
             <p className="text-xs text-muted font-mono">
-              Recent trades from copy-trading-enabled users. Follow traders to mirror their positions.
+              Global trade feed across all users. Follow traders to mirror their positions.
             </p>
           </div>
 
@@ -115,7 +120,10 @@ export default function SocialFeedPage() {
             <div className="space-y-3">
               {feed.map((trade, i) => {
                 const isBuy = (trade.side ?? "").toLowerCase() === "buy" || (trade.side ?? "").toLowerCase() === "yes";
-                const timeStr = trade.executed_at ?? trade.created_at;
+                const rawTime = trade.executed_at ?? trade.created_at;
+                const timeStr = typeof rawTime === "number"
+                  ? new Date(rawTime * 1000).toISOString()
+                  : rawTime;
                 const isFollowing = trade.username ? followed.has(trade.username) : false;
                 const isPending = trade.username ? pendingFollow.has(trade.username) : false;
 

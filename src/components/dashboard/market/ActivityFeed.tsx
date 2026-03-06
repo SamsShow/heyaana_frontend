@@ -50,8 +50,8 @@ export function ActivityFeed({ trades, isLoading }: ActivityFeedProps) {
         </div>
       ) : (
         <div className="space-y-0.5">
-          {filteredTrades.map((trade) => (
-            <TradeRow key={trade.trade_id} trade={trade} />
+          {filteredTrades.map((trade, i) => (
+            <TradeRow key={trade.trade_id ?? i} trade={trade} />
           ))}
         </div>
       )}
@@ -61,11 +61,11 @@ export function ActivityFeed({ trades, isLoading }: ActivityFeedProps) {
 
 function TradeRow({ trade }: { trade: Trade }) {
   const isYes = trade.taker_side === "yes";
-  const hashId = trade.trade_id;
+  const hashId = trade.trade_id ?? "";
   const truncated =
     hashId.length > 10
       ? `0x${hashId.slice(0, 4)}…${hashId.slice(-4)}`
-      : hashId;
+      : hashId || "—";
 
   return (
     <div className="flex items-center gap-3 py-3 px-1 border-b border-border/50 last:border-0 hover:bg-surface/50 transition-colors rounded-lg">

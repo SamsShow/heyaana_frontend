@@ -15,11 +15,24 @@ import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2 } from "lucide-rea
 export default function ProfilePage() {
   const { user, isLoading, isAuthenticated } = useAuth();
 
+  const { data: walletData } = useSWR<Record<string, string>>(
+    isAuthenticated ? "/api/proxy/me/wallet/address" : null,
+    proxyFetcher,
+    { revalidateOnFocus: false },
+  );
+
   const { data: portfolio, isLoading: portfolioLoading } = useSWR<Portfolio>(
     isAuthenticated ? "/api/proxy/me/portfolio" : null,
     proxyFetcher,
     { revalidateOnFocus: false },
   );
+
+  const walletAddress =
+    user?.wallet_address ??
+    walletData?.address ??
+    walletData?.wallet_address ??
+    walletData?.eth_address ??
+    null;
 
   return (
     <DashboardChrome title="Profile">
@@ -47,7 +60,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <span className="text-muted">Wallet:</span>{" "}
-                <span className="break-all">{isLoading ? "Loading…" : (user?.wallet_address ?? "Not connected")}</span>
+                <span className="break-all">{isLoading ? "Loading…" : (walletAddress ?? "Not connected")}</span>
               </div>
               <div className="pt-3 space-y-2">
                 <div className="text-xs text-muted">EVM wallet connection</div>
