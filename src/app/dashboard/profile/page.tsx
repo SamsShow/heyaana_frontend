@@ -139,7 +139,7 @@ export default function ProfilePage() {
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex-1 min-w-0">
                               <div className="text-sm font-semibold truncate">{pos.title ?? pos.ticker ?? `Position #${i + 1}`}</div>
-                              <div className="text-[10px] font-mono text-muted mt-0.5">{pos.side} • {pos.shares.toFixed(2)} shares</div>
+                              <div className="text-[10px] font-mono text-muted mt-0.5">{pos.side} • {(pos.shares ?? 0).toFixed(2)} shares</div>
                             </div>
                             <div className={`text-right ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
                               <div className="text-sm font-bold font-mono flex items-center gap-1 justify-end">
@@ -147,14 +147,14 @@ export default function ProfilePage() {
                                 ${Math.abs(pnl).toFixed(2)}
                               </div>
                               {pos.pnl_pct !== undefined && (
-                                <div className="text-[10px] font-mono">{isPositive ? "+" : ""}{pos.pnl_pct.toFixed(1)}%</div>
+                                <div className="text-[10px] font-mono">{isPositive ? "+" : ""}{(pos.pnl_pct ?? 0).toFixed(1)}%</div>
                               )}
                             </div>
                           </div>
                           <div className="flex gap-4 text-[10px] font-mono text-muted">
-                            <span>Avg: ${pos.avg_price.toFixed(2)}</span>
-                            {pos.current_price !== undefined && <span>Current: ${pos.current_price.toFixed(2)}</span>}
-                            {pos.current_value !== undefined && <span>Value: ${pos.current_value.toFixed(2)}</span>}
+                            <span>Avg: ${(pos.avg_price ?? 0).toFixed(2)}</span>
+                            {pos.current_price !== undefined && <span>Current: ${(pos.current_price ?? 0).toFixed(2)}</span>}
+                            {pos.current_value !== undefined && <span>Value: ${(pos.current_value ?? 0).toFixed(2)}</span>}
                           </div>
                         </div>
                       );

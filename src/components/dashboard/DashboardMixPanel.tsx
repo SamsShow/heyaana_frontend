@@ -28,7 +28,7 @@ export function DashboardMixPanel() {
   const isMock = Boolean(error) || !isRecord(data?.summary);
 
   const overallWinRateRaw = summary.overall_win_rate;
-  const overallWinRate = typeof overallWinRateRaw === "number"
+  const overallWinRate = typeof overallWinRateRaw === "number" && !isNaN(overallWinRateRaw)
     ? `${(overallWinRateRaw * 100).toFixed(1)}%`
     : "—";
 

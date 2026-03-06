@@ -7,6 +7,10 @@ import { arbitrum, base, mainnet, polygon } from "@reown/appkit/networks";
 const walletConnectProjectId =
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "demo-project-id";
 
+if (walletConnectProjectId === "demo-project-id" && typeof window !== "undefined") {
+  console.warn("WalletConnect Project ID is missing. Using demo-project-id. Get one at https://cloud.walletconnect.com");
+}
+
 const metadata = {
   name: "HeyAnna",
   description: "Prediction market terminal",
