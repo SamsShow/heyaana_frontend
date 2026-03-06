@@ -55,19 +55,19 @@ export default function MarketDetailPage() {
 
 function MarketDetailContent() {
   const searchParams = useSearchParams();
-  const ticker = searchParams.get("ticker");
-  const decodedTicker = ticker ? decodeURIComponent(ticker) : "";
+  const conditionId = searchParams.get("conditionId") ?? searchParams.get("ticker");
+  const decodedConditionId = conditionId ? decodeURIComponent(conditionId) : "";
 
   const { data: marketRaw, isLoading: loadingMarket } = useSWR<Market>(
-    decodedTicker ? `/api/v1/market/${encodeURIComponent(decodedTicker)}` : null,
+    decodedConditionId ? `/api/proxy/markets/by-condition/${encodeURIComponent(decodedConditionId)}` : null,
     fetcher,
     { revalidateOnFocus: false },
   );
   const market = marketRaw ? normalizeMarket(marketRaw) : null;
 
-  // Fetch trades using ticker from api1
-  const tradesKey = decodedTicker
-    ? `/api/v1/market/${encodeURIComponent(decodedTicker)}/trades?limit=50`
+  // Fetch trades using condition_id from the loaded market
+  const tradesKey = market?.condition_id
+    ? `/api/proxy/data/trades?market=${encodeURIComponent(market.condition_id)}&limit=50`
     : null;
   const {
     data: trades,
@@ -255,7 +255,7 @@ function MarketDetailContent() {
               </div>
 
               {/* Position card */}
-              <PositionCard ticker={decodedTicker} marketTitle={market.title} />
+              <PositionCard ticker={decodedConditionId} marketTitle={market.title} />
 
               {/* Trading panel */}
               <TradePanel

@@ -44,12 +44,11 @@ export function MarketSearch({
 
     const isSearching = debouncedQuery.length > 0;
 
-    // Use api1 for search, api2 for trending fallback
     const activeQuery = isSearching
         ? debouncedQuery
         : (CATEGORIES.find((c) => c.id === activeCategory)?.query ?? "");
     const endpoint = activeQuery
-        ? `/api/v1/market/search?query=${encodeURIComponent(activeQuery)}`
+        ? `/api/proxy/markets/search?q=${encodeURIComponent(activeQuery)}`
         : "/api/proxy/markets/trending";
 
     const { data, isLoading } = useSWR<
@@ -69,7 +68,8 @@ export function MarketSearch({
     const handleSelect = useCallback(
         (market: Market) => {
             if (navigateOnSelect) {
-                router.push(`/dashboard/market?ticker=${encodeURIComponent(market.ticker)}`);
+                const id = market.condition_id ?? market.ticker;
+                router.push(`/dashboard/market?conditionId=${encodeURIComponent(id)}`);
             }
             onSelectMarket?.(market.ticker);
         },

@@ -21,15 +21,18 @@ function formatTime(iso: string): string {
 
 export function MarketDetail({ ticker, onClose }: MarketDetailProps) {
     const { data: marketRaw, isLoading: loadingMarket } = useSWR<Market>(
-        `/api/v1/market/${encodeURIComponent(ticker)}`,
+        `/api/proxy/markets/by-condition/${encodeURIComponent(ticker)}`,
         fetcher,
         { revalidateOnFocus: false }
     );
     const market = marketRaw ? normalizeMarket(marketRaw) : null;
 
-    // Fetch trades from api1 using ticker
+    // Fetch trades using condition_id from loaded market
+    const tradesKey = market?.condition_id
+        ? `/api/proxy/data/trades?market=${encodeURIComponent(market.condition_id)}&limit=50`
+        : null;
     const { data: trades, isLoading: loadingTrades } = useSWR<Trade[]>(
-        `/api/v1/market/${encodeURIComponent(ticker)}/trades?limit=50`,
+        tradesKey,
         fetcher,
         { revalidateOnFocus: false }
     );
