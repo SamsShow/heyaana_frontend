@@ -14,7 +14,8 @@ type FilterSide = "all" | "yes" | "no";
 export function ActivityFeed({ trades, isLoading }: ActivityFeedProps) {
   const [filter, setFilter] = useState<FilterSide>("all");
 
-  const filteredTrades = trades.filter((t) => {
+  const safeTrades = Array.isArray(trades) ? trades : [];
+  const filteredTrades = safeTrades.filter((t) => {
     if (filter === "all") return true;
     return t.taker_side === filter;
   });

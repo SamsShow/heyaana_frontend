@@ -70,12 +70,18 @@ function MarketDetailContent() {
     ? `/api/proxy/data/trades?market=${encodeURIComponent(market.condition_id)}&limit=50`
     : null;
   const {
-    data: trades,
+    data: tradesRaw,
     isLoading: loadingTrades,
     mutate: mutateTrades,
-  } = useSWR<Trade[]>(tradesKey, fetcher, {
+  } = useSWR<unknown>(tradesKey, fetcher, {
     revalidateOnFocus: false,
   });
+  // API may return {trades:[...]} or a plain array
+  const trades: Trade[] = Array.isArray(tradesRaw)
+    ? (tradesRaw as Trade[])
+    : Array.isArray((tradesRaw as { trades?: unknown })?.trades)
+      ? ((tradesRaw as { trades: Trade[] }).trades)
+      : [];
 
   if (loadingMarket) {
     return (
