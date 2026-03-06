@@ -22,12 +22,16 @@ export async function api2Fetch(
   const authToken = token ?? (typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : null);
   const url = `${API2_BASE_URL}${path}`;
 
+  const method = init?.method?.toUpperCase() ?? "GET";
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     "User-Agent":
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
     ...(init?.headers as Record<string, string> ?? {}),
   };
+
+  if (["POST", "PUT", "PATCH"].includes(method)) {
+    headers["Content-Type"] = "application/json";
+  }
 
   if (authToken) {
     headers["Authorization"] = `Bearer ${authToken}`;

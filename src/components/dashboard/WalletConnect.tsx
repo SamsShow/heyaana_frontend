@@ -2,7 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/lib/useAuth";
-import { ChevronDown, LogOut, Copy, Check, User, Loader2 } from "lucide-react";
+import { ChevronDown, LogOut, Copy, Check, User, Loader2, LogIn } from "lucide-react";
+import { useTelegramWidget } from "@/lib/useTelegramWidget";
+
+const TELEGRAM_BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? "heyannabot";
 
 /**
  * UserBadge — shows the authenticated user's name / telegram ID
@@ -10,10 +13,21 @@ import { ChevronDown, LogOut, Copy, Check, User, Loader2 } from "lucide-react";
  * Replaces the old MetaMask WalletConnect component.
  */
 export function UserBadge({ compact = false }: { compact?: boolean }) {
-    const { user, isLoading, isAuthenticated, logout } = useAuth();
+    const { user, isLoading, isAuthenticated, loginWidget, logout } = useAuth();
     const [open, setOpen] = useState(false);
     const [copied, setCopied] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const { renderWidget } = useTelegramWidget({
+        botUsername: TELEGRAM_BOT_USERNAME,
+        onAuth: (user) => {
+            loginWidget(user);
+        },
+        buttonSize: compact ? "small" : "medium",
+        cornerRadius: 8,
+    });
+
+    const widgetContainerRef = useRef<HTMLDivElement>(null);
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -25,6 +39,12 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
         document.addEventListener("mousedown", handleClick);
         return () => document.removeEventListener("mousedown", handleClick);
     }, []);
+
+    useEffect(() => {
+        if (!isAuthenticated && !isLoading && widgetContainerRef.current) {
+            renderWidget(widgetContainerRef.current);
+        }
+    }, [isAuthenticated, isLoading, renderWidget, open]);
 
     const copyAddress = async () => {
         if (!user?.wallet_address) return;
@@ -46,7 +66,9 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
     }
 
     if (!isAuthenticated || !user) {
-        return null; // Middleware should redirect, but just in case
+        return (
+            <div className="flex items-center min-h-[36px]" ref={widgetContainerRef} />
+        );
     }
 
     const displayName = user.first_name ?? user.username ?? `User ${user.telegram_id}`;
@@ -55,9 +77,8 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setOpen((o) => !o)}
-                className={`flex items-center gap-1.5 font-mono transition-all rounded border border-border bg-surface hover:bg-surface-hover ${
-                    compact ? "px-2 py-1 text-[10px]" : "px-2.5 py-1.5 text-[11px]"
-                }`}
+                className={`flex items-center gap-1.5 font-mono transition-all rounded border border-border bg-surface hover:bg-surface-hover ${compact ? "px-2 py-1 text-[10px]" : "px-2.5 py-1.5 text-[11px]"
+                    }`}
             >
                 <div className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
                 <span className="text-foreground">{displayName}</span>

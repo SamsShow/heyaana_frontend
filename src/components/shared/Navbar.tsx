@@ -4,6 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
+import { UserBadge } from "@/components/dashboard/WalletConnect";
+import { useAuth } from "@/lib/useAuth";
 
 const navLinks = [
   { label: "Features", href: "/#features" },
@@ -15,6 +17,7 @@ const navLinks = [
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [visible, setVisible] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -27,11 +30,10 @@ export function Navbar() {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-out ${
-        visible
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-out ${visible
           ? "translate-y-0 opacity-100 bg-[#060B1A]/90 backdrop-blur-xl border-b border-white/5"
           : "-translate-y-full opacity-0 pointer-events-none"
-      }`}
+        }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
@@ -71,25 +73,17 @@ export function Navbar() {
             </a>
           </div>
 
-          {/* CTA */}
-          <div className="hidden md:flex items-center gap-2">
-            <a
-              href="https://t.me/+i9D5bDox8lNmNDk9"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-full border border-white/15 hover:border-[#26A5E4]/50 text-white/60 hover:text-[#26A5E4] transition-all hover:bg-[#26A5E4]/[0.06]"
-            >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.919l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.978.64z"/>
-              </svg>
-              Telegram
-            </a>
-            <a
-              href="/dashboard"
-              className="text-sm px-5 py-2 rounded-full bg-blue-primary text-white font-medium hover:bg-blue-dark transition-all glow-blue"
-            >
-              Start Trading
-            </a>
+          {/* CTA / Auth Chip */}
+          <div className="hidden md:flex items-center gap-3">
+            <UserBadge />
+            {!isAuthenticated && (
+              <a
+                href="/dashboard"
+                className="text-sm px-5 py-2 rounded-full bg-blue-primary text-white font-medium hover:bg-blue-dark transition-all glow-blue"
+              >
+                Trade Now
+              </a>
+            )}
           </div>
 
           {/* Mobile Hamburger */}
@@ -123,7 +117,7 @@ export function Navbar() {
                 onClick={() => setMobileOpen(false)}
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.919l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.978.64z"/>
+                  <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.919l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.978.64z" />
                 </svg>
                 Telegram
               </a>
