@@ -69,8 +69,10 @@ export function useTelegramWidget({
         // Clear container
         container.innerHTML = "";
 
+        const sanitizedBotUsername = botUsername.replace(/^@/, "");
         const widget = document.createElement("script");
-        widget.setAttribute("data-telegram-login", botUsername);
+        widget.src = "https://telegram.org/js/telegram-widget.js?22";
+        widget.setAttribute("data-telegram-login", sanitizedBotUsername);
         widget.setAttribute("data-size", buttonSize);
         if (cornerRadius !== undefined) {
             widget.setAttribute("data-radius", cornerRadius.toString());
