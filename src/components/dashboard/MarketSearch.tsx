@@ -175,8 +175,8 @@ function MarketCard({
             <div className="flex items-start gap-3">
                 {/* Icon */}
                 <div className="w-10 h-10 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">
-                    <span className="text-base">
-                        {getCategoryEmoji(market.event_ticker)}
+                    <span className="text-base font-bold uppercase text-foreground">
+                        {(parsedTitle.displayTitle || market.title || "?")[0]}
                     </span>
                 </div>
 
@@ -210,14 +210,3 @@ function MarketCard({
     );
 }
 
-function getCategoryEmoji(eventTicker: string): string {
-    const lower = (eventTicker ?? "").toLowerCase();
-    if (lower.includes("nba") || lower.includes("nfl") || lower.includes("sport") || lower.includes("game"))
-        return "🏈";
-    if (lower.includes("crypto") || lower.includes("btc") || lower.includes("eth"))
-        return "₿";
-    if (lower.includes("election") || lower.includes("politic") || lower.includes("president"))
-        return "🏛️";
-    if (lower.includes("ai") || lower.includes("tech")) return "🤖";
-    return "📊";
-}

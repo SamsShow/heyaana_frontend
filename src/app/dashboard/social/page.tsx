@@ -13,8 +13,219 @@ import {
   UserPlus,
   UserMinus,
   AlertCircle,
+  X,
+  TrendingUp,
+  Wallet,
+  BarChart2,
 } from "lucide-react";
 import { useState } from "react";
+
+type UserPortfolio = {
+  username?: string;
+  first_name?: string;
+  wallet?: string;
+  balance?: number;
+  portfolio_value?: number;
+  total_pnl?: number;
+  totals?: { portfolio_value?: number; total_pnl?: number };
+  positions?: Array<{
+    title?: string;
+    outcome?: string;
+    side?: string;
+    size?: number;
+    shares?: number;
+    current_value?: number;
+    pnl_cash?: number;
+    pnl?: number;
+    icon?: string;
+  }>;
+  [key: string]: unknown;
+};
+
+function UserProfileModal({
+  username,
+  isFollowing,
+  isPending,
+  onFollow,
+  onClose,
+  currentUsername,
+}: {
+  username: string;
+  isFollowing: boolean;
+  isPending: boolean;
+  onFollow: () => void;
+  onClose: () => void;
+  currentUsername?: string;
+}) {
+  const { data, isLoading, error } = useSWR<UserPortfolio>(
+    `/api/proxy/users/${username}/portfolio`,
+    proxyFetcher,
+  );
+
+  const isOwnProfile = currentUsername === username;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full sm:max-w-md bg-surface border border-border rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl z-10">
+        {/* Close */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-muted hover:text-foreground transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-5 h-5 animate-spin text-muted" />
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-12 text-muted gap-2">
+            <AlertCircle className="w-5 h-5 text-red-400" />
+            <p className="text-xs font-mono">Failed to load profile</p>
+          </div>
+        ) : (
+          <div className="overflow-y-auto max-h-[80vh]">
+            {/* Header */}
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-primary/30 to-purple-500/30 flex items-center justify-center text-lg font-bold font-mono shrink-0">
+                {(data?.first_name ?? username ?? "?").slice(0, 2).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-base truncate">{data?.first_name ?? username}</p>
+                <p className="text-xs font-mono text-muted">@{username}</p>
+                {data?.wallet && (
+                  <p className="text-[10px] font-mono text-muted/60 truncate mt-0.5">
+                    {data.wallet.slice(0, 6)}…{data.wallet.slice(-4)}
+                  </p>
+                )}
+              </div>
+              {!isOwnProfile && (
+                <button
+                  onClick={onFollow}
+                  disabled={isPending}
+                  className={`shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all border disabled:opacity-50 ${
+                    isFollowing
+                      ? "border-red-500/30 text-red-400 hover:bg-red-500/10"
+                      : "border-blue-primary/40 text-blue-primary hover:bg-blue-primary/10"
+                  }`}
+                >
+                  {isPending ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : isFollowing ? (
+                    <><UserMinus className="w-3.5 h-3.5" /> Unfollow</>
+                  ) : (
+                    <><UserPlus className="w-3.5 h-3.5" /> Follow</>
+                  )}
+                </button>
+              )}
+            </div>
+
+            {/* Stats row */}
+            {(() => {
+              const portfolioVal = data?.totals?.portfolio_value ?? data?.portfolio_value;
+              const pnl = data?.totals?.total_pnl ?? data?.total_pnl;
+              const balance = data?.balance;
+              const posCount = data?.positions?.length;
+              return (
+                <div className="grid grid-cols-2 gap-2 mb-5">
+                  {portfolioVal !== undefined && (
+                    <div className="rounded-xl border border-border bg-surface/60 p-3">
+                      <div className="flex items-center gap-1.5 text-muted mb-1">
+                        <Wallet className="w-3.5 h-3.5" />
+                        <span className="text-[10px] font-mono uppercase tracking-wide">Portfolio</span>
+                      </div>
+                      <p className="text-sm font-bold font-mono">
+                        ${Number(portfolioVal).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  )}
+                  {pnl !== undefined && (
+                    <div className="rounded-xl border border-border bg-surface/60 p-3">
+                      <div className="flex items-center gap-1.5 text-muted mb-1">
+                        <TrendingUp className="w-3.5 h-3.5" />
+                        <span className="text-[10px] font-mono uppercase tracking-wide">P&amp;L</span>
+                      </div>
+                      <p className={`text-sm font-bold font-mono ${Number(pnl) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        {Number(pnl) >= 0 ? "+" : ""}${Number(pnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  )}
+                  {balance !== undefined && (
+                    <div className="rounded-xl border border-border bg-surface/60 p-3">
+                      <div className="flex items-center gap-1.5 text-muted mb-1">
+                        <Wallet className="w-3.5 h-3.5" />
+                        <span className="text-[10px] font-mono uppercase tracking-wide">Balance</span>
+                      </div>
+                      <p className="text-sm font-bold font-mono">
+                        ${Number(balance).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  )}
+                  {posCount !== undefined && (
+                    <div className="rounded-xl border border-border bg-surface/60 p-3">
+                      <div className="flex items-center gap-1.5 text-muted mb-1">
+                        <BarChart2 className="w-3.5 h-3.5" />
+                        <span className="text-[10px] font-mono uppercase tracking-wide">Positions</span>
+                      </div>
+                      <p className="text-sm font-bold font-mono">{posCount}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Positions list */}
+            {data?.positions && data.positions.length > 0 && (
+              <div>
+                <p className="text-[10px] font-mono uppercase tracking-wide text-muted mb-2">Open Positions</p>
+                <div className="space-y-2">
+                  {data.positions.map((pos, i) => {
+                    const side = pos.outcome ?? pos.side ?? "—";
+                    const isBuy = side.toLowerCase() === "yes" || side.toLowerCase() === "buy";
+                    const pnlVal = pos.pnl_cash ?? pos.pnl;
+                    const size = pos.size ?? pos.shares;
+                    return (
+                      <div key={i} className="rounded-lg border border-border bg-surface/40 p-3 flex items-start gap-3">
+                        <div className="w-7 h-7 rounded-md bg-surface flex items-center justify-center text-[10px] font-bold font-mono shrink-0 border border-border">
+                          {(pos.title ?? "?")[0]?.toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium line-clamp-1">{pos.title ?? "Unknown market"}</p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded ${isBuy ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
+                              {side}
+                            </span>
+                            {size !== undefined && (
+                              <span className="text-[10px] font-mono text-muted">{size} shares</span>
+                            )}
+                            {pos.current_value !== undefined && (
+                              <span className="text-[10px] font-mono text-foreground">${Number(pos.current_value).toFixed(2)}</span>
+                            )}
+                          </div>
+                        </div>
+                        {pnlVal !== undefined && (
+                          <span className={`text-[10px] font-mono font-bold shrink-0 ${Number(pnlVal) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                            {Number(pnlVal) >= 0 ? "+" : ""}${Number(pnlVal).toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {!data?.positions?.length && !data?.portfolio_value && !data?.totals?.portfolio_value && (
+              <p className="text-xs font-mono text-muted text-center py-4">No portfolio data available</p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 type FeedTrade = {
   user_id?: number;
@@ -39,6 +250,7 @@ export default function SocialFeedPage() {
   const { isAuthenticated, user } = useAuth();
   const [pendingFollow, setPendingFollow] = useState<Set<string>>(new Set());
   const [followError, setFollowError] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
 
   const { data: feedRaw, isLoading } = useSWR<unknown>(
     "/api/proxy/trades?limit=50",
@@ -95,6 +307,16 @@ export default function SocialFeedPage() {
 
   return (
     <DashboardChrome title="Social Feed">
+      {selectedUser && (
+        <UserProfileModal
+          username={selectedUser}
+          isFollowing={followed.has(selectedUser)}
+          isPending={pendingFollow.has(selectedUser)}
+          onFollow={() => handleFollowToggle(selectedUser)}
+          onClose={() => setSelectedUser(null)}
+          currentUsername={user?.username ?? undefined}
+        />
+      )}
       <div className="h-full overflow-y-auto">
         <div className="max-w-3xl mx-auto px-4 md:px-6 py-4 md:py-6 space-y-6">
           <div>
@@ -145,16 +367,22 @@ export default function SocialFeedPage() {
                   >
                     <div className="flex items-start gap-3">
                       {/* Avatar */}
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-primary/30 to-purple-500/30 flex items-center justify-center text-xs font-bold font-mono shrink-0">
+                      <button
+                        onClick={() => trade.username && setSelectedUser(trade.username)}
+                        className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-primary/30 to-purple-500/30 flex items-center justify-center text-xs font-bold font-mono shrink-0 hover:ring-2 hover:ring-blue-primary/40 transition-all"
+                      >
                         {(trade.first_name ?? trade.username ?? "?").slice(0, 2).toUpperCase()}
-                      </div>
+                      </button>
 
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold">
+                          <button
+                            onClick={() => trade.username && setSelectedUser(trade.username)}
+                            className="text-sm font-semibold hover:text-blue-primary transition-colors"
+                          >
                             {trade.first_name ?? trade.username ?? `User #${trade.user_id}`}
-                          </span>
+                          </button>
                           {trade.username && (
                             <span className="text-[10px] font-mono text-muted">@{trade.username}</span>
                           )}
