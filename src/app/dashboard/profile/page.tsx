@@ -7,7 +7,7 @@ import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { useAuth } from "@/lib/useAuth";
 import { proxyFetcher, Portfolio, Position, closePosition, exportPrivateKey } from "@/lib/api";
 import Link from "next/link";
-import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2, X, AlertCircle, CheckCircle2, ExternalLink, KeyRound, ShieldAlert, Copy, Eye, EyeOff } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2, X, AlertCircle, CheckCircle2, ExternalLink, KeyRound, ShieldAlert, Copy, Eye, EyeOff, Users } from "lucide-react";
 
 function stripMarkdown(text: string): string {
   return text
@@ -95,6 +95,20 @@ export default function ProfilePage() {
     proxyFetcher,
     { revalidateOnFocus: true, refreshInterval: 30000 },
   );
+
+  type FollowingEntry = { username?: string; leader_username?: string; first_name?: string; [key: string]: unknown };
+  const { data: followingRaw, isLoading: followingLoading } = useSWR<unknown>(
+    isAuthenticated ? "/api/proxy/copy-trading/following" : null,
+    proxyFetcher,
+    { revalidateOnFocus: true },
+  );
+  const followingList: FollowingEntry[] = (() => {
+    if (Array.isArray(followingRaw)) return followingRaw as FollowingEntry[];
+    const w = followingRaw as { following?: unknown[]; data?: unknown[] } | null;
+    if (Array.isArray(w?.following)) return w!.following as FollowingEntry[];
+    if (Array.isArray(w?.data)) return w!.data as FollowingEntry[];
+    return [];
+  })();
 
   const walletAddress =
     user?.wallet_address ??
@@ -362,6 +376,53 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
+
+        {/* Following Section */}
+        {isAuthenticated && (
+          <div className="max-w-3xl mx-auto border border-border rounded-xl bg-surface/20 p-6 md:p-8 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-primary" />
+                <h2 className="text-xl font-bold">Following</h2>
+              </div>
+              {followingList.length > 0 && (
+                <span className="text-xs font-mono px-2 py-1 rounded-lg bg-surface border border-border text-muted">
+                  {followingList.length} trader{followingList.length !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+
+            {followingLoading ? (
+              <div className="flex items-center gap-2 text-muted py-4 justify-center">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-xs font-mono">Loading…</span>
+              </div>
+            ) : followingList.length === 0 ? (
+              <p className="text-sm text-muted font-mono text-center py-4">Not following any traders yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {followingList.map((f, i) => {
+                  const username = f.leader_username ?? f.username ?? "";
+                  const displayName = f.first_name ?? username;
+                  return (
+                    <div key={username || i} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-surface/30">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-primary/30 to-purple-500/30 flex items-center justify-center text-xs font-bold font-mono shrink-0">
+                        {(displayName || "?").slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate">{displayName}</p>
+                        {username && <p className="text-[10px] font-mono text-muted">@{username}</p>}
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        Copying
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Portfolio Section */}
         <div className="max-w-3xl mx-auto border border-border rounded-xl bg-surface/20 p-6 md:p-8 space-y-6">
