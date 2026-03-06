@@ -14,7 +14,7 @@ import { Trade, proxyFetcher } from "@/lib/api";
 
 interface PriceChartProps {
   trades?: Trade[];
-  marketId?: number;
+  conditionId?: string;
   isLoading?: boolean;
 }
 
@@ -44,13 +44,13 @@ type PriceHistoryPoint = {
   [key: string]: unknown;
 };
 
-export function PriceChart({ trades, marketId, isLoading }: PriceChartProps) {
+export function PriceChart({ trades, conditionId, isLoading }: PriceChartProps) {
   const [range, setRange] = useState<TimeRange>("1W");
 
-  // Fetch from price history API if marketId is provided
+  // Fetch from price history API if conditionId is provided
   const { data: priceHistory, isLoading: historyLoading } = useSWR<unknown>(
-    marketId
-      ? `/api/proxy/price/${marketId}/history?interval=${RANGE_INTERVAL[range]}`
+    conditionId
+      ? `/api/proxy/price/${encodeURIComponent(conditionId)}/history?interval=${RANGE_INTERVAL[range]}`
       : null,
     proxyFetcher,
     { revalidateOnFocus: false },

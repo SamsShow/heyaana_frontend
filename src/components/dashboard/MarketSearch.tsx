@@ -67,11 +67,12 @@ export function MarketSearch({
     const markets: Market[] = rawMarkets.map((m) => normalizeMarket(m));
 
     const handleSelect = useCallback(
-        (ticker: string) => {
+        (market: Market) => {
             if (navigateOnSelect) {
-                router.push(`/dashboard/market?ticker=${encodeURIComponent(ticker)}`);
+                const id = market.condition_id ?? market.ticker;
+                router.push(`/dashboard/market?conditionId=${encodeURIComponent(id)}`);
             }
-            onSelectMarket?.(ticker);
+            onSelectMarket?.(market.ticker);
         },
         [navigateOnSelect, router, onSelectMarket],
     );
@@ -143,7 +144,7 @@ export function MarketSearch({
                         key={market.ticker}
                         market={market}
                         isSelected={selectedTicker === market.ticker}
-                        onClick={() => handleSelect(market.ticker)}
+                        onClick={() => handleSelect(market)}
                     />
                 ))}
             </div>

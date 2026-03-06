@@ -21,7 +21,7 @@ function formatTime(iso: string): string {
 
 export function MarketDetail({ ticker, onClose }: MarketDetailProps) {
     const { data: marketRaw, isLoading: loadingMarket } = useSWR<Market>(
-        `/api/proxy/markets/${encodeURIComponent(ticker)}`,
+        `/api/proxy/markets/by-condition/${encodeURIComponent(ticker)}`,
         fetcher,
         { revalidateOnFocus: false }
     );

@@ -55,11 +55,11 @@ export default function MarketDetailPage() {
 
 function MarketDetailContent() {
   const searchParams = useSearchParams();
-  const ticker = searchParams.get("ticker");
-  const decodedTicker = ticker ? decodeURIComponent(ticker) : "";
+  const conditionId = searchParams.get("conditionId") ?? searchParams.get("ticker");
+  const decodedConditionId = conditionId ? decodeURIComponent(conditionId) : "";
 
   const { data: marketRaw, isLoading: loadingMarket } = useSWR<Market>(
-    decodedTicker ? `/api/proxy/markets/${encodeURIComponent(decodedTicker)}` : null,
+    decodedConditionId ? `/api/proxy/markets/by-condition/${encodeURIComponent(decodedConditionId)}` : null,
     fetcher,
     { revalidateOnFocus: false },
   );
@@ -193,7 +193,7 @@ function MarketDetailContent() {
               <div className="rounded-xl border border-border bg-surface/30 p-4 md:p-5">
                 <PriceChart
                   trades={trades ?? []}
-                  marketId={market.id}
+                  conditionId={market.condition_id}
                   isLoading={loadingTrades}
                 />
               </div>

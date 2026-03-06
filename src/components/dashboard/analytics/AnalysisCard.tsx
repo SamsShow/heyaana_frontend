@@ -29,7 +29,8 @@ const DEFAULT_COLORS = ["#DC2626", "#3B82F6", "#F59E0B", "#10B981", "#8B5CF6"];
 export function AnalysisCard({ endpointName, className = "" }: AnalysisCardProps) {
     const { data, error, isLoading } = useSWR<AnalysisResponse>(
         `/analysis/${endpointName}`,
-        fetcher
+        fetcher,
+        { errorRetryCount: 0 }
     );
 
     if (isLoading) {

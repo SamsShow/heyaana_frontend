@@ -29,7 +29,7 @@ export function DashboardSummary() {
     const { data, error, isLoading, mutate } = useSWR<DashboardResponse>(
         "/dashboard",
         fetcher,
-        { revalidateOnFocus: false }
+        { revalidateOnFocus: false, errorRetryCount: 0 }
     );
     const [refreshing, setRefreshing] = useState(false);
 

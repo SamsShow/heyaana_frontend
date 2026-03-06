@@ -20,6 +20,7 @@ function formatCompactNumber(value: unknown): string {
 export function DashboardMixPanel() {
   const { data, error, isLoading } = useSWR<DashboardResponse>("/dashboard", fetcher, {
     revalidateOnFocus: false,
+    errorRetryCount: 0,
   });
 
   const summary = isRecord(data?.summary) ? data.summary : mockDashboardSummary;

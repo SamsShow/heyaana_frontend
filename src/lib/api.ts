@@ -318,7 +318,7 @@ export async function postTrade(trade: TradeRequest) {
 // ─── Copy trading ─────────────────────────────────────────
 
 export async function enableCopyTrading(): Promise<unknown> {
-    const res = await fetch(`${API2_BASE_URL}/copy-trading/enable`, {
+    const res = await fetch(`${API2_BASE_URL}/me/copy-trading/enable`, {
         method: "POST",
         headers: {
             "User-Agent":
@@ -332,7 +332,7 @@ export async function enableCopyTrading(): Promise<unknown> {
 }
 
 export async function disableCopyTrading(): Promise<unknown> {
-    const res = await fetch(`${API2_BASE_URL}/copy-trading/disable`, {
+    const res = await fetch(`${API2_BASE_URL}/me/copy-trading/disable`, {
         method: "POST",
         headers: {
             "User-Agent":
@@ -398,16 +398,8 @@ export async function cancelTrade(orderId: string) {
 // ─── API helper functions ─────────────────────────────────
 
 export async function refreshCache(): Promise<Record<string, string>> {
-    const res = await fetch(`${API2_BASE_URL}/refresh`, {
-        method: "POST",
-        headers: {
-            "User-Agent":
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
-        },
-    });
-    if (!res.ok) throw new Error("Failed to refresh cache");
-    return res.json();
+    // /refresh is not available in the API; this is a no-op stub.
+    return {};
 }
 
 // ─── Formatting helpers ───────────────────────────────────
