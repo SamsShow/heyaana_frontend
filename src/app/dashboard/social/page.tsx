@@ -253,6 +253,7 @@ export default function SocialFeedPage() {
   const [pendingFollow, setPendingFollow] = useState<Set<string>>(new Set());
   const [followError, setFollowError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [confirmFollowUser, setConfirmFollowUser] = useState<string | null>(null);
 
   const { data: feedRaw, isLoading } = useSWR<unknown>(
     "/api/proxy/trades?limit=50",
@@ -297,12 +298,23 @@ export default function SocialFeedPage() {
       : [];
   const feed: FeedTrade[] = feedArr;
 
+  function requestFollow(username: string) {
+    if (!username) return;
+    if (!isAuthenticated) { window.location.href = "/onboarding"; return; }
+    if (!followed.has(username)) {
+      setConfirmFollowUser(username);
+    } else {
+      handleFollowToggle(username);
+    }
+  }
+
   async function handleFollowToggle(username: string) {
     if (!username) return;
     if (!isAuthenticated) {
       window.location.href = "/onboarding";
       return;
     }
+    setConfirmFollowUser(null);
     setFollowError(null);
     const isCurrentlyFollowing = followed.has(username);
 
@@ -350,11 +362,47 @@ export default function SocialFeedPage() {
           username={selectedUser}
           isFollowing={followed.has(selectedUser)}
           isPending={pendingFollow.has(selectedUser)}
-          onFollow={() => handleFollowToggle(selectedUser)}
+          onFollow={() => requestFollow(selectedUser)}
           onClose={() => setSelectedUser(null)}
           currentUsername={user?.username ?? undefined}
         />
       )}
+
+      {/* Follow confirmation dialog */}
+      {confirmFollowUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmFollowUser(null)} />
+          <div className="relative w-full max-w-sm mx-4 bg-surface border border-border rounded-2xl shadow-2xl z-10 p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-4 h-4 text-amber-400" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">Follow @{confirmFollowUser}?</p>
+                <p className="text-xs text-muted mt-0.5">Trades will execute automatically</p>
+              </div>
+            </div>
+            <p className="text-xs text-foreground/70 leading-relaxed">
+              By following this trader, their positions will be <span className="text-amber-400 font-semibold">mirrored in your account automatically</span> without any further confirmation. Make sure you have sufficient balance and trust this trader.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setConfirmFollowUser(null)}
+                className="flex-1 px-4 py-2 text-xs font-semibold rounded-xl border border-border text-muted hover:text-foreground transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleFollowToggle(confirmFollowUser)}
+                className="flex-1 px-4 py-2 text-xs font-semibold rounded-xl bg-blue-primary text-white hover:bg-blue-primary/90 transition-all"
+              >
+                Follow
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="h-full overflow-y-auto">
         <div className="max-w-3xl mx-auto px-4 md:px-6 py-4 md:py-6 space-y-6">
           {/* Header + Tabs */}
@@ -489,7 +537,7 @@ export default function SocialFeedPage() {
                       {/* Follow button */}
                       {isAuthenticated && trade.username && !isOwnTrade && (
                         <button
-                          onClick={() => handleFollowToggle(trade.username!)}
+                          onClick={() => requestFollow(trade.username!)}
                           disabled={isPending}
                           className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg transition-all border disabled:opacity-50 ${
                             isFollowing
