@@ -125,7 +125,7 @@ function OnboardingPageContent() {
   // Use the new useTelegramWidget hook for the redirect flow
   const { renderWidget } = useTelegramWidget({
     botUsername: TELEGRAM_BOT_USERNAME,
-    authUrl: `${API2_BASE_URL}/auth/telegram-widget?redirect_url=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + "/onboarding" : "")}`,
+    authUrl: `${API2_BASE_URL}/auth/telegram-widget`,
     buttonSize: "large",
     cornerRadius: 12,
   });
