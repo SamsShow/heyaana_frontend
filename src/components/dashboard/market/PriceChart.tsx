@@ -57,22 +57,27 @@ export function PriceChart({ trades, conditionId, isLoading }: PriceChartProps) 
   );
 
   const chartData = useMemo(() => {
-    // Prefer price history API data if available
-    if (priceHistory) {
-      const historyArray: PriceHistoryPoint[] = Array.isArray(priceHistory)
-        ? priceHistory
-        : typeof priceHistory === "object" && priceHistory !== null
-          ? (Object.values(priceHistory).find(Array.isArray) as PriceHistoryPoint[] | undefined) ?? []
-          : [];
+    // Prefer price history API data — response shape:
+    // { history: { Yes: [{ t: unixSec, p: 0-1 }, ...], No: [...] } }
+    if (priceHistory && typeof priceHistory === "object") {
+      type HistoryResp = { history?: { Yes?: PriceHistoryPoint[]; No?: PriceHistoryPoint[] } };
+      const resp = priceHistory as HistoryResp;
+      const historyArray: PriceHistoryPoint[] =
+        resp.history?.Yes ??
+        resp.history?.No ??
+        (Array.isArray(priceHistory) ? (priceHistory as PriceHistoryPoint[]) : []);
 
       if (historyArray.length > 0) {
         return historyArray.map((pt) => {
-          const ts = pt.t ?? pt.timestamp ?? pt.time ?? 0;
-          const price = pt.p ?? pt.price ?? pt.yes_price ?? 0;
+          const ts = (pt.t ?? pt.timestamp ?? pt.time ?? 0) as number;
+          const rawPrice = (pt.p ?? pt.price ?? pt.yes_price ?? 0) as number;
+          // API returns 0-1 range; convert to percentage for display
+          const price = rawPrice <= 1 ? rawPrice * 100 : rawPrice;
+          const ms = ts < 1e12 ? ts * 1000 : ts;
           return {
-            time: typeof ts === "number" && ts < 1e12 ? ts * 1000 : ts,
-            price: typeof price === "number" ? price : 0,
-            label: new Date(typeof ts === "number" && ts < 1e12 ? ts * 1000 : ts).toLocaleDateString(undefined, {
+            time: ms,
+            price: Math.round(price * 10) / 10,
+            label: new Date(ms).toLocaleDateString(undefined, {
               month: "short",
               day: "numeric",
             }),
@@ -81,28 +86,33 @@ export function PriceChart({ trades, conditionId, isLoading }: PriceChartProps) 
       }
     }
 
-    // Fallback: derive from trade data
+    // Fallback: derive from trade data using real API field names
     if (!Array.isArray(trades) || trades.length === 0) return [];
 
     const now = Date.now();
     const cutoff = now - RANGE_MS[range];
 
     const filtered = trades
-      .filter((t) => new Date(t.created_time).getTime() >= cutoff)
-      .sort(
-        (a, b) =>
-          new Date(a.created_time).getTime() -
-          new Date(b.created_time).getTime(),
-      );
+      .filter((t) => {
+        const ms = t.timestamp ? t.timestamp * 1000 : t.created_time ? new Date(t.created_time).getTime() : 0;
+        return ms >= cutoff;
+      })
+      .sort((a, b) => {
+        const msA = a.timestamp ? a.timestamp * 1000 : a.created_time ? new Date(a.created_time).getTime() : 0;
+        const msB = b.timestamp ? b.timestamp * 1000 : b.created_time ? new Date(b.created_time).getTime() : 0;
+        return msA - msB;
+      });
 
-    return filtered.map((t) => ({
-      time: new Date(t.created_time).getTime(),
-      price: t.yes_price,
-      label: new Date(t.created_time).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-      }),
-    }));
+    return filtered.map((t) => {
+      const ms = t.timestamp ? t.timestamp * 1000 : t.created_time ? new Date(t.created_time).getTime() : 0;
+      const rawPrice = t.price ?? t.yes_price ?? 0;
+      const price = rawPrice <= 1 ? rawPrice * 100 : rawPrice;
+      return {
+        time: ms,
+        price: Math.round(price * 10) / 10,
+        label: new Date(ms).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      };
+    });
   }, [trades, range, priceHistory]);
 
   const latestPrice = chartData.length > 0 ? chartData[chartData.length - 1].price : null;
@@ -157,7 +167,7 @@ export function PriceChart({ trades, conditionId, isLoading }: PriceChartProps) 
               tick={{ fontSize: 11, fill: "var(--muted)" }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(v: number) => `${v}%`}
+              tickFormatter={(v: number) => `${v}¢`}
             />
             <Tooltip
               contentStyle={{
@@ -167,7 +177,7 @@ export function PriceChart({ trades, conditionId, isLoading }: PriceChartProps) 
                 fontSize: 12,
                 fontFamily: "var(--font-mono)",
               }}
-              formatter={(value: number | undefined) => [`${value ?? 0}¢`, "Yes Price"]}
+              formatter={(value: number | undefined) => [`${value ?? 0}¢`, "Price"]}
               labelFormatter={(label: React.ReactNode) => String(label)}
             />
             <Area

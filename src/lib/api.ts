@@ -108,13 +108,26 @@ export type Market = {
 };
 
 export type Trade = {
-    trade_id: string;
-    ticker: string;
-    count: number;
-    yes_price: number;
-    no_price: number;
-    taker_side: string;
-    created_time: string;
+    // Real API fields from /data/trades
+    transactionHash?: string;
+    proxyWallet?: string;
+    side?: string;           // "BUY" | "SELL"
+    outcome?: string;        // "Yes" | "No"
+    size?: number;
+    price?: number;
+    timestamp?: number;      // unix seconds
+    title?: string;
+    icon?: string;
+    name?: string;
+    conditionId?: string;
+    // Legacy field aliases (kept for backwards compat)
+    trade_id?: string;
+    ticker?: string;
+    count?: number;
+    yes_price?: number;
+    no_price?: number;
+    taker_side?: string;
+    created_time?: string;
 };
 
 // ─── Analysis endpoint names ──────────────────────────────
@@ -143,20 +156,62 @@ export type AnalysisEndpoint = (typeof ANALYSIS_ENDPOINTS)[number];
 
 export type Position = {
     market_id?: number;
+    condition_id?: string;
+    conditionId?: string;
     ticker?: string;
     title?: string;
-    side: "Yes" | "No" | string;
-    shares: number;
-    avg_price: number;
+    slug?: string;
+    icon?: string;
+    // API returns 'outcome', older responses may use 'side'
+    outcome?: string;
+    side?: string;
+    // API returns 'size', older responses may use 'shares'
+    size?: number;
+    shares?: number;
+    avg_price?: number;
     current_price?: number;
     current_value?: number;
+    // API returns pnl_cash / pnl_percent
+    pnl_cash?: number;
+    pnl_percent?: number;
+    // legacy field names
     pnl?: number;
     pnl_pct?: number;
+    orders?: PortfolioOrder[];
+};
+
+export type PortfolioOrder = {
+    source?: string;
+    proxyWallet?: string;
+    side?: string;
+    asset?: string;
+    conditionId?: string;
+    condition_id?: string;
+    size?: number;
+    price?: number;
+    timestamp?: number;
+    title?: string;
+    slug?: string;
+    icon?: string;
+    outcome?: string;
+    status?: string;
+    tx_hash?: string;
 };
 
 export type Portfolio = {
+    wallet?: string;
+    // balance text summary — API returns 'on_chain_summary'
+    on_chain_summary?: string;
+    funds_summary?: string;
     balance?: number;
     positions?: Position[];
+    totals?: {
+        portfolio_value?: number;
+        total_pnl?: number;
+    };
+    portfolio_value?: number;
+    total_pnl?: number;
+    orders?: PortfolioOrder[];
     [key: string]: unknown;
 };
 
@@ -383,6 +438,27 @@ export async function unfollowTrader(leaderUsername: string): Promise<unknown> {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Failed to unfollow trader");
+    return data;
+}
+
+// ─── Close position ───────────────────────────────────────
+
+export async function closePosition(conditionId: string, size?: number): Promise<unknown> {
+    const res = await fetch(`${API2_BASE_URL}/position/close`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+        },
+        body: JSON.stringify({ condition_id: conditionId, ...(size !== undefined ? { size } : {}) }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Failed to close position");
+    if (typeof data.result === "string" && data.result.toUpperCase().includes("FAILED")) {
+        throw new Error(data.result.trim());
+    }
     return data;
 }
 

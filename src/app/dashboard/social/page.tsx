@@ -43,13 +43,13 @@ export default function SocialFeedPage() {
   const { data: feedRaw, isLoading } = useSWR<unknown>(
     "/api/proxy/trades?limit=50",
     proxyFetcher,
-    { revalidateOnFocus: false, refreshInterval: 30000 },
+    { revalidateOnFocus: true, refreshInterval: 15000 },
   );
 
   const { data: followingData, mutate: mutateFollowing } = useSWR<unknown>(
     isAuthenticated ? "/api/proxy/copy-trading/following" : null,
     proxyFetcher,
-    { revalidateOnFocus: false },
+    { revalidateOnFocus: true },
   );
 
   const followed = new Set<string>(

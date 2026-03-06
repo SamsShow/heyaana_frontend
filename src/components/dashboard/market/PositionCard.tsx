@@ -1,100 +1,119 @@
 "use client";
 
+import { useState } from "react";
 import useSWR from "swr";
-import { proxyFetcher, Portfolio, Position } from "@/lib/api";
+import { proxyFetcher, Portfolio, Position, closePosition } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, Loader2, X } from "lucide-react";
 
 interface PositionCardProps {
-  ticker: string;
+  ticker: string;         // conditionId passed from market page
   marketTitle: string;
 }
 
 export function PositionCard({ ticker, marketTitle }: PositionCardProps) {
   const { isAuthenticated } = useAuth();
+  const [closing, setClosing] = useState(false);
+  const [closeMsg, setCloseMsg] = useState<string | null>(null);
 
-  const { data: portfolio } = useSWR<Portfolio>(
+  const { data: portfolio, mutate } = useSWR<Portfolio>(
     isAuthenticated ? "/api/proxy/me/portfolio" : null,
     proxyFetcher,
-    { revalidateOnFocus: false },
+    { revalidateOnFocus: true, refreshInterval: 30000 },
   );
 
-  // Try to find position for this market in the portfolio
   const position: Position | null = (() => {
     if (!portfolio?.positions) return null;
     return (
       portfolio.positions.find(
-        (p) => p.ticker === ticker || p.title?.toLowerCase() === marketTitle.toLowerCase(),
+        (p) =>
+          p.condition_id === ticker ||
+          p.conditionId === ticker ||
+          p.ticker === ticker ||
+          p.title?.toLowerCase() === marketTitle.toLowerCase(),
       ) ?? null
     );
   })();
 
   if (!isAuthenticated || !position) return null;
 
-  const pnl = position.pnl ?? 0;
-  const pnlPct = position.pnl_pct ?? 0;
-  const isPositive = pnl >= 0;
+  const pnlCash = position.pnl_cash ?? position.pnl ?? 0;
+  const pnlPct = position.pnl_percent ?? position.pnl_pct ?? 0;
+  const side = position.outcome ?? position.side ?? "—";
+  const shares = position.size ?? position.shares ?? 0;
+  const condId = position.condition_id ?? position.conditionId;
+  const isPositive = pnlCash >= 0;
+
+  async function handleClose() {
+    if (!condId) return;
+    setClosing(true);
+    setCloseMsg(null);
+    try {
+      await closePosition(condId);
+      setCloseMsg("Position closed.");
+      mutate();
+    } catch (err) {
+      setCloseMsg(err instanceof Error ? err.message : "Failed to close position");
+    } finally {
+      setClosing(false);
+    }
+  }
 
   return (
     <div className="rounded-xl border border-border bg-surface/50 p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold truncate flex-1 mr-2">
-          {marketTitle.length > 40 ? marketTitle.slice(0, 40) + "…" : marketTitle}
-        </h3>
-      </div>
+      <div className="text-xs text-muted font-mono">Your Position</div>
 
-      <div className="text-xs text-muted font-mono mb-1">Your Position</div>
-
-      {/* Side badge */}
       <div className="flex items-center gap-2">
-        <span
-          className={`text-xs px-2 py-1 rounded font-semibold ${position.side === "Yes"
-              ? "bg-emerald-500/20 text-emerald-400"
-              : "bg-red-500/20 text-red-400"
-            }`}
-        >
-          {position.side.toUpperCase()}
+        <span className={`text-xs px-2 py-1 rounded font-semibold ${
+          side === "Yes" ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+        }`}>
+          {side.toUpperCase()}
         </span>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <div className="text-[10px] font-mono text-muted uppercase tracking-wider">Shares</div>
-          <div className="text-sm font-mono font-bold">{(position.shares ?? 0).toFixed(2)}</div>
+          <div className="text-sm font-mono font-bold">{shares.toFixed(4)}</div>
         </div>
         <div>
           <div className="text-[10px] font-mono text-muted uppercase tracking-wider">Avg Price</div>
-          <div className="text-sm font-mono font-bold">{(position.avg_price ?? 0).toFixed(0)}¢</div>
+          <div className="text-sm font-mono font-bold">{((position.avg_price ?? 0) * 100).toFixed(1)}¢</div>
         </div>
         <div>
           <div className="text-[10px] font-mono text-muted uppercase tracking-wider">Current Value</div>
-          <div className="text-sm font-mono font-bold">
-            ${(position.current_value ?? (position.shares ?? 0) * ((position.avg_price ?? 0) / 100)).toFixed(2)}
-          </div>
+          <div className="text-sm font-mono font-bold">${(position.current_value ?? 0).toFixed(4)}</div>
         </div>
         <div>
-          <div className="text-[10px] font-mono text-muted uppercase tracking-wider">P&L</div>
-          <div className={`text-sm font-mono font-bold flex items-center gap-1 ${isPositive ? "text-emerald-400" : "text-red-400"
-            }`}>
+          <div className="text-[10px] font-mono text-muted uppercase tracking-wider">P&amp;L</div>
+          <div className={`text-sm font-mono font-bold flex items-center gap-1 ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
             {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-            {isPositive ? "+" : ""}${pnl.toFixed(2)}
-            <span className="text-[10px]">
-              ({isPositive ? "+" : ""}{(pnlPct ?? 0).toFixed(2)}%)
-            </span>
+            {isPositive ? "+" : ""}${pnlCash.toFixed(4)}
+            <span className="text-[10px]">({isPositive ? "+" : ""}{pnlPct.toFixed(2)}%)</span>
           </div>
         </div>
       </div>
 
-      {/* Close position button */}
-      <button
-        className={`w-full py-2.5 rounded-lg text-xs font-semibold transition-all border ${position.side === "Yes"
-            ? "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
-            : "border-red-500/30 text-red-400 hover:bg-red-500/10"
+      {closeMsg && (
+        <p className={`text-[11px] font-mono ${closeMsg === "Position closed." ? "text-emerald-400" : "text-red-400"}`}>
+          {closeMsg}
+        </p>
+      )}
+
+      {condId && (
+        <button
+          onClick={handleClose}
+          disabled={closing}
+          className={`w-full py-2.5 rounded-lg text-xs font-semibold transition-all border flex items-center justify-center gap-1.5 disabled:opacity-50 ${
+            side === "Yes"
+              ? "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+              : "border-red-500/30 text-red-400 hover:bg-red-500/10"
           }`}
-      >
-        Close {position.side} Position
-      </button>
+        >
+          {closing ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+          Close {side} Position
+        </button>
+      )}
     </div>
   );
 }

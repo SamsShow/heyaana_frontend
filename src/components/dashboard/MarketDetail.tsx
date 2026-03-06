@@ -190,19 +190,19 @@ export function MarketDetail({ ticker, onClose }: MarketDetailProps) {
                                                     ? "text-green-400"
                                                     : "text-red-400"
                                             }`}>
-                                                {trade.taker_side === "yes" ? (
+                                                {(trade.outcome ?? trade.taker_side ?? "").toLowerCase() === "yes" ? (
                                                     <ArrowUpRight className="w-3 h-3" />
                                                 ) : (
                                                     <ArrowDownRight className="w-3 h-3" />
                                                 )}
-                                                {trade.taker_side.toUpperCase()}
+                                                {(trade.outcome ?? trade.taker_side ?? "—").toUpperCase()}
                                             </span>
                                         </td>
-                                        <td className="text-right px-4 py-2">{trade.count}</td>
-                                        <td className="text-right px-4 py-2">{trade.yes_price}¢</td>
-                                        <td className="text-right px-4 py-2">{trade.no_price}¢</td>
+                                        <td className="text-right px-4 py-2">{trade.size ?? trade.count ?? "—"}</td>
+                                        <td className="text-right px-4 py-2">{trade.price !== undefined ? `${(trade.price * 100).toFixed(1)}¢` : trade.yes_price !== undefined ? `${trade.yes_price}¢` : "—"}</td>
+                                        <td className="text-right px-4 py-2">{trade.no_price !== undefined ? `${trade.no_price}¢` : "—"}</td>
                                         <td className="text-right px-4 py-2 text-muted">
-                                            {formatTime(trade.created_time)}
+                                            {trade.timestamp ? formatTime(new Date(trade.timestamp * 1000).toISOString()) : trade.created_time ? formatTime(trade.created_time) : "—"}
                                         </td>
                                     </tr>
                                 ))}

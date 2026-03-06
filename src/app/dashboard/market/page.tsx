@@ -58,10 +58,10 @@ function MarketDetailContent() {
   const conditionId = searchParams.get("conditionId") ?? searchParams.get("ticker");
   const decodedConditionId = conditionId ? decodeURIComponent(conditionId) : "";
 
-  const { data: marketRaw, isLoading: loadingMarket } = useSWR<Market>(
+  const { data: marketRaw, isLoading: loadingMarket, mutate: mutateMarket } = useSWR<Market>(
     decodedConditionId ? `/api/proxy/markets/by-condition/${encodeURIComponent(decodedConditionId)}` : null,
     fetcher,
-    { revalidateOnFocus: false },
+    { revalidateOnFocus: true, refreshInterval: 15000 },
   );
   const market = marketRaw ? normalizeMarket(marketRaw) : null;
 
@@ -74,7 +74,8 @@ function MarketDetailContent() {
     isLoading: loadingTrades,
     mutate: mutateTrades,
   } = useSWR<unknown>(tradesKey, fetcher, {
-    revalidateOnFocus: false,
+    revalidateOnFocus: true,
+    refreshInterval: 10000,
   });
   // API may return {trades:[...]} or a plain array
   const trades: Trade[] = Array.isArray(tradesRaw)
@@ -268,7 +269,7 @@ function MarketDetailContent() {
                 market={market}
                 conditionId={market.condition_id}
                 marketId={market.id}
-                onTradeSuccess={() => mutateTrades()}
+                onTradeSuccess={() => { mutateTrades(); mutateMarket(); }}
               />
 
               {/* Market meta */}
