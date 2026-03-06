@@ -60,6 +60,16 @@ export type AnalysisResponse = {
     refreshed_at: string;
 };
 
+// Meta stats from /api/v1/analysis/meta_stats
+export type MetaStatsMetric = { metric: string; value: number; formatted: string };
+export type MetaStatsResponse = {
+    name: string;
+    description?: string;
+    data: MetaStatsMetric[];
+    chart?: unknown;
+    refreshed_at?: string;
+};
+
 export type DashboardResponse = {
     summary: Record<string, unknown>;
     win_rate_by_price: Record<string, unknown>;

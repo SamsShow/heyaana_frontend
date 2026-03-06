@@ -1,33 +1,62 @@
 "use client";
 
 import useSWR from "swr";
-import { fetcher, DashboardResponse, refreshCache } from "@/lib/api";
-import { mockDashboardSummary } from "@/lib/mock-data";
-import { Loader2, RefreshCw, Clock, TrendingUp, BarChart3, Activity, Zap } from "lucide-react";
+import { fetcher, MetaStatsResponse, refreshCache } from "@/lib/api";
+import { Loader2, RefreshCw, Clock, BarChart3, Activity } from "lucide-react";
 import { useState } from "react";
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function formatNumber(n: unknown): string {
-    if (typeof n !== "number") return String(n ?? "—");
-    if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-    if (Math.abs(n) >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-    if (Number.isInteger(n)) return n.toLocaleString();
-    return n.toFixed(2);
-}
-
-const STAT_ICONS: Record<string, React.ReactNode> = {
-    total_trades: <Activity className="w-4 h-4" />,
-    total_volume: <BarChart3 className="w-4 h-4" />,
-    overall_win_rate: <TrendingUp className="w-4 h-4" />,
-    avg_excess_return: <Zap className="w-4 h-4" />,
+// Map meta_stats API metric names to display config
+const META_STAT_CONFIG: Record<
+    string,
+    { label: string; icon: React.ReactNode; metricKey: string }
+> = {
+    total_trades: {
+        label: "Total Trades",
+        icon: <Activity className="w-4 h-4" />,
+        metricKey: "num_trades_millions",
+    },
+    total_volume: {
+        label: "Total Volume",
+        icon: <BarChart3 className="w-4 h-4" />,
+        metricKey: "total_volume_billions",
+    },
+    unique_markets: {
+        label: "Unique Markets",
+        icon: <BarChart3 className="w-4 h-4" />,
+        metricKey: "num_markets",
+    },
 };
 
+function formatStatValue(metricKey: string, value: number, formatted: string): string {
+    if (metricKey === "num_trades_millions") return `${formatted || value.toFixed(1)}M`;
+    if (metricKey === "total_volume_billions") return `${formatted || value.toFixed(2)}B`;
+    if (metricKey === "num_markets" && value >= 1_000_000) {
+        return `${(value / 1_000_000).toFixed(1)}M`;
+    }
+    return formatted ?? String(value);
+}
+
+function buildStatsFromMetaStats(data: MetaStatsResponse["data"]): Array<{
+    key: string;
+    label: string;
+    value: string;
+    icon: React.ReactNode;
+}> {
+    const byMetric = Object.fromEntries(
+        data.map((m) => [m.metric, { value: m.value, formatted: m.formatted }])
+    );
+    return Object.entries(META_STAT_CONFIG).map(([key, cfg]) => {
+        const m = byMetric[cfg.metricKey];
+        const value = m
+            ? formatStatValue(cfg.metricKey, m.value, m.formatted ?? "")
+            : "—";
+        return { key, label: cfg.label, value, icon: cfg.icon };
+    });
+}
+
 export function DashboardSummary() {
-    const { data, error, isLoading, mutate } = useSWR<DashboardResponse>(
-        "/api/v1/dashboard",
+    const { data, error, isLoading, mutate } = useSWR<MetaStatsResponse>(
+        "/api/v1/analysis/meta_stats",
         fetcher,
         { revalidateOnFocus: false }
     );
@@ -56,24 +85,13 @@ export function DashboardSummary() {
         );
     }
 
-    const apiSummary = isRecord(data?.summary) ? data.summary : null;
-    const hasApiSummary = Boolean(apiSummary && Object.keys(apiSummary).length > 0);
-    const isMock = (error || !hasApiSummary) && !isLoading;
-    const summary = isMock ? mockDashboardSummary : (apiSummary ?? mockDashboardSummary);
-    const pendingCount = isMock ? 0 : (Array.isArray(data?.pending_analyses) ? data.pending_analyses.length : 0);
-    const refreshedAt = isMock
-        ? "Offline — showing sample data"
-        : data?.refreshed_at
+    const hasData = Boolean(data?.data && Array.isArray(data.data) && data.data.length > 0);
+    const stats = hasData ? buildStatsFromMetaStats(data!.data) : [];
+    const refreshedAt = data?.refreshed_at
         ? new Date(data.refreshed_at).toLocaleString()
+        : error
+        ? "Offline — failed to load"
         : "Unknown";
-
-    // Build stat cards from summary object
-    const stats = Object.entries(summary).map(([key, value]) => ({
-        key,
-        label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-        value: formatNumber(value),
-        icon: STAT_ICONS[key] || <BarChart3 className="w-4 h-4" />,
-    }));
 
     return (
         <div className="space-y-4">
@@ -84,15 +102,9 @@ export function DashboardSummary() {
                     <div className="flex items-center gap-2 mt-1 text-xs text-muted font-mono">
                         <Clock className="w-3 h-3" />
                         <span>Last updated: {refreshedAt}</span>
-                        {isMock && (
+                        {error && (
                             <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                sample
-                            </span>
-                        )}
-                        {pendingCount > 0 && (
-                            <span className="ml-2 text-amber-400 flex items-center gap-1">
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                {pendingCount} pending
+                                offline
                             </span>
                         )}
                     </div>
@@ -108,7 +120,7 @@ export function DashboardSummary() {
             </div>
 
             {/* Stats grid */}
-            {stats.length > 0 && (
+            {stats.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
                     {stats.map((stat) => (
                         <div
@@ -125,7 +137,11 @@ export function DashboardSummary() {
                         </div>
                     ))}
                 </div>
-            )}
+            ) : error ? (
+                <div className="p-6 rounded-xl border border-border bg-surface/50 flex items-center justify-center text-muted text-sm font-mono">
+                    Failed to load stats
+                </div>
+            ) : null}
         </div>
     );
 }
