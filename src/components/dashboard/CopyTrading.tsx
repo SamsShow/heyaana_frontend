@@ -33,10 +33,17 @@ type SocialTrader = {
 
 export function CopyTrading() {
   const { isAuthenticated } = useAuth();
-  const [enabled, setEnabled] = useState(false);
   const [togglingEnabled, setTogglingEnabled] = useState(false);
   const [pendingFollow, setPendingFollow] = useState<Set<string>>(new Set());
   const [statusMsg, setStatusMsg] = useState<{ ok: boolean; message: string } | null>(null);
+
+  // Fetch copy trading status from the API so it persists across page switches
+  const { data: copyTradingStatus, mutate: mutateStatus } = useSWR<{ copy_trading_enabled?: boolean }>(
+    isAuthenticated ? "/api/proxy/me/copy-trading/status" : null,
+    proxyFetcher,
+    { revalidateOnFocus: true },
+  );
+  const enabled = copyTradingStatus?.copy_trading_enabled ?? false;
 
   // Load currently-followed traders from the API
   const { data: followingData, mutate: mutateFollowing } = useSWR<unknown>(
@@ -90,17 +97,21 @@ export function CopyTrading() {
   async function handleToggleCopyTrading() {
     setTogglingEnabled(true);
     setStatusMsg(null);
+    const next = !enabled;
+    // Optimistic update
+    mutateStatus({ copy_trading_enabled: next }, false);
     try {
       if (enabled) {
         await disableCopyTrading();
-        setEnabled(false);
         setStatusMsg({ ok: true, message: "Copy trading disabled." });
       } else {
         await enableCopyTrading();
-        setEnabled(true);
         setStatusMsg({ ok: true, message: "Copy trading enabled!" });
       }
+      await mutateStatus();
     } catch (err) {
+      // Revert on failure
+      mutateStatus({ copy_trading_enabled: enabled }, false);
       setStatusMsg({
         ok: false,
         message: err instanceof Error ? err.message : "Failed",
