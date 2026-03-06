@@ -264,13 +264,29 @@ export default function SocialFeedPage() {
     { revalidateOnFocus: true },
   );
 
-  const followed = new Set<string>(
-    Array.isArray(followingData)
-      ? (followingData as Array<{ leader_username?: string; username?: string }>)
-          .map((f) => f.leader_username ?? f.username ?? "")
-          .filter(Boolean)
-      : [],
+  // Optimistic overrides: track local follow/unfollow before server confirms
+  const [optimisticFollowed, setOptimisticFollowed] = useState<Set<string>>(new Set());
+  const [optimisticUnfollowed, setOptimisticUnfollowed] = useState<Set<string>>(new Set());
+
+  const rawFollowingArr = (() => {
+    if (Array.isArray(followingData)) return followingData;
+    const wrapped = followingData as { following?: unknown[]; data?: unknown[] } | null;
+    if (Array.isArray(wrapped?.following)) return wrapped!.following;
+    if (Array.isArray(wrapped?.data)) return wrapped!.data;
+    return [];
+  })();
+
+  const serverFollowed = new Set<string>(
+    (rawFollowingArr as Array<{ leader_username?: string; username?: string }>)
+      .map((f) => f.leader_username ?? f.username ?? "")
+      .filter(Boolean),
   );
+
+  // Merge: server state + optimistic additions - optimistic removals
+  const followed = new Set<string>([
+    ...[...serverFollowed].filter((u) => !optimisticUnfollowed.has(u)),
+    ...optimisticFollowed,
+  ]);
 
   const feedArr = Array.isArray(feedRaw)
     ? feedRaw
@@ -286,15 +302,35 @@ export default function SocialFeedPage() {
       return;
     }
     setFollowError(null);
+    const isCurrentlyFollowing = followed.has(username);
+
+    // Optimistic update — flip state immediately
+    if (isCurrentlyFollowing) {
+      setOptimisticUnfollowed((prev) => new Set(prev).add(username));
+      setOptimisticFollowed((prev) => { const s = new Set(prev); s.delete(username); return s; });
+    } else {
+      setOptimisticFollowed((prev) => new Set(prev).add(username));
+      setOptimisticUnfollowed((prev) => { const s = new Set(prev); s.delete(username); return s; });
+    }
+
     setPendingFollow((prev) => new Set(prev).add(username));
     try {
-      if (followed.has(username)) {
+      if (isCurrentlyFollowing) {
         await unfollowTrader(username);
       } else {
         await followTrader(username);
       }
       await mutateFollowing();
+      // Clear optimistic overrides now that server state is fresh
+      setOptimisticFollowed((prev) => { const s = new Set(prev); s.delete(username); return s; });
+      setOptimisticUnfollowed((prev) => { const s = new Set(prev); s.delete(username); return s; });
     } catch (err) {
+      // Revert optimistic update on failure
+      if (isCurrentlyFollowing) {
+        setOptimisticUnfollowed((prev) => { const s = new Set(prev); s.delete(username); return s; });
+      } else {
+        setOptimisticFollowed((prev) => { const s = new Set(prev); s.delete(username); return s; });
+      }
       setFollowError(err instanceof Error ? err.message : "Failed to update follow");
     } finally {
       setPendingFollow((prev) => {
