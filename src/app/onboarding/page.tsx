@@ -130,43 +130,11 @@ function OnboardingPageContent() {
     cornerRadius: 12,
   });
 
-  // Load Telegram Login Widget script
+  // Render the Telegram Login Widget
   useEffect(() => {
     if (step !== 1 || !telegramRef.current) return;
-    if (!TELEGRAM_BOT_USERNAME) return;
-
-    // Clear previous widget
-    telegramRef.current.innerHTML = "";
-
-    const script = document.createElement("script");
-    script.src = "https://telegram.org/js/telegram-widget.js?22";
-    script.async = true;
-    script.setAttribute("data-telegram-login", TELEGRAM_BOT_USERNAME);
-    script.setAttribute("data-size", "large");
-    script.setAttribute("data-radius", "8");
-    script.setAttribute("data-onauth", "onTelegramAuth(user)");
-    script.setAttribute("data-request-access", "write");
-
-    // Define the callback globally so the widget can find it
-    (window as any).onTelegramAuth = async (user: any) => {
-      setLoginLoading(true);
-      setLoginError(null);
-      try {
-        await loginWidget(user);
-        next();
-      } catch (err) {
-        setLoginError(
-          err instanceof Error ? err.message : "Telegram login failed",
-        );
-      } finally {
-        setLoginLoading(false);
-      }
-    };
-
-    telegramRef.current.appendChild(script);
-
-    return;
-  }, [step, TELEGRAM_BOT_USERNAME]);
+    renderWidget(telegramRef.current);
+  }, [step, renderWidget]);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
