@@ -14,7 +14,7 @@ export function PositionCard({ ticker, marketTitle }: PositionCardProps) {
   const { isAuthenticated } = useAuth();
 
   const { data: portfolio } = useSWR<Portfolio>(
-    isAuthenticated ? "/api/proxy/portfolio" : null,
+    isAuthenticated ? "/api/proxy/me/portfolio" : null,
     proxyFetcher,
     { revalidateOnFocus: false },
   );

@@ -28,6 +28,10 @@ export async function fetcher(url: string) {
         error.name = await res.text();
         throw error;
     }
+    const ct = res.headers.get("content-type") ?? "";
+    if (!ct.includes("application/json")) {
+        throw new Error("Server returned non-JSON response");
+    }
     return res.json();
 }
 
@@ -287,6 +291,10 @@ export async function proxyFetcher(url: string) {
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "Request failed");
+    }
+    const ct = res.headers.get("content-type") ?? "";
+    if (!ct.includes("application/json")) {
+        throw new Error("Server returned non-JSON response");
     }
     return res.json();
 }

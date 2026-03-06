@@ -16,7 +16,7 @@ export default function ProfilePage() {
   const { user, isLoading, isAuthenticated } = useAuth();
 
   const { data: portfolio, isLoading: portfolioLoading } = useSWR<Portfolio>(
-    isAuthenticated ? "/api/proxy/portfolio" : null,
+    isAuthenticated ? "/api/proxy/me/portfolio" : null,
     proxyFetcher,
     { revalidateOnFocus: false },
   );
