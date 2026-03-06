@@ -122,10 +122,17 @@ function OnboardingPageContent() {
     };
   }, [step, login]);
 
-  // Use the new useTelegramWidget hook for the redirect flow
+  // Use the onAuth callback for the JSON response flow
   const { renderWidget } = useTelegramWidget({
     botUsername: TELEGRAM_BOT_USERNAME,
-    authUrl: `${API2_BASE_URL}/auth/telegram-widget`,
+    onAuth: (user) => {
+      setLoginLoading(true);
+      setLoginError(null);
+      loginWidget(user)
+        .then(() => next())
+        .catch((err) => setLoginError(err instanceof Error ? err.message : "Login failed"))
+        .finally(() => setLoginLoading(false));
+    },
     buttonSize: "large",
     cornerRadius: 12,
   });

@@ -29,7 +29,9 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
 
     const { renderWidget } = useTelegramWidget({
         botUsername: TELEGRAM_BOT_USERNAME,
-        authUrl: `${API2_BASE_URL}/auth/telegram-widget`,
+        onAuth: (user) => {
+            loginWidget(user);
+        },
         buttonSize: compact ? "small" : "medium",
         cornerRadius: 8,
     });
