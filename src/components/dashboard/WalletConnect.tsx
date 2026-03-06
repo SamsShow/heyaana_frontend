@@ -1,42 +1,20 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/useAuth";
-import { ChevronDown, LogOut, Copy, Check, User, Loader2, LogIn } from "lucide-react";
-import {
-    loginTelegram,
-    loginWidgetTelegram,
-    loginManual as loginManualApi,
-    logout as logoutApi,
-    api2Fetch,
-    API2_BASE_URL,
-    type UserProfile,
-} from "../../lib/auth-api";
-import { useTelegramWidget } from "@/lib/useTelegramWidget";
-
-const TELEGRAM_BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? "heyanna_ai_bot";
+import { ChevronDown, LogOut, Copy, Check, Loader2, LogIn } from "lucide-react";
 
 /**
  * UserBadge — shows the authenticated user's name / telegram ID
  * with a dropdown for wallet address + logout.
- * Replaces the old MetaMask WalletConnect component.
+ * When not authenticated shows a Sign In link to /onboarding.
  */
 export function UserBadge({ compact = false }: { compact?: boolean }) {
-    const { user, isLoading, isAuthenticated, loginWidget, logout } = useAuth();
+    const { user, isLoading, isAuthenticated, logout } = useAuth();
     const [open, setOpen] = useState(false);
     const [copied, setCopied] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-
-    const { renderWidget } = useTelegramWidget({
-        botUsername: TELEGRAM_BOT_USERNAME,
-        onAuth: (user) => {
-            loginWidget(user);
-        },
-        buttonSize: compact ? "small" : "medium",
-        cornerRadius: 8,
-    });
-
-    const widgetContainerRef = useRef<HTMLDivElement>(null);
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -48,12 +26,6 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
         document.addEventListener("mousedown", handleClick);
         return () => document.removeEventListener("mousedown", handleClick);
     }, []);
-
-    useEffect(() => {
-        if (!isAuthenticated && !isLoading && widgetContainerRef.current) {
-            renderWidget(widgetContainerRef.current);
-        }
-    }, [isAuthenticated, isLoading, renderWidget, open]);
 
     const copyAddress = async () => {
         if (!user?.wallet_address) return;
@@ -76,7 +48,15 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
 
     if (!isAuthenticated || !user) {
         return (
-            <div className="flex items-center min-h-[36px]" ref={widgetContainerRef} />
+            <Link
+                href="/onboarding"
+                className={`inline-flex items-center gap-1.5 font-mono rounded border border-border bg-surface hover:bg-surface-hover transition-all ${
+                    compact ? "px-2 py-1 text-[10px]" : "px-2.5 py-1.5 text-[11px]"
+                }`}
+            >
+                <LogIn className={compact ? "w-2.5 h-2.5" : "w-3 h-3"} />
+                Sign In
+            </Link>
         );
     }
 

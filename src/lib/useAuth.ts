@@ -25,7 +25,7 @@ export function useAuth() {
   const pathname = usePathname();
 
   // Don't probe /me on unauthenticated pages — avoids a noisy 401 in the console
-  const skipFetch = pathname === "/" || pathname === "/onboarding";
+  const skipFetch = pathname === "/" || pathname === "/onboarding" || pathname === "/onboarding/";
 
   const {
     data: user,

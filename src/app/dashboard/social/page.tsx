@@ -62,6 +62,10 @@ export default function SocialFeedPage() {
 
   async function handleFollowToggle(username: string) {
     if (!username) return;
+    if (!isAuthenticated) {
+      window.location.href = "/onboarding";
+      return;
+    }
     setPendingFollow((prev) => new Set(prev).add(username));
     try {
       if (followed.has(username)) {
