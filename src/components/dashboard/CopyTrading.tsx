@@ -37,20 +37,22 @@ export function CopyTrading() {
   const [pendingFollow, setPendingFollow] = useState<Set<string>>(new Set());
   const [statusMsg, setStatusMsg] = useState<{ ok: boolean; message: string } | null>(null);
 
-  // Fetch copy trading status from the API so it persists across page switches
-  const { data: copyTradingStatus, mutate: mutateStatus } = useSWR<{ copy_trading_enabled?: boolean }>(
-    isAuthenticated ? "/api/proxy/me/copy-trading/status" : null,
+  // GET /me/copy-trading — returns enabled state + followed leaders in one call
+  const { data: copyTradingData, mutate: mutateCopyTrading } = useSWR<{
+    copy_trading_enabled?: boolean;
+    leaders?: Array<{ username?: string; leader_username?: string }>;
+    following?: Array<{ username?: string; leader_username?: string }>;
+  }>(
+    isAuthenticated ? "/api/proxy/me/copy-trading" : null,
     proxyFetcher,
     { revalidateOnFocus: true },
   );
-  const enabled = copyTradingStatus?.copy_trading_enabled ?? false;
+  const enabled = copyTradingData?.copy_trading_enabled ?? false;
 
-  // Load currently-followed traders from the API
-  const { data: followingData, mutate: mutateFollowing } = useSWR<unknown>(
-    isAuthenticated ? "/api/proxy/copy-trading/following" : null,
-    proxyFetcher,
-    { revalidateOnFocus: false },
-  );
+  // Derive followed leaders from the same response
+  const followingRaw = copyTradingData?.leaders ?? copyTradingData?.following ?? [];
+  // Keep a separate mutate alias for follow/unfollow refreshes
+  const mutateFollowing = mutateCopyTrading;
 
   // Load real traders from social feed
   const { data: socialFeedRaw } = useSWR<unknown>(
@@ -85,13 +87,9 @@ export function CopyTrading() {
 
   const isMockData = traders === topTraders;
 
-  // Derive the set of followed usernames from the API response
+  // Derive the set of followed usernames from the unified response
   const followed = new Set<string>(
-    Array.isArray(followingData)
-      ? (followingData as Array<{ leader_username?: string; username?: string }>)
-          .map((f) => f.leader_username ?? f.username ?? "")
-          .filter(Boolean)
-      : [],
+    followingRaw.map((f) => f.leader_username ?? f.username ?? "").filter(Boolean)
   );
 
   async function handleToggleCopyTrading() {
@@ -99,7 +97,7 @@ export function CopyTrading() {
     setStatusMsg(null);
     const next = !enabled;
     // Optimistic update
-    mutateStatus({ copy_trading_enabled: next }, false);
+    mutateCopyTrading({ ...copyTradingData, copy_trading_enabled: next }, false);
     try {
       if (enabled) {
         await disableCopyTrading();
@@ -108,10 +106,10 @@ export function CopyTrading() {
         await enableCopyTrading();
         setStatusMsg({ ok: true, message: "Copy trading enabled!" });
       }
-      await mutateStatus();
+      await mutateCopyTrading();
     } catch (err) {
       // Revert on failure
-      mutateStatus({ copy_trading_enabled: enabled }, false);
+      mutateCopyTrading({ ...copyTradingData, copy_trading_enabled: enabled }, false);
       setStatusMsg({
         ok: false,
         message: err instanceof Error ? err.message : "Failed",
