@@ -237,7 +237,9 @@ type FeedTrade = {
   condition_id?: string;
   market_title?: string;
   side?: string;
-  amount?: number;
+  amount?: number;   // share count (size)
+  price?: number;    // price per share (0–1 scale)
+  cost?: number;     // actual USD cost if provided directly
   status?: string;
   tx_hash?: string;
   executed_at?: string | number;
@@ -511,9 +513,14 @@ export default function SocialFeedPage() {
                             {isBuy ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                             {trade.side ?? "—"}
                           </span>
-                          {trade.amount !== undefined && (
-                            <span className="text-xs font-mono text-foreground">${trade.amount}</span>
-                          )}
+                          {trade.amount !== undefined && (() => {
+                            const cost = trade.cost ?? (trade.price !== undefined ? trade.amount * trade.price : null);
+                            return cost !== null ? (
+                              <span className="text-xs font-mono text-foreground">${cost.toFixed(2)}</span>
+                            ) : (
+                              <span className="text-xs font-mono text-muted">{trade.amount} shares</span>
+                            );
+                          })()}
                           {trade.market_title && (
                             <span className="text-xs font-mono text-muted truncate max-w-[300px]">
                               {trade.market_title}
