@@ -24,8 +24,8 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
 
   async function handleTrade() {
     if (!amount || Number(amount) <= 0) return;
-    if (!conditionId && !marketId) {
-      setResult({ ok: false, message: "Market ID not available for trading" });
+    if (!conditionId) {
+      setResult({ ok: false, message: "Market condition ID not available for trading" });
       return;
     }
 
@@ -33,9 +33,10 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
     setResult(null);
     try {
       await postTrade({
-        ...(conditionId ? { condition_id: conditionId } : { market_id: marketId }),
+        condition_id: conditionId,
         side,
         amount: Number(amount),
+        order_side: "BUY",
         auto_prepare: true,
       });
       setResult({ ok: true, message: `Successfully bought ${side} for $${amount}` });

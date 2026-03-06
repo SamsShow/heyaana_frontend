@@ -272,10 +272,10 @@ export function normalizeMarket(raw: RawMarket): Market {
 // ─── Trade request ────────────────────────────────────────
 
 export type TradeRequest = {
-    condition_id?: string;
-    market_id?: number;
+    condition_id: string;
     side: "Yes" | "No";
     amount: number;
+    order_side?: "BUY" | "SELL";
     auto_prepare?: boolean;
 };
 
@@ -315,7 +315,12 @@ export async function postTrade(trade: TradeRequest) {
         body: JSON.stringify(trade),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? "Trade failed");
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Trade failed");
+    if (data.status === "error") throw new Error(data.message ?? data.error ?? "Trade execution failed");
+    if (typeof data.result === "string" && data.result.toUpperCase().includes("FAILED")) {
+        const swapHint = data.auto_prepare?.swap_result ? ` (${data.auto_prepare.swap_result})` : "";
+        throw new Error(`${data.result.trim()}${swapHint}`);
+    }
     return data;
 }
 

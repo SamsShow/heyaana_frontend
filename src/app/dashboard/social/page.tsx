@@ -12,6 +12,7 @@ import {
   Copy,
   UserPlus,
   UserMinus,
+  AlertCircle,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -35,8 +36,9 @@ type FeedTrade = {
 };
 
 export default function SocialFeedPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [pendingFollow, setPendingFollow] = useState<Set<string>>(new Set());
+  const [followError, setFollowError] = useState<string | null>(null);
 
   const { data: feedRaw, isLoading } = useSWR<unknown>(
     "/api/proxy/trades?limit=50",
@@ -71,6 +73,7 @@ export default function SocialFeedPage() {
       window.location.href = "/onboarding";
       return;
     }
+    setFollowError(null);
     setPendingFollow((prev) => new Set(prev).add(username));
     try {
       if (followed.has(username)) {
@@ -79,8 +82,8 @@ export default function SocialFeedPage() {
         await followTrader(username);
       }
       await mutateFollowing();
-    } catch {
-      // silently fail
+    } catch (err) {
+      setFollowError(err instanceof Error ? err.message : "Failed to update follow");
     } finally {
       setPendingFollow((prev) => {
         const next = new Set(prev);
@@ -104,6 +107,13 @@ export default function SocialFeedPage() {
             </p>
           </div>
 
+          {followError && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {followError}
+            </div>
+          )}
+
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
               <div className="flex items-center gap-2 text-muted">
@@ -124,6 +134,7 @@ export default function SocialFeedPage() {
                 const timeStr = typeof rawTime === "number"
                   ? new Date(rawTime * 1000).toISOString()
                   : rawTime;
+                const isOwnTrade = trade.username && user?.username === trade.username;
                 const isFollowing = trade.username ? followed.has(trade.username) : false;
                 const isPending = trade.username ? pendingFollow.has(trade.username) : false;
 
@@ -194,7 +205,7 @@ export default function SocialFeedPage() {
                       </div>
 
                       {/* Follow button */}
-                      {isAuthenticated && trade.username && (
+                      {isAuthenticated && trade.username && !isOwnTrade && (
                         <button
                           onClick={() => handleFollowToggle(trade.username!)}
                           disabled={isPending}

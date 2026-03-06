@@ -8,7 +8,6 @@ import { proxyFetcher, Portfolio, Position, formatVolume } from "@/lib/api";
 import {
   WalletConnectKitButton,
   WalletConnectKitProvider,
-  hasWalletConnectProjectId,
 } from "@/lib/walletconnect-kit";
 import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2 } from "lucide-react";
 
@@ -17,6 +16,12 @@ export default function ProfilePage() {
 
   const { data: walletData } = useSWR<Record<string, string>>(
     isAuthenticated ? "/api/proxy/me/wallet/address" : null,
+    proxyFetcher,
+    { revalidateOnFocus: false },
+  );
+
+  const { data: balanceData, isLoading: balanceLoading } = useSWR<Record<string, unknown>>(
+    isAuthenticated ? "/api/proxy/me/balance" : null,
     proxyFetcher,
     { revalidateOnFocus: false },
   );
@@ -47,16 +52,8 @@ export default function ProfilePage() {
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="space-y-2 text-sm font-mono">
               <div>
-                <span className="text-muted">Name:</span>{" "}
-                <span>{isLoading ? "Loading…" : (user?.first_name ?? "—")}</span>
-              </div>
-              <div>
                 <span className="text-muted">Username:</span>{" "}
                 <span>{isLoading ? "Loading…" : (user?.username ? `@${user.username}` : "—")}</span>
-              </div>
-              <div>
-                <span className="text-muted">Telegram ID:</span>{" "}
-                <span>{isLoading ? "Loading…" : (user?.telegram_id ?? "—")}</span>
               </div>
               <div>
                 <span className="text-muted">Wallet:</span>{" "}
@@ -67,15 +64,31 @@ export default function ProfilePage() {
                 <WalletConnectKitProvider>
                   <WalletConnectKitButton />
                 </WalletConnectKitProvider>
-                {!hasWalletConnectProjectId && (
-                  <p className="text-[11px] text-yellow-500">
-                    Set <code>NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code> to enable WalletConnect QR flows.
-                  </p>
-                )}
               </div>
             </div>
 
             <UserBadge />
+          </div>
+
+          {/* Balance */}
+          <div className="p-4 rounded-xl border border-border bg-surface/30">
+            <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-2">Wallet Balance</div>
+            {balanceLoading ? (
+              <div className="flex items-center gap-2 text-muted">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-xs font-mono">Loading balance…</span>
+              </div>
+            ) : balanceData ? (
+              <pre className="text-xs font-mono text-foreground whitespace-pre-wrap">
+                {typeof balanceData === "string"
+                  ? balanceData
+                  : (balanceData as { summary?: string; balance?: string }).summary ??
+                    (balanceData as { summary?: string; balance?: string }).balance ??
+                    JSON.stringify(balanceData, null, 2)}
+              </pre>
+            ) : (
+              <span className="text-xs font-mono text-muted">No balance data.</span>
+            )}
           </div>
         </div>
 
