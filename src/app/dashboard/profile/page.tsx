@@ -107,14 +107,34 @@ export default function ProfilePage() {
   const portfolioValue = portfolio?.totals?.portfolio_value ?? portfolio?.portfolio_value;
   const totalPnl = portfolio?.totals?.total_pnl ?? portfolio?.total_pnl;
 
-  // Balance text — API returns 'on_chain_summary'
-  const rawBalance =
-    (portfolio?.on_chain_summary as string | undefined) ??
-    (balanceData?.on_chain_summary as string | undefined) ??
-    (balanceData?.summary as string | undefined) ??
-    (balanceData?.balance as string | undefined) ??
-    (balanceData ? JSON.stringify(balanceData, null, 2) : null);
-  const cleanBalance = rawBalance ? stripMarkdown(rawBalance) : null;
+  // Balance — try known string summary fields first, then format numeric fields, skip zeros
+  const cleanBalance = (() => {
+    const summarySrc =
+      (portfolio?.on_chain_summary as string | undefined) ??
+      (balanceData?.on_chain_summary as string | undefined) ??
+      (balanceData?.summary as string | undefined);
+    if (summarySrc) return stripMarkdown(summarySrc);
+
+    // Build lines from known numeric fields, skipping zero values
+    const lines: string[] = [];
+    const numFields: [string, string][] = [
+      ["usdc_balance", "USDC"],
+      ["balance", "Balance"],
+      ["available_balance", "Available"],
+      ["locked_balance", "Locked"],
+      ["cash_balance", "Cash"],
+    ];
+    const src = (balanceData ?? {}) as Record<string, unknown>;
+    for (const [field, label] of numFields) {
+      const val = src[field];
+      if (typeof val === "number" && val > 0) {
+        lines.push(`${label}: $${val.toFixed(2)}`);
+      } else if (typeof val === "string" && parseFloat(val) > 0) {
+        lines.push(`${label}: $${parseFloat(val).toFixed(2)}`);
+      }
+    }
+    return lines.length > 0 ? lines.join("\n") : null;
+  })();
 
   const positions: Position[] = portfolio?.positions ?? [];
 

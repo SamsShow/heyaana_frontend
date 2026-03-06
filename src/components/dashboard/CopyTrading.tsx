@@ -18,6 +18,7 @@ import {
   TrendingUp,
   Zap,
   Users,
+  TriangleAlert,
 } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
 
@@ -221,6 +222,15 @@ export function CopyTrading() {
           </div>
           <div className="text-xl font-bold font-mono">{traders.length}</div>
         </div>
+      </div>
+
+      {/* Auto-execute disclaimer */}
+      <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+        <TriangleAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+        <p className="text-xs text-amber-300/80 leading-relaxed">
+          <span className="font-semibold text-amber-400">Trades execute automatically.</span>{" "}
+          When you follow a trader, their positions will be mirrored in your account in real time without further confirmation. Only follow traders you trust, and ensure your account has sufficient balance.
+        </p>
       </div>
 
       {/* Traders list */}
