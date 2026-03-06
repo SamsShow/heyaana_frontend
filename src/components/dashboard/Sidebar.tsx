@@ -12,7 +12,6 @@ import {
   Activity,
   Settings,
   Bell,
-  Copy,
   MessageCircle,
   Users,
   LogOut,
@@ -126,7 +125,6 @@ const mobileNavItems = [
   { href: "/dashboard/analytics", icon: TrendingUp, label: "Analytics" },
   { href: "/dashboard/markets", icon: Activity, label: "Markets" },
   { href: "/dashboard/social", icon: Users, label: "Social" },
-  { href: "/dashboard/copy-trading", icon: Copy, label: "Copy" },
   { href: "/dashboard/profile", icon: Settings, label: "Profile" },
 ];
 

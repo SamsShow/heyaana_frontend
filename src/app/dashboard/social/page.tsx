@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
+import { CopyTrading } from "@/components/dashboard/CopyTrading";
 import { proxyFetcher, formatRelativeTime, followTrader, unfollowTrader } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
 import {
@@ -248,6 +249,7 @@ type FeedTrade = {
 
 export default function SocialFeedPage() {
   const { isAuthenticated, user } = useAuth();
+  const [tab, setTab] = useState<"feed" | "copy">("feed");
   const [pendingFollow, setPendingFollow] = useState<Set<string>>(new Set());
   const [followError, setFollowError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
@@ -355,16 +357,32 @@ export default function SocialFeedPage() {
       )}
       <div className="h-full overflow-y-auto">
         <div className="max-w-3xl mx-auto px-4 md:px-6 py-4 md:py-6 space-y-6">
+          {/* Header + Tabs */}
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-4">
               <Users className="w-5 h-5 text-blue-primary" />
-              <h1 className="text-xl font-bold">Social Feed</h1>
+              <h1 className="text-xl font-bold">Social</h1>
             </div>
-            <p className="text-xs text-muted font-mono">
-              Global trade feed across all users. Follow traders to mirror their positions.
-            </p>
+            <div className="flex gap-1 p-1 rounded-xl bg-surface border border-border w-fit">
+              <button
+                onClick={() => setTab("feed")}
+                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${tab === "feed" ? "bg-blue-primary text-white" : "text-muted hover:text-foreground"}`}
+              >
+                Feed
+              </button>
+              <button
+                onClick={() => setTab("copy")}
+                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${tab === "copy" ? "bg-blue-primary text-white" : "text-muted hover:text-foreground"}`}
+              >
+                Copy Trading
+              </button>
+            </div>
           </div>
 
+          {tab === "copy" ? (
+            <CopyTrading />
+          ) : (
+            <>
           {followError && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -499,6 +517,8 @@ export default function SocialFeedPage() {
                 );
               })}
             </div>
+          )}
+            </>
           )}
         </div>
       </div>
