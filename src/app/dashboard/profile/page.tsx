@@ -107,33 +107,37 @@ export default function ProfilePage() {
   const portfolioValue = portfolio?.totals?.portfolio_value ?? portfolio?.portfolio_value;
   const totalPnl = portfolio?.totals?.total_pnl ?? portfolio?.total_pnl;
 
-  // Balance — try known string summary fields first, then format numeric fields, skip zeros
-  const cleanBalance = (() => {
-    const summarySrc =
+  type TokenRow = { symbol: string; amount: string; usd: string; usdValue: number };
+
+  // Parse the on_chain_summary text into structured token rows
+  const balanceParsed = (() => {
+    const raw =
       (portfolio?.on_chain_summary as string | undefined) ??
       (balanceData?.on_chain_summary as string | undefined) ??
       (balanceData?.summary as string | undefined);
-    if (summarySrc) return stripMarkdown(summarySrc);
 
-    // Build lines from known numeric fields, skipping zero values
-    const lines: string[] = [];
-    const numFields: [string, string][] = [
-      ["usdc_balance", "USDC"],
-      ["balance", "Balance"],
-      ["available_balance", "Available"],
-      ["locked_balance", "Locked"],
-      ["cash_balance", "Cash"],
-    ];
-    const src = (balanceData ?? {}) as Record<string, unknown>;
-    for (const [field, label] of numFields) {
-      const val = src[field];
-      if (typeof val === "number" && val > 0) {
-        lines.push(`${label}: $${val.toFixed(2)}`);
-      } else if (typeof val === "string" && parseFloat(val) > 0) {
-        lines.push(`${label}: $${parseFloat(val).toFixed(2)}`);
-      }
+    if (!raw) return null;
+
+    const tokens: TokenRow[] = [];
+    let total = "";
+
+    // Match lines like: "• POL (native): 63.8338 ($6.29)" or "• USDC.e: 10.4842 ($10.48)"
+    const lineRe = /[•\-]\s+([A-Z][A-Z0-9._e]*(?:\s*\([^)]+\))?)\s*:\s*([\d.,]+)\s+\(\$([\d.,]+)\)/gi;
+    let m: RegExpExecArray | null;
+    while ((m = lineRe.exec(raw)) !== null) {
+      const usdValue = parseFloat(m[3].replace(",", ""));
+      if (usdValue === 0) continue; // skip zero-value tokens
+      // Clean symbol: strip parenthetical like "(native)"
+      const symbol = m[1].replace(/\s*\([^)]+\)/, "").trim();
+      tokens.push({ symbol, amount: m[2], usd: `$${m[3]}`, usdValue });
     }
-    return lines.length > 0 ? lines.join("\n") : null;
+
+    // Match total line: "Total: $16.78 USD"
+    const totalRe = /total[:\s]+\$([\d.,]+)/i;
+    const tm = raw.match(totalRe);
+    if (tm) total = `$${tm[1]}`;
+
+    return tokens.length > 0 ? { tokens, total } : null;
   })();
 
   const positions: Position[] = portfolio?.positions ?? [];
@@ -321,17 +325,40 @@ export default function ProfilePage() {
           )}
 
           {/* Balance */}
-          <div className="p-4 rounded-xl border border-border bg-surface/30">
-            <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-2">Wallet Balance</div>
-            {balanceLoading && !cleanBalance ? (
-              <div className="flex items-center gap-2 text-muted">
+          <div className="rounded-xl border border-border bg-surface/30 overflow-hidden">
+            <div className="px-4 pt-4 pb-2 text-[10px] font-mono text-muted uppercase tracking-wider">Wallet Balance</div>
+            {balanceLoading && !balanceParsed ? (
+              <div className="flex items-center gap-2 text-muted px-4 pb-4">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span className="text-xs font-mono">Loading balance…</span>
               </div>
-            ) : cleanBalance ? (
-              <pre className="text-xs font-mono text-foreground whitespace-pre-wrap">{cleanBalance}</pre>
+            ) : balanceParsed ? (
+              <div>
+                <div className="divide-y divide-border">
+                  {balanceParsed.tokens.map((t) => (
+                    <div key={t.symbol} className="flex items-center justify-between px-4 py-2.5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center text-[10px] font-bold font-mono text-blue-primary shrink-0">
+                          {t.symbol.slice(0, 2)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold">{t.symbol}</p>
+                          <p className="text-[10px] font-mono text-muted">{t.amount}</p>
+                        </div>
+                      </div>
+                      <p className="text-sm font-bold font-mono">{t.usd}</p>
+                    </div>
+                  ))}
+                </div>
+                {balanceParsed.total && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-surface/40">
+                    <span className="text-xs font-mono text-muted uppercase tracking-wide">Total</span>
+                    <span className="text-base font-bold font-mono">{balanceParsed.total}</span>
+                  </div>
+                )}
+              </div>
             ) : (
-              <span className="text-xs font-mono text-muted">No balance data.</span>
+              <p className="text-xs font-mono text-muted px-4 pb-4">No balance data.</p>
             )}
           </div>
         </div>
