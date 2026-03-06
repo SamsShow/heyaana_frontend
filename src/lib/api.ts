@@ -484,7 +484,7 @@ export async function exportPrivateKey(): Promise<string> {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? data.detail ?? "Failed to export private key");
-    const key = data.private_key ?? data.key ?? data.privateKey;
+    const key = data.eth_private_key ?? data.private_key ?? data.key ?? data.privateKey;
     if (!key) throw new Error("Private key not found in response");
     return key as string;
 }
