@@ -1,8 +1,9 @@
 "use client";
 
-import { use } from "react";
+import { Suspense, use } from "react";
 import useSWR from "swr";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { PriceChart } from "@/components/dashboard/market/PriceChart";
 import { TradePanel } from "@/components/dashboard/market/TradePanel";
@@ -38,16 +39,27 @@ function formatEndDate(iso: string): string {
   });
 }
 
-export default function MarketDetailPage({
-  params,
-}: {
-  params: Promise<{ ticker: string }>;
-}) {
-  const { ticker } = use(params);
-  const decodedTicker = decodeURIComponent(ticker);
+export default function MarketDetailPage() {
+  return (
+    <Suspense fallback={
+      <DashboardChrome title="Market">
+        <div className="flex items-center justify-center h-full min-h-[400px]">
+          <Loader2 className="w-6 h-6 animate-spin text-muted" />
+        </div>
+      </DashboardChrome>
+    }>
+      <MarketDetailContent />
+    </Suspense>
+  );
+}
+
+function MarketDetailContent() {
+  const searchParams = useSearchParams();
+  const ticker = searchParams.get("ticker");
+  const decodedTicker = ticker ? decodeURIComponent(ticker) : "";
 
   const { data: marketRaw, isLoading: loadingMarket } = useSWR<Market>(
-    `/api/proxy/markets/${encodeURIComponent(decodedTicker)}`,
+    decodedTicker ? `/api/proxy/markets/${encodeURIComponent(decodedTicker)}` : null,
     fetcher,
     { revalidateOnFocus: false },
   );
@@ -147,13 +159,12 @@ export default function MarketDetailPage({
                         </span>
                       )}
                       <span
-                        className={`text-xs px-2 py-0.5 rounded-full font-mono ${
-                          market.status === "open"
+                        className={`text-xs px-2 py-0.5 rounded-full font-mono ${market.status === "open"
                             ? "bg-emerald-500/10 text-emerald-400"
                             : market.status === "closed"
                               ? "bg-red-500/10 text-red-400"
                               : "bg-amber-500/10 text-amber-400"
-                        }`}
+                          }`}
                       >
                         {market.status}
                       </span>

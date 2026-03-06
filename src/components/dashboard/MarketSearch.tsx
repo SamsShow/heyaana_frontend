@@ -69,7 +69,7 @@ export function MarketSearch({
     const handleSelect = useCallback(
         (ticker: string) => {
             if (navigateOnSelect) {
-                router.push(`/dashboard/markets/${encodeURIComponent(ticker)}`);
+                router.push(`/dashboard/market?ticker=${encodeURIComponent(ticker)}`);
             }
             onSelectMarket?.(ticker);
         },
@@ -102,11 +102,10 @@ export function MarketSearch({
                             <button
                                 key={cat.id}
                                 onClick={() => setActiveCategory(cat.id)}
-                                className={`flex items-center gap-1 px-3 py-1.5 text-xs font-mono rounded-full whitespace-nowrap transition-all ${
-                                    activeCategory === cat.id
-                                        ? "bg-blue-primary/10 text-blue-primary border border-blue-primary/30"
-                                        : "text-muted hover:text-foreground border border-transparent hover:border-border"
-                                }`}
+                                className={`flex items-center gap-1 px-3 py-1.5 text-xs font-mono rounded-full whitespace-nowrap transition-all ${activeCategory === cat.id
+                                    ? "bg-blue-primary/10 text-blue-primary border border-blue-primary/30"
+                                    : "text-muted hover:text-foreground border border-transparent hover:border-border"
+                                    }`}
                             >
                                 {Icon && <Icon className="w-3 h-3" />}
                                 {cat.label}
@@ -168,11 +167,10 @@ function MarketCard({
     return (
         <button
             onClick={onClick}
-            className={`w-full text-left p-3 rounded-xl border transition-all group ${
-                isSelected
-                    ? "border-blue-primary/40 bg-blue-primary/5"
-                    : "border-border hover:border-border hover:bg-surface/80"
-            }`}
+            className={`w-full text-left p-3 rounded-xl border transition-all group ${isSelected
+                ? "border-blue-primary/40 bg-blue-primary/5"
+                : "border-border hover:border-border hover:bg-surface/80"
+                }`}
         >
             <div className="flex items-start gap-3">
                 {/* Icon */}

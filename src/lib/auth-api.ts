@@ -7,28 +7,35 @@
 
 export const API2_BASE_URL = "https://api2.heyanna.trade";
 
-// ─── Cookie constants ─────────────────────────────────────
-export const TOKEN_COOKIE = "token";
-export const TOKEN_MAX_AGE = 7 * 24 * 60 * 60; // 1 week in seconds
+// ─── Token storage key ─────────────────────────────────────
+export const TOKEN_STORAGE_KEY = "heyanna_token";
 
-// ─── Server-side fetcher (used inside Route Handlers) ─────
+// ─── Client-side fetcher ─────
 /**
- * Fetch from api2 with the JWT bearer token.
- * Only call this from server-side code (Route Handlers / Server Components).
+ * Fetch from api2 with the JWT bearer token from localStorage.
  */
 export async function api2Fetch(
   path: string,
-  token: string,
+  token?: string,
   init?: RequestInit,
 ): Promise<Response> {
+  const authToken = token ?? (typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : null);
   const url = `${API2_BASE_URL}${path}`;
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "User-Agent":
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+    ...(init?.headers as Record<string, string> ?? {}),
+  };
+
+  if (authToken) {
+    headers["Authorization"] = `Bearer ${authToken}`;
+  }
+
   return fetch(url, {
     ...init,
-    headers: {
-      ...(init?.headers ?? {}),
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+    headers,
   });
 }
 
@@ -36,40 +43,77 @@ export async function api2Fetch(
 
 /** Login via Telegram Mini App initData */
 export async function loginTelegram(initData: string) {
-  const res = await fetch("/api/auth/login", {
+  const params = new URLSearchParams({ init_data: initData });
+  const res = await api2Fetch(`/auth/telegram?${params}`, undefined, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ init_data: initData }),
   });
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? "Login failed");
   }
-  return res.json();
+
+  const data = await res.json();
+  const token = data.access_token ?? data.token ?? data.jwt;
+  if (token) {
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  }
+  return data;
+}
+
+/** Login via Telegram Login Widget (user object with hash) */
+export async function loginWidgetTelegram(user: any) {
+  const params = new URLSearchParams(user);
+  const res = await api2Fetch(`/auth/telegram-widget?${params}`, undefined, {
+    method: "GET",
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Login failed");
+  }
+
+  const data = await res.json();
+  const token = data.access_token ?? data.token ?? data.jwt;
+  if (token) {
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  }
+  return data;
 }
 
 /** Login with a manual user_id (dev only) */
 export async function loginManual(userId: number) {
-  const res = await fetch("/api/auth/login", {
+  const params = new URLSearchParams({ user_id: String(userId) });
+  const res = await api2Fetch(`/auth/manual?${params}`, undefined, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: userId }),
   });
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? "Login failed");
   }
-  return res.json();
+
+  const data = await res.json();
+  const token = data.access_token ?? data.token ?? data.jwt;
+  if (token) {
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  }
+  return data;
 }
 
-/** Logout — clears cookie + revokes session on backend */
+/** Logout — clears localStorage + revokes session on backend */
 export async function logout() {
-  await fetch("/api/auth/logout", { method: "POST" });
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (token) {
+    // Optional: notify backend
+    await api2Fetch("/auth/logout", token, { method: "POST" }).catch(() => { });
+  }
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
 }
 
-/** Get current user profile via proxy */
+/** Get current user profile directly from api2 */
 export async function fetchMe() {
-  const res = await fetch("/api/auth/me");
+  const res = await api2Fetch("/me");
   if (!res.ok) return null;
   return res.json();
 }

@@ -5,15 +5,17 @@ import { useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   loginTelegram,
+  loginWidgetTelegram,
   loginManual as loginManualApi,
   logout as logoutApi,
+  api2Fetch,
   type UserProfile,
 } from "./auth-api";
 
-const ME_KEY = "/api/auth/me";
+const ME_KEY = "/me";
 
-async function meFetcher(url: string): Promise<UserProfile | null> {
-  const res = await fetch(url);
+async function meFetcher(path: string): Promise<UserProfile | null> {
+  const res = await api2Fetch(path);
   if (!res.ok) return null;
   return res.json();
 }
@@ -55,6 +57,14 @@ export function useAuth() {
     [mutate],
   );
 
+  const loginWidget = useCallback(
+    async (user: any) => {
+      await loginWidgetTelegram(user);
+      await mutate();
+    },
+    [mutate],
+  );
+
   /** Logout — clear session, redirect to home */
   const logout = useCallback(async () => {
     await logoutApi();
@@ -68,6 +78,7 @@ export function useAuth() {
     isLoading,
     isAuthenticated,
     login,
+    loginWidget,
     loginManual,
     logout,
   };

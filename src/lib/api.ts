@@ -1,10 +1,28 @@
-const API_BASE_URL = "https://api2.heyanna.trade";
+import { API2_BASE_URL, TOKEN_STORAGE_KEY } from "./auth-api";
 
 export async function fetcher(url: string) {
-    const requestUrl = url.startsWith("http") || url.startsWith("/api/")
-        ? url
-        : `${API_BASE_URL}${url}`;
-    const res = await fetch(requestUrl);
+    let path = url;
+    if (path.startsWith("/api/proxy")) {
+        path = path.replace(/^\/api\/proxy/, "");
+    } else if (path.startsWith("/api/auth")) {
+        path = path.replace(/^\/api\/auth/, "");
+    }
+
+    const requestUrl = path.startsWith("http")
+        ? path
+        : `${API2_BASE_URL}${path}`;
+
+    const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : null;
+    const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+    };
+    if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(requestUrl, { headers });
     if (!res.ok) {
         const error = new Error("An error occurred while fetching the data.");
         error.name = await res.text();
@@ -164,11 +182,11 @@ export type Api2Market = {
 };
 
 type RawMarket = Partial<Market> &
-  Partial<Api2Market> & {
-    event_title?: string;
-    outcomes?: string[];
-    odds_cents?: Record<string, number>;
-  };
+    Partial<Api2Market> & {
+        event_title?: string;
+        outcomes?: string[];
+        odds_cents?: Record<string, number>;
+    };
 
 function toNumber(value: unknown): number | null {
     if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -256,7 +274,16 @@ export type TradeRequest = {
 // ─── Client-side fetchers for proxy routes ────────────────
 
 export async function proxyFetcher(url: string) {
-    const res = await fetch(url);
+    // In static mode, "proxy" urls like /api/proxy/stats 
+    // should be mapped to the real backend.
+    const path = url.replace(/^\/api\/proxy/, "");
+    const res = await fetch(`${API2_BASE_URL}${path}`, {
+        headers: {
+            "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+        }
+    });
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "Request failed");
@@ -265,9 +292,14 @@ export async function proxyFetcher(url: string) {
 }
 
 export async function postTrade(trade: TradeRequest) {
-    const res = await fetch("/api/proxy/trade", {
+    const res = await fetch(`${API2_BASE_URL}/trade`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+        },
         body: JSON.stringify(trade),
     });
     const data = await res.json();
@@ -278,23 +310,42 @@ export async function postTrade(trade: TradeRequest) {
 // ─── Copy trading ─────────────────────────────────────────
 
 export async function enableCopyTrading(): Promise<unknown> {
-    const res = await fetch("/api/proxy/copy-trading/enable", { method: "POST" });
+    const res = await fetch(`${API2_BASE_URL}/copy-trading/enable`, {
+        method: "POST",
+        headers: {
+            "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+        }
+    });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Failed to enable copy trading");
     return data;
 }
 
 export async function disableCopyTrading(): Promise<unknown> {
-    const res = await fetch("/api/proxy/copy-trading/disable", { method: "POST" });
+    const res = await fetch(`${API2_BASE_URL}/copy-trading/disable`, {
+        method: "POST",
+        headers: {
+            "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+        }
+    });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Failed to disable copy trading");
     return data;
 }
 
 export async function followTrader(leaderUsername: string): Promise<unknown> {
-    const res = await fetch("/api/proxy/copy-trading/follow", {
+    const res = await fetch(`${API2_BASE_URL}/copy-trading/follow`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+        },
         body: JSON.stringify({ leader_username: leaderUsername }),
     });
     const data = await res.json();
@@ -303,9 +354,14 @@ export async function followTrader(leaderUsername: string): Promise<unknown> {
 }
 
 export async function unfollowTrader(leaderUsername: string): Promise<unknown> {
-    const res = await fetch("/api/proxy/copy-trading/unfollow", {
+    const res = await fetch(`${API2_BASE_URL}/copy-trading/unfollow`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+        },
         body: JSON.stringify({ leader_username: leaderUsername }),
     });
     const data = await res.json();
@@ -316,9 +372,14 @@ export async function unfollowTrader(leaderUsername: string): Promise<unknown> {
 // ─── Trade cancel ─────────────────────────────────────────
 
 export async function cancelTrade(orderId: string) {
-    const res = await fetch("/api/proxy/trade/cancel", {
+    const res = await fetch(`${API2_BASE_URL}/trade/cancel`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+        },
         body: JSON.stringify({ order_id: orderId }),
     });
     const data = await res.json();
@@ -329,7 +390,14 @@ export async function cancelTrade(orderId: string) {
 // ─── API helper functions ─────────────────────────────────
 
 export async function refreshCache(): Promise<Record<string, string>> {
-    const res = await fetch(`${API_BASE_URL}/refresh`, { method: "POST" });
+    const res = await fetch(`${API2_BASE_URL}/refresh`, {
+        method: "POST",
+        headers: {
+            "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+        },
+    });
     if (!res.ok) throw new Error("Failed to refresh cache");
     return res.json();
 }

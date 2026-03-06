@@ -42,7 +42,7 @@ function OnboardingPageContent() {
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, loginManual, login } = useAuth();
+  const { isAuthenticated, loginManual, login, loginWidget } = useAuth();
   const telegramBotUsername = (
     process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? "heyanna_ai_bot"
   ).replace(/^@/, "");
@@ -155,11 +155,24 @@ function OnboardingPageContent() {
     script.setAttribute("data-telegram-login", telegramBotUsername);
     script.setAttribute("data-size", "large");
     script.setAttribute("data-radius", "8");
-    script.setAttribute(
-      "data-auth-url",
-      `${window.location.origin}/api/auth/telegram-widget?next=/dashboard`,
-    );
+    script.setAttribute("data-onauth", "onTelegramAuth(user)");
     script.setAttribute("data-request-access", "write");
+
+    // Define the callback globally so the widget can find it
+    (window as any).onTelegramAuth = async (user: any) => {
+      setLoginLoading(true);
+      setLoginError(null);
+      try {
+        await loginWidget(user);
+        next();
+      } catch (err) {
+        setLoginError(
+          err instanceof Error ? err.message : "Telegram login failed",
+        );
+      } finally {
+        setLoginLoading(false);
+      }
+    };
 
     telegramRef.current.appendChild(script);
 
@@ -198,13 +211,12 @@ function OnboardingPageContent() {
             <div key={s.id} className="flex items-center">
               <div className="flex flex-col items-center">
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-mono font-bold transition-all ${
-                    step > s.id
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-mono font-bold transition-all ${step > s.id
                       ? "bg-green-500 text-white"
                       : step === s.id
-                      ? "bg-red-primary text-white glow-red"
-                      : "bg-surface border border-border text-muted"
-                  }`}
+                        ? "bg-red-primary text-white glow-red"
+                        : "bg-surface border border-border text-muted"
+                    }`}
                 >
                   {step > s.id ? <Check className="w-4 h-4" /> : s.id}
                 </div>
@@ -214,9 +226,8 @@ function OnboardingPageContent() {
                 </div>
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`w-8 sm:w-16 h-px mx-2 transition-colors ${
-                  step > s.id ? "bg-green-500" : "bg-border"
-                }`} />
+                <div className={`w-8 sm:w-16 h-px mx-2 transition-colors ${step > s.id ? "bg-green-500" : "bg-border"
+                  }`} />
               )}
             </div>
           ))}
@@ -338,11 +349,10 @@ function OnboardingPageContent() {
                       <button
                         key={cat.name}
                         onClick={() => toggleMarket(cat.name)}
-                        className={`p-4 rounded-xl border text-center transition-all ${
-                          isSelected
+                        className={`p-4 rounded-xl border text-center transition-all ${isSelected
                             ? "border-red-primary bg-red-primary/10 glow-red"
                             : "border-border bg-surface/50 hover:border-red-primary/20"
-                        }`}
+                          }`}
                       >
                         <div className="text-2xl mb-1">{cat.icon}</div>
                         <div className="text-sm font-medium">{cat.name}</div>
@@ -406,11 +416,10 @@ function OnboardingPageContent() {
                         setRiskLevel(level.key);
                         setMaxExposure(level.key === "conservative" ? 10 : level.key === "moderate" ? 25 : 50);
                       }}
-                      className={`p-5 rounded-xl border text-left transition-all ${
-                        riskLevel === level.key
+                      className={`p-5 rounded-xl border text-left transition-all ${riskLevel === level.key
                           ? "border-red-primary bg-red-primary/5 glow-red"
                           : "border-border bg-surface/50 hover:border-red-primary/20"
-                      }`}
+                        }`}
                     >
                       <level.icon className={`w-6 h-6 mb-3 ${riskLevel === level.key ? "text-red-primary" : "text-muted"}`} />
                       <div className="font-semibold mb-1">{level.label}</div>
@@ -461,16 +470,14 @@ function OnboardingPageContent() {
                       <button
                         key={trader.id}
                         onClick={() => toggleTrader(trader.id)}
-                        className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all text-left ${
-                          isSelected
+                        className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all text-left ${isSelected
                             ? "border-red-primary bg-red-primary/5 glow-red"
                             : "border-border bg-surface/50 hover:border-red-primary/20"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xs font-mono ${
-                            isSelected ? "bg-red-primary text-white" : "bg-red-primary/10 text-red-primary"
-                          }`}>
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xs font-mono ${isSelected ? "bg-red-primary text-white" : "bg-red-primary/10 text-red-primary"
+                            }`}>
                             {trader.avatar}
                           </div>
                           <div>
@@ -486,9 +493,8 @@ function OnboardingPageContent() {
                             <div className="text-sm font-mono font-bold text-green-500">{trader.winRate}%</div>
                             <div className="text-[10px] text-muted">{trader.pnl}</div>
                           </div>
-                          <div className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${
-                            isSelected ? "bg-red-primary border-red-primary" : "border-border"
-                          }`}>
+                          <div className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${isSelected ? "bg-red-primary border-red-primary" : "border-border"
+                            }`}>
                             {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
                           </div>
                         </div>
@@ -552,11 +558,10 @@ function OnboardingPageContent() {
             <button
               onClick={prev}
               disabled={step === 1}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm transition-all ${
-                step === 1
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm transition-all ${step === 1
                   ? "text-muted/30 cursor-not-allowed"
                   : "text-muted hover:text-foreground border border-border hover:border-red-primary/30"
-              }`}
+                }`}
             >
               <ArrowLeft className="w-4 h-4" />
               Back
