@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
-import { fetcher, formatVolume, Market, normalizeMarket } from "@/lib/api";
+import { fetcher, Market, normalizeMarket } from "@/lib/api";
 import { parseMarketTitle } from "@/lib/market-title";
-import { Search, Loader2, TrendingUp, Flame, Zap } from "lucide-react";
+import { Search, Loader2, Flame, Zap } from "lucide-react";
 
 interface MarketSearchProps {
     onSelectMarket?: (ticker: string) => void;
@@ -163,46 +163,37 @@ function MarketCard({
     const yesPrice = market.yes_bid ?? market.last_price ?? 0;
     const noPrice = market.no_bid ?? (market.last_price ? 100 - market.last_price : 0);
     const parsedTitle = parseMarketTitle(market.title);
+    const initial = (parsedTitle.displayTitle || market.title || "?")[0].toUpperCase();
 
     return (
         <button
             onClick={onClick}
-            className={`w-full text-left p-3 rounded-xl border transition-all group ${isSelected
-                ? "border-blue-primary/40 bg-blue-primary/5"
-                : "border-border hover:border-border hover:bg-surface/80"
-                }`}
+            className={`w-full text-left px-4 py-3.5 rounded-2xl border transition-all ${
+                isSelected
+                    ? "border-blue-primary/40 bg-blue-primary/5"
+                    : "border-border bg-surface/50 hover:bg-surface/80 hover:border-border/80"
+            }`}
         >
-            <div className="flex items-start gap-3">
-                {/* Icon */}
-                <div className="w-10 h-10 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">
-                    <span className="text-base font-bold uppercase text-foreground">
-                        {(parsedTitle.displayTitle || market.title || "?")[0]}
-                    </span>
+            <div className="flex items-center gap-3">
+                {/* Square icon */}
+                <div className="w-11 h-11 rounded-xl bg-surface-hover border border-border flex items-center justify-center shrink-0">
+                    <span className="text-lg font-bold text-foreground/80">{initial}</span>
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium leading-snug line-clamp-2 group-hover:text-foreground">
+                    <p className="text-sm font-semibold leading-snug line-clamp-2 text-foreground">
                         {parsedTitle.displayTitle}
                     </p>
-                    {parsedTitle.subtitle && (
-                        <p className="mt-1 text-[11px] text-muted line-clamp-1">{parsedTitle.subtitle}</p>
-                    )}
 
-                    {/* Price buttons */}
+                    {/* Price pills */}
                     <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs font-mono px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500 text-white">
                             Yes {yesPrice}¢
                         </span>
-                        <span className="text-xs font-mono px-2 py-1 rounded-md bg-red-500/10 text-red-400 border border-red-500/20">
+                        <span className="text-xs font-semibold px-3 py-1 rounded-full bg-red-500 text-white">
                             No {noPrice}¢
                         </span>
-                        {market.volume > 0 && (
-                            <span className="text-[10px] font-mono text-muted ml-auto flex items-center gap-1">
-                                <TrendingUp className="w-3 h-3" />
-                                {formatVolume(market.volume)}
-                            </span>
-                        )}
                     </div>
                 </div>
             </div>
