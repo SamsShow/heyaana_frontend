@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { fetcher, DashboardResponse } from "@/lib/api";
 import { mockDashboardSummary, topTraders } from "@/lib/mock-data";
@@ -17,23 +18,40 @@ function formatCompactNumber(value: unknown): string {
   return value.toFixed(2);
 }
 
+type TradingSnapshot = {
+  win_rate_percent: number;
+  total_trades: number;
+  total_volume: number;
+  refreshed_at: string;
+};
+
 export function DashboardMixPanel() {
   const { data, error, isLoading } = useSWR<DashboardResponse>("/api/v1/dashboard", fetcher, {
     revalidateOnFocus: false,
   });
+
+  const [snapshot, setSnapshot] = useState<TradingSnapshot | null>(null);
+  const [snapshotLoading, setSnapshotLoading] = useState(true);
+  useEffect(() => {
+    fetcher("/api/v1/trading_snapshot")
+      .then((d) => setSnapshot(d as TradingSnapshot))
+      .catch(() => {})
+      .finally(() => setSnapshotLoading(false));
+  }, []);
 
   const summary = isRecord(data?.summary) ? data.summary : mockDashboardSummary;
   const pendingAnalyses = Array.isArray(data?.pending_analyses) ? data.pending_analyses : [];
   const lastUpdated = data?.refreshed_at ? new Date(data.refreshed_at).toLocaleString() : "Offline";
   const isMock = Boolean(error) || !isRecord(data?.summary);
 
-  const overallWinRateRaw = summary.overall_win_rate;
-  const overallWinRate = typeof overallWinRateRaw === "number" && !isNaN(overallWinRateRaw)
-    ? `${(overallWinRateRaw * 100).toFixed(1)}%`
-    : "—";
+  const overallWinRate = snapshot
+    ? `${snapshot.win_rate_percent}%`
+    : typeof summary.overall_win_rate === "number" && !isNaN(summary.overall_win_rate as number)
+      ? `${((summary.overall_win_rate as number) * 100).toFixed(1)}%`
+      : "—";
 
-  const volume24h = formatCompactNumber(summary.total_volume);
-  const totalTrades = formatCompactNumber(summary.total_trades);
+  const volume24h = snapshot ? formatCompactNumber(snapshot.total_volume) : formatCompactNumber(summary.total_volume);
+  const totalTrades = snapshot ? formatCompactNumber(snapshot.total_trades) : formatCompactNumber(summary.total_trades);
 
   return (
     <section className="space-y-4">
@@ -80,9 +98,12 @@ export function DashboardMixPanel() {
         </div>
 
         <div className="terminal-card p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold mb-3">
-            <Zap className="w-4 h-4 text-blue-primary" />
-            Trading Snapshot
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Zap className="w-4 h-4 text-blue-primary" />
+              Trading Snapshot
+            </div>
+            {snapshotLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted" />}
           </div>
           <div className="grid grid-cols-2 gap-3 text-xs font-mono">
             <div>
@@ -98,6 +119,11 @@ export function DashboardMixPanel() {
               <div className="text-base font-semibold text-foreground">{volume24h}</div>
             </div>
           </div>
+          {snapshot?.refreshed_at && (
+            <div className="mt-3 text-[10px] font-mono text-muted/50">
+              Updated {new Date(snapshot.refreshed_at).toLocaleString()}
+            </div>
+          )}
         </div>
 
         <div className="terminal-card p-4">
