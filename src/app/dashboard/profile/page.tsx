@@ -91,6 +91,8 @@ export default function ProfilePage() {
       await approveTrading();
       setApproveResult({ ok: true, message: "All 6 transactions approved! You're ready to trade." });
       mutateStatus();
+      mutatePortfolio();
+      mutateBalance();
     } catch (err) {
       setApproveResult({ ok: false, message: err instanceof Error ? err.message : "Approval failed" });
     } finally {
@@ -111,16 +113,16 @@ export default function ProfilePage() {
     { revalidateOnFocus: true },
   );
 
-  const { data: balanceData, isLoading: balanceLoading } = useSWR<Record<string, unknown>>(
+  const { data: balanceData, isLoading: balanceLoading, mutate: mutateBalance } = useSWR<Record<string, unknown>>(
     isAuthenticated ? "/api/proxy/me/balance" : null,
     proxyFetcher,
-    { revalidateOnFocus: true, refreshInterval: 30000 },
+    { revalidateOnFocus: true, refreshInterval: 8000, dedupingInterval: 2000 },
   );
 
   const { data: portfolio, isLoading: portfolioLoading, mutate: mutatePortfolio } = useSWR<Portfolio>(
     isAuthenticated ? "/api/proxy/me/portfolio" : null,
     proxyFetcher,
-    { revalidateOnFocus: true, refreshInterval: 30000 },
+    { revalidateOnFocus: true, refreshInterval: 8000, dedupingInterval: 2000 },
   );
 
   type FollowingEntry = { username?: string; leader_username?: string; first_name?: string; [key: string]: unknown };
@@ -150,8 +152,31 @@ export default function ProfilePage() {
 
   type TokenRow = { symbol: string; amount: string; usd: string; usdValue: number };
 
-  // Parse the on_chain_summary text into structured token rows
   const balanceParsed = (() => {
+    // Try structured tokens from balance endpoint or portfolio.balance
+    type ApiToken = { symbol: string; balance?: number; amount?: string | number; usd_value?: number };
+    const structuredTokens: ApiToken[] | undefined =
+      (balanceData as { tokens?: ApiToken[] })?.tokens ??
+      (portfolio?.balance as { tokens?: ApiToken[] } | undefined)?.tokens;
+
+    if (structuredTokens && structuredTokens.length > 0) {
+      const tokens: TokenRow[] = structuredTokens
+        .map((t) => {
+          const amt = typeof t.balance === "number" ? t.balance : parseFloat(String(t.amount ?? "0"));
+          const usdValue = t.usd_value ?? 0;
+          if (amt === 0) return null;
+          const symbol = t.symbol.replace(/\s*\([^)]+\)/, "").trim();
+          return { symbol, amount: amt.toFixed(4), usd: `$${usdValue.toFixed(2)}`, usdValue };
+        })
+        .filter((t): t is TokenRow => t !== null);
+      const totalUsd =
+        (balanceData as { total_usd?: number })?.total_usd ??
+        (portfolio?.balance as { total_usd?: number } | undefined)?.total_usd;
+      const total = totalUsd !== undefined ? `$${totalUsd.toFixed(2)}` : "";
+      if (tokens.length > 0) return { tokens, total };
+    }
+
+    // Fall back to text parsing of on_chain_summary
     const raw =
       (portfolio?.on_chain_summary as string | undefined) ??
       (balanceData?.on_chain_summary as string | undefined) ??
@@ -162,18 +187,15 @@ export default function ProfilePage() {
     const tokens: TokenRow[] = [];
     let total = "";
 
-    // Match lines like: "• POL (native): 63.8338 ($6.29)" or "• USDC.e: 10.4842 ($10.48)"
     const lineRe = /[•\-]\s+([A-Z][A-Z0-9._e]*(?:\s*\([^)]+\))?)\s*:\s*([\d.,]+)\s+\(\$([\d.,]+)\)/gi;
     let m: RegExpExecArray | null;
     while ((m = lineRe.exec(raw)) !== null) {
       const usdValue = parseFloat(m[3].replace(",", ""));
-      if (usdValue === 0) continue; // skip zero-value tokens
-      // Clean symbol: strip parenthetical like "(native)"
+      if (usdValue === 0) continue;
       const symbol = m[1].replace(/\s*\([^)]+\)/, "").trim();
       tokens.push({ symbol, amount: m[2], usd: `$${m[3]}`, usdValue });
     }
 
-    // Match total line: "Total: $16.78 USD"
     const totalRe = /total[:\s]+\$([\d.,]+)/i;
     const tm = raw.match(totalRe);
     if (tm) total = `$${tm[1]}`;
@@ -183,13 +205,14 @@ export default function ProfilePage() {
 
   const positions: Position[] = portfolio?.positions ?? [];
 
-  async function handleClose(conditionId: string) {
+  async function handleClose(conditionId: string, size: number) {
     setClosingId(conditionId);
     setCloseResult(null);
     try {
-      await closePosition(conditionId);
+      await closePosition(conditionId, size);
       setCloseResult({ ok: true, message: "Position closed successfully." });
       mutatePortfolio();
+      mutateBalance();
     } catch (err) {
       setCloseResult({ ok: false, message: err instanceof Error ? err.message : "Failed to close position" });
     } finally {
@@ -440,7 +463,7 @@ export default function ProfilePage() {
           {/* Balance */}
           <div className="rounded-xl border border-border bg-surface/30 overflow-hidden">
             <div className="px-4 pt-4 pb-2 text-[10px] font-mono text-muted uppercase tracking-wider">Wallet Balance</div>
-            {balanceLoading && !balanceParsed ? (
+            {(balanceLoading || portfolioLoading) && !balanceParsed ? (
               <div className="flex items-center gap-2 text-muted px-4 pb-4">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span className="text-xs font-mono">Loading balance…</span>
@@ -471,7 +494,10 @@ export default function ProfilePage() {
                 )}
               </div>
             ) : (
-              <p className="text-xs font-mono text-muted px-4 pb-4">No balance data.</p>
+              <div className="flex items-center gap-2 text-muted px-4 pb-4">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-xs font-mono">Loading balance…</span>
+              </div>
             )}
           </div>
         </div>
@@ -640,7 +666,7 @@ export default function ProfilePage() {
 
                               {condId && (
                                 <button
-                                  onClick={() => handleClose(condId)}
+                                  onClick={() => handleClose(condId, positionSize(pos))}
                                   disabled={isClosing}
                                   title="Close position"
                                   className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"

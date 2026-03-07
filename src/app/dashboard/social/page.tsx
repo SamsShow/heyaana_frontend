@@ -25,7 +25,7 @@ type UserPortfolio = {
   username?: string;
   first_name?: string;
   wallet?: string;
-  balance?: number;
+  balance?: number | { total_usd?: number; tokens?: unknown[] };
   portfolio_value?: number;
   total_pnl?: number;
   totals?: { portfolio_value?: number; total_pnl?: number };
@@ -127,7 +127,12 @@ function UserProfileModal({
             {(() => {
               const portfolioVal = data?.totals?.portfolio_value ?? data?.portfolio_value;
               const pnl = data?.totals?.total_pnl ?? data?.total_pnl;
-              const balance = data?.balance;
+              const balance = (() => {
+                const b = data?.balance;
+                if (typeof b === "number") return b;
+                if (b && typeof b === "object") return (b as { total_usd?: number }).total_usd;
+                return undefined;
+              })();
               const posCount = data?.positions?.length;
               return (
                 <div className="grid grid-cols-2 gap-2 mb-5">
