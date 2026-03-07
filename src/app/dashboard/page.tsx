@@ -1,21 +1,61 @@
 "use client";
 
 import { useState } from "react";
+import useSWR from "swr";
+import Link from "next/link";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { DashboardSummary } from "@/components/dashboard/DashboardSummary";
 import { AnalyticsGrid } from "@/components/dashboard/AnalyticsGrid";
 import { MarketSearch } from "@/components/dashboard/MarketSearch";
 import { DashboardMixPanel } from "@/components/dashboard/DashboardMixPanel";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { proxyFetcher } from "@/lib/api";
+import { useAuth } from "@/lib/useAuth";
+import { ChevronLeft, ChevronRight, ShieldAlert, X } from "lucide-react";
 
 export default function DashboardPage() {
   const [explorerOpen, setExplorerOpen] = useState(false);
+  const [warnDismissed, setWarnDismissed] = useState(false);
+  const { isAuthenticated } = useAuth();
+
+  const { data: statusData } = useSWR<{ polymarket_approved?: boolean }>(
+    isAuthenticated ? "/api/proxy/me/status" : null,
+    proxyFetcher,
+    { revalidateOnFocus: false },
+  );
+
+  const showApprovalWarning = isAuthenticated && statusData && statusData.polymarket_approved === false && !warnDismissed;
 
   return (
     <DashboardChrome title="Dashboard">
       <div className="flex h-full overflow-hidden">
         {/* Main content */}
         <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-6 border-r border-border min-w-0">
+
+          {/* Approval warning banner */}
+          {showApprovalWarning && (
+            <div className="flex items-start gap-3 p-4 rounded-xl border border-amber-500/30 bg-amber-500/5">
+              <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-amber-300">Trades not approved yet</p>
+                <p className="text-xs text-amber-400/70 mt-0.5 leading-relaxed">
+                  You need to approve Polymarket trading allowances before placing trades. This requires a small amount of <span className="font-semibold text-amber-300">POL</span> for gas fees on Polygon.
+                </p>
+                <Link
+                  href="/dashboard/profile"
+                  className="inline-flex items-center gap-1 mt-2 text-xs font-semibold text-amber-300 hover:text-amber-200 underline underline-offset-2 transition-colors"
+                >
+                  Go to Profile → Approve Trades
+                </Link>
+              </div>
+              <button
+                onClick={() => setWarnDismissed(true)}
+                className="shrink-0 text-amber-400/50 hover:text-amber-400 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           <DashboardSummary />
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
             <div className="xl:col-span-2">

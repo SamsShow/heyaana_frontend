@@ -69,6 +69,14 @@ export default function ProfilePage() {
   const [pkError, setPkError] = useState<string | null>(null);
   const [pkCopied, setPkCopied] = useState(false);
   const [pkConfirmed, setPkConfirmed] = useState(false);
+  const [walletCopied, setWalletCopied] = useState(false);
+
+  function handleCopyWallet() {
+    if (!walletAddress) return;
+    navigator.clipboard.writeText(walletAddress);
+    setWalletCopied(true);
+    setTimeout(() => setWalletCopied(false), 2000);
+  }
 
   async function handleExportKey() {
     setPkStep('loading');
@@ -403,9 +411,19 @@ export default function ProfilePage() {
                 <span className="text-muted">Username:</span>{" "}
                 <span>{isLoading ? "Loading…" : (user?.username ? `@${user.username}` : "—")}</span>
               </div>
-              <div>
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-muted">Wallet:</span>{" "}
                 <span className="break-all">{isLoading ? "Loading…" : (walletAddress ?? "Not connected")}</span>
+                {walletAddress && (
+                  <button
+                    onClick={handleCopyWallet}
+                    title="Copy wallet address"
+                    className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded border border-border text-muted hover:text-foreground hover:border-foreground/20 transition-all"
+                  >
+                    {walletCopied ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    {walletCopied ? "Copied" : "Copy"}
+                  </button>
+                )}
               </div>
             </div>
             <UserBadge />
