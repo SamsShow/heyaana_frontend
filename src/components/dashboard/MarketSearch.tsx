@@ -3,9 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
-import { fetcher, Market, normalizeMarket } from "@/lib/api";
-import { parseMarketTitle } from "@/lib/market-title";
-import { Search, Loader2, Flame, Zap } from "lucide-react";
+import { Market, gammaFetcher, buildGammaUrl } from "@/lib/api";
+import { Search, Loader2, Flame, Zap, TrendingUp, Trophy, Tv2 } from "lucide-react";
 
 interface MarketSearchProps {
     onSelectMarket?: (ticker: string) => void;
@@ -16,12 +15,13 @@ interface MarketSearchProps {
     maxHeight?: string;
 }
 
+// tag_ids from Polymarket: https://gamma-api.polymarket.com/tags
 const CATEGORIES = [
-    { id: "trending", label: "Trending", icon: Flame, query: "" },
-    { id: "sports", label: "Sports", icon: Zap, query: "sports game" },
-    { id: "crypto", label: "Crypto", icon: TrendingUp, query: "crypto bitcoin" },
-    { id: "politics", label: "Politics", icon: null, query: "election president" },
-    { id: "entertainment", label: "Entertain.", icon: null, query: "entertainment" },
+    { id: "trending", label: "Trending", icon: Flame,       tag_id: undefined, order: "volume" as const },
+    { id: "sports",   label: "Sports",   icon: Trophy,      tag_id: 100381,    order: "volume" as const },
+    { id: "crypto",   label: "Crypto",   icon: TrendingUp,  tag_id: 100085,    order: "volume" as const },
+    { id: "politics", label: "Politics", icon: null,         tag_id: 100053,    order: "volume" as const },
+    { id: "pop",      label: "Pop Culture", icon: Tv2,      tag_id: 100063,    order: "volume" as const },
 ] as const;
 
 type CategoryId = (typeof CATEGORIES)[number]["id"];
@@ -43,35 +43,25 @@ export function MarketSearch({
     }, [query]);
 
     const isSearching = debouncedQuery.length > 0;
+    const activeCat = CATEGORIES.find((c) => c.id === activeCategory)!;
 
-    const activeQuery = isSearching
-        ? debouncedQuery
-        : (CATEGORIES.find((c) => c.id === activeCategory)?.query ?? "");
-    const endpoint = activeQuery
-        ? `/api/proxy/markets/search?q=${encodeURIComponent(activeQuery)}`
-        : "/api/proxy/markets/trending";
+    const endpoint = isSearching
+        ? buildGammaUrl({ title: debouncedQuery, limit: 30 })
+        : buildGammaUrl({ tag_id: activeCat.tag_id, order: activeCat.order, ascending: false, limit: 30 });
 
-    const { data, isLoading } = useSWR<
-        { markets?: Market[]; results?: Market[] } | Market[]
-    >(
+    const { data: markets = [], isLoading } = useSWR<Market[]>(
         endpoint,
-        fetcher,
+        gammaFetcher,
         { revalidateOnFocus: false },
     );
 
-    // Normalize response shape
-    const rawMarkets: Market[] = Array.isArray(data)
-        ? data
-        : (data?.results ?? data?.markets ?? []);
-    const markets: Market[] = rawMarkets.map((m) => normalizeMarket(m));
-
     const handleSelect = useCallback(
         (market: Market) => {
+            const id = market.condition_id ?? market.ticker;
             if (navigateOnSelect) {
-                const id = market.condition_id ?? market.ticker;
                 router.push(`/dashboard/market?conditionId=${encodeURIComponent(id)}`);
             }
-            onSelectMarket?.(market.ticker);
+            onSelectMarket?.(id);
         },
         [navigateOnSelect, router, onSelectMarket],
     );
@@ -138,14 +128,17 @@ export function MarketSearch({
                     </div>
                 )}
 
-                {markets.map((market) => (
-                    <MarketCard
-                        key={market.ticker}
-                        market={market}
-                        isSelected={selectedTicker === market.ticker}
-                        onClick={() => handleSelect(market)}
-                    />
-                ))}
+                {markets.map((market) => {
+                    const id = market.condition_id ?? market.ticker;
+                    return (
+                        <MarketCard
+                            key={id}
+                            market={market}
+                            isSelected={selectedTicker === id}
+                            onClick={() => handleSelect(market)}
+                        />
+                    );
+                })}
             </div>
         </div>
     );
@@ -162,8 +155,8 @@ function MarketCard({
 }) {
     const yesPrice = market.yes_bid ?? market.last_price ?? 0;
     const noPrice = market.no_bid ?? (market.last_price ? 100 - market.last_price : 0);
-    const parsedTitle = parseMarketTitle(market.title);
-    const initial = (parsedTitle.displayTitle || market.title || "?")[0].toUpperCase();
+    const title = market.title || "?";
+    const initial = title[0].toUpperCase();
 
     return (
         <button
@@ -183,7 +176,7 @@ function MarketCard({
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold leading-snug line-clamp-2 text-foreground">
-                        {parsedTitle.displayTitle}
+                        {title}
                     </p>
 
                     {/* Price pills */}

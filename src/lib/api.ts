@@ -334,6 +334,110 @@ export function normalizeMarket(raw: RawMarket): Market {
     };
 }
 
+// ─── Polymarket Gamma API ─────────────────────────────────
+
+const GAMMA_API_URL = "https://gamma-api.polymarket.com";
+
+type GammaMarket = {
+    id?: number;
+    condition_id?: string;
+    question?: string;
+    slug?: string;
+    ticker?: string;
+    outcomes?: string;        // JSON string: '["Yes","No"]'
+    outcomePrices?: string;   // JSON string: '["0.47","0.53"]'
+    volume?: string | number;
+    liquidity?: string | number;
+    active?: boolean;
+    closed?: boolean;
+    endDate?: string;
+    image?: string;
+    icon?: string;
+};
+
+type GammaEvent = {
+    id?: number;
+    title?: string;
+    slug?: string;
+    ticker?: string;
+    image?: string;
+    markets?: GammaMarket[];
+};
+
+function normalizeGammaMarket(event: GammaEvent, market: GammaMarket): Market {
+    let yesPrice: number | null = null;
+    let noPrice: number | null = null;
+
+    if (market.outcomePrices) {
+        try {
+            const prices: string[] = JSON.parse(market.outcomePrices);
+            yesPrice = prices[0] !== undefined ? Math.round(parseFloat(prices[0]) * 100) : null;
+            noPrice = prices[1] !== undefined ? Math.round(parseFloat(prices[1]) * 100) : null;
+        } catch { /* ignore parse errors */ }
+    }
+
+    const volume = typeof market.volume === "string" ? parseFloat(market.volume) : (market.volume ?? 0);
+    const liquidity = typeof market.liquidity === "string" ? parseFloat(market.liquidity) : (market.liquidity ?? 0);
+
+    return {
+        id: market.id,
+        condition_id: market.condition_id,
+        ticker: market.condition_id ?? market.slug ?? market.ticker ?? String(market.id ?? ""),
+        event_ticker: event.slug ?? event.ticker ?? "UNKNOWN",
+        market_type: "binary",
+        title: market.question ?? event.title ?? "",
+        yes_sub_title: "Yes",
+        no_sub_title: "No",
+        status: market.closed ? "closed" : market.active === false ? "closed" : "open",
+        yes_bid: yesPrice,
+        yes_ask: yesPrice,
+        no_bid: noPrice,
+        no_ask: noPrice,
+        last_price: yesPrice,
+        volume: isNaN(volume) ? 0 : volume,
+        volume_24h: 0,
+        open_interest: isNaN(liquidity) ? 0 : liquidity,
+        result: "",
+        created_time: null,
+        open_time: null,
+        close_time: market.endDate ?? null,
+    };
+}
+
+export async function gammaFetcher(url: string): Promise<Market[]> {
+    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+    if (!res.ok) throw new Error(`Gamma API error: ${res.status}`);
+    const events: GammaEvent[] = await res.json();
+    const markets: Market[] = [];
+    for (const event of events) {
+        for (const market of event.markets ?? []) {
+            if (market.active && !market.closed) {
+                markets.push(normalizeGammaMarket(event, market));
+            }
+        }
+    }
+    return markets;
+}
+
+export function buildGammaUrl(params: {
+    title?: string;
+    limit?: number;
+    order?: string;
+    ascending?: boolean;
+    tag_id?: number;
+}): string {
+    const p = new URLSearchParams({
+        active: "true",
+        closed: "false",
+        limit: String(params.limit ?? 30),
+    });
+    if (params.title) p.set("title", params.title);
+    if (params.order) p.set("order", params.order);
+    if (params.ascending !== undefined) p.set("ascending", String(params.ascending));
+    if (params.tag_id !== undefined) p.set("tag_id", String(params.tag_id));
+    return `${GAMMA_API_URL}/events?${p.toString()}`;
+}
+
 // ─── Trade request ────────────────────────────────────────
 
 export type TradeRequest = {
