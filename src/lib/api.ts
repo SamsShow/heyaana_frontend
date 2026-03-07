@@ -389,6 +389,10 @@ export async function postTrade(trade: TradeRequest) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? data.detail ?? "Trade failed");
+    if (data.success === false) {
+        const swapHint = data.auto_prepare?.swap_result ? ` (${data.auto_prepare.swap_result})` : "";
+        throw new Error(`${data.message ?? data.error ?? "Trade failed"}${swapHint}`);
+    }
     if (data.status === "error") throw new Error(data.message ?? data.error ?? "Trade execution failed");
     if (typeof data.result === "string" && data.result.toUpperCase().includes("FAILED")) {
         const swapHint = data.auto_prepare?.swap_result ? ` (${data.auto_prepare.swap_result})` : "";
