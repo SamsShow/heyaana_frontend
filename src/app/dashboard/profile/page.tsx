@@ -41,6 +41,7 @@ export default function ProfilePage() {
   const { user, isLoading, isAuthenticated } = useAuth();
   const [closingId, setClosingId] = useState<string | null>(null);
   const [closeResult, setCloseResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [optimisticClosed, setOptimisticClosed] = useState<Set<string>>(new Set());
   const [unfollowingId, setUnfollowingId] = useState<string | null>(null);
   const [approveLoading, setApproveLoading] = useState(false);
   const [approveResult, setApproveResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -203,17 +204,23 @@ export default function ProfilePage() {
     return tokens.length > 0 ? { tokens, total } : null;
   })();
 
-  const positions: Position[] = portfolio?.positions ?? [];
+  const positions: Position[] = (portfolio?.positions ?? []).filter(
+    (p) => !optimisticClosed.has(positionConditionId(p) ?? "")
+  );
 
   async function handleClose(conditionId: string, size: number) {
     setClosingId(conditionId);
     setCloseResult(null);
+    // Optimistically remove the position immediately
+    setOptimisticClosed((prev) => new Set(prev).add(conditionId));
     try {
       await closePosition(conditionId, size);
       setCloseResult({ ok: true, message: "Position closed successfully." });
       mutatePortfolio();
       mutateBalance();
     } catch (err) {
+      // Revert optimistic removal on failure
+      setOptimisticClosed((prev) => { const s = new Set(prev); s.delete(conditionId); return s; });
       setCloseResult({ ok: false, message: err instanceof Error ? err.message : "Failed to close position" });
     } finally {
       setClosingId(null);
