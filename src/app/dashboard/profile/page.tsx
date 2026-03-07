@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { useAuth } from "@/lib/useAuth";
@@ -35,6 +35,19 @@ function positionPnlCash(pos: Position): number {
 
 function positionPnlPct(pos: Position): number | undefined {
   return pos.pnl_percent ?? pos.pnl_pct;
+}
+
+const SYNC_MSGS = ["beep boop...", "syncing...", "fetching...", "refreshing...", "bzzzt...", "loading..."];
+
+function PortfolioSyncLabel() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI((n) => (n + 1) % SYNC_MSGS.length), 500);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <span className="text-[10px] font-mono text-muted/60 animate-pulse">{SYNC_MSGS[i]}</span>
+  );
 }
 
 export default function ProfilePage() {
@@ -122,7 +135,7 @@ export default function ProfilePage() {
     { revalidateOnFocus: true, refreshInterval: 3000, dedupingInterval: 0 },
   );
 
-  const { data: portfolio, isLoading: portfolioLoading, mutate: mutatePortfolio } = useSWR<Portfolio>(
+  const { data: portfolio, isLoading: portfolioLoading, isValidating: portfolioValidating, mutate: mutatePortfolio } = useSWR<Portfolio>(
     isAuthenticated ? "/api/proxy/me/portfolio" : null,
     proxyFetcher,
     { revalidateOnFocus: true, refreshInterval: 3000, dedupingInterval: 0 },
@@ -575,6 +588,9 @@ export default function ProfilePage() {
           <div className="flex items-center gap-2">
             <Wallet className="w-5 h-5 text-blue-primary" />
             <h2 className="text-xl font-bold">Portfolio</h2>
+            {portfolioValidating && !syncingPortfolio && (
+              <PortfolioSyncLabel />
+            )}
           </div>
 
           {syncingPortfolio && (() => {
