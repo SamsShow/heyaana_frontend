@@ -115,6 +115,7 @@ export type Market = {
     created_time: string | null;
     open_time: string | null;
     close_time: string | null;
+    image?: string;
 };
 
 export type Trade = {
@@ -362,6 +363,7 @@ type GammaEvent = {
     slug?: string;
     ticker?: string;
     image?: string;
+    icon?: string;
     markets?: GammaMarket[];
 };
 
@@ -403,6 +405,7 @@ function normalizeGammaMarket(event: GammaEvent, market: GammaMarket): Market {
         created_time: null,
         open_time: null,
         close_time: market.endDate ?? null,
+        image: market.image ?? market.icon ?? event.image ?? event.icon,
     };
 }
 

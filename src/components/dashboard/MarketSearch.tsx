@@ -107,7 +107,7 @@ export function MarketSearch({
 
             {/* Results */}
             <div
-                className="mt-3 flex-1 overflow-y-auto space-y-1.5"
+                className="mt-3 flex-1 overflow-y-auto space-y-2"
                 style={maxHeight ? { maxHeight } : { maxHeight: "600px" }}
             >
                 {isLoading && markets.length === 0 && (
@@ -161,26 +161,30 @@ function MarketCard({
     return (
         <button
             onClick={onClick}
-            className={`w-full text-left px-4 py-3.5 rounded-2xl border transition-all ${
+            className={`w-full text-left px-4 py-4 rounded-2xl border transition-all ${
                 isSelected
                     ? "border-blue-primary/40 bg-blue-primary/5"
                     : "border-border bg-surface/50 hover:bg-surface/80 hover:border-border/80"
             }`}
         >
-            <div className="flex items-center gap-3">
-                {/* Square icon */}
-                <div className="w-11 h-11 rounded-xl bg-surface-hover border border-border flex items-center justify-center shrink-0">
-                    <span className="text-lg font-bold text-foreground/80">{initial}</span>
+            <div className="flex items-center gap-4">
+                {/* Image or initial */}
+                <div className="w-12 h-12 rounded-xl bg-surface-hover border border-border flex items-center justify-center shrink-0 overflow-hidden">
+                    {market.image ? (
+                        <img src={market.image} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                        <span className="text-lg font-bold text-foreground/80">{initial}</span>
+                    )}
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold leading-snug line-clamp-2 text-foreground">
+                    <p className="text-sm font-semibold leading-snug line-clamp-2 text-foreground mb-2.5">
                         {title}
                     </p>
 
                     {/* Price pills */}
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500 text-white">
                             Yes {yesPrice}¢
                         </span>
