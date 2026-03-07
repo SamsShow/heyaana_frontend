@@ -484,6 +484,23 @@ export async function closePosition(conditionId: string, size?: number): Promise
     return data;
 }
 
+// ─── Approve trading ──────────────────────────────────────
+
+export async function approveTrading(): Promise<unknown> {
+    const res = await fetch(`${API2_BASE_URL}/approve`, {
+        method: "POST",
+        headers: {
+            "accept": "application/json",
+            "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+        }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Approval failed");
+    return data;
+}
+
 // ─── Export private key ───────────────────────────────────
 
 export async function exportPrivateKey(): Promise<string> {

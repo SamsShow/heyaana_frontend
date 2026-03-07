@@ -5,9 +5,9 @@ import { useState } from "react";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { useAuth } from "@/lib/useAuth";
-import { proxyFetcher, Portfolio, Position, closePosition, exportPrivateKey, unfollowTrader } from "@/lib/api";
+import { proxyFetcher, Portfolio, Position, closePosition, exportPrivateKey, unfollowTrader, approveTrading } from "@/lib/api";
 import Link from "next/link";
-import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2, X, AlertCircle, CheckCircle2, ExternalLink, KeyRound, ShieldAlert, Copy, Eye, EyeOff, Users, UserMinus } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2, X, AlertCircle, CheckCircle2, ExternalLink, KeyRound, ShieldAlert, Copy, Eye, EyeOff, Users, UserMinus, ShieldCheck } from "lucide-react";
 
 function stripMarkdown(text: string): string {
   return text
@@ -42,6 +42,9 @@ export default function ProfilePage() {
   const [closingId, setClosingId] = useState<string | null>(null);
   const [closeResult, setCloseResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [unfollowingId, setUnfollowingId] = useState<string | null>(null);
+  const [approveLoading, setApproveLoading] = useState(false);
+  const [approveResult, setApproveResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [approveFrame, setApproveFrame] = useState(0);
 
   // Private key export flow: null → 'warning' → 'confirmed' → 'revealed'
   const [pkStep, setPkStep] = useState<null | 'warning' | 'loading' | 'revealed'>(null);
@@ -77,6 +80,22 @@ export default function ProfilePage() {
     setPkVisible(false);
     setPkError(null);
     setPkConfirmed(false);
+  }
+
+  async function handleApprove() {
+    setApproveLoading(true);
+    setApproveResult(null);
+    setApproveFrame(0);
+    const interval = setInterval(() => setApproveFrame((f) => f + 1), 400);
+    try {
+      await approveTrading();
+      setApproveResult({ ok: true, message: "All 6 transactions approved! You're ready to trade." });
+    } catch (err) {
+      setApproveResult({ ok: false, message: err instanceof Error ? err.message : "Approval failed" });
+    } finally {
+      clearInterval(interval);
+      setApproveLoading(false);
+    }
   }
 
   const { data: walletData } = useSWR<Record<string, string>>(
@@ -351,6 +370,53 @@ export default function ProfilePage() {
               </button>
             </div>
           )}
+
+          {/* Approve Trades */}
+          {isAuthenticated && (() => {
+            const BEP_BOP = ["bep", "bop", "bep bop", "bzzzt", "beep", "🤖"];
+            const frames = ["⬜⬜⬜⬜⬜⬜", "🟦⬜⬜⬜⬜⬜", "🟦🟦⬜⬜⬜⬜", "🟦🟦🟦⬜⬜⬜", "🟦🟦🟦🟦⬜⬜", "🟦🟦🟦🟦🟦⬜", "🟦🟦🟦🟦🟦🟦"];
+            const frameIdx = approveFrame % frames.length;
+            const bopIdx = approveFrame % BEP_BOP.length;
+            return (
+              <div className="p-4 rounded-xl border border-border bg-surface/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">Approve Trades</p>
+                    <p className="text-xs text-muted mt-0.5">Run the 6-transaction Polymarket approval flow (USDC + CTF allowances).</p>
+                  </div>
+                  <button
+                    onClick={handleApprove}
+                    disabled={approveLoading}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {approveLoading
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <ShieldCheck className="w-3.5 h-3.5" />}
+                    {approveLoading ? "Approving…" : "Approve"}
+                  </button>
+                </div>
+
+                {approveLoading && (
+                  <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2.5 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-blue-400 uppercase tracking-wide">Signing transactions</span>
+                      <span className="text-[10px] font-mono text-blue-300 animate-pulse">{BEP_BOP[bopIdx]}</span>
+                    </div>
+                    <p className="text-[11px] font-mono text-foreground/70">{frames[frameIdx]}</p>
+                  </div>
+                )}
+
+                {approveResult && !approveLoading && (
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono ${approveResult.ok ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}>
+                    {approveResult.ok
+                      ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
+                    {approveResult.message}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Balance */}
           <div className="rounded-xl border border-border bg-surface/30 overflow-hidden">
