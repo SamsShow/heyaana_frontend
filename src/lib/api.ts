@@ -618,6 +618,7 @@ export async function closePosition(conditionId: string, size?: number): Promise
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? data.detail ?? "Failed to close position");
+    if (data.success === false) throw new Error(data.message ?? data.error ?? "Trade failed");
     if (typeof data.result === "string" && data.result.toUpperCase().includes("FAILED")) {
         throw new Error(data.result.trim());
     }

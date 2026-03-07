@@ -56,7 +56,10 @@ export function MarketSearch({
         (market: Market) => {
             const id = market.condition_id ?? market.ticker;
             if (navigateOnSelect) {
-                router.push(`/dashboard/market?conditionId=${encodeURIComponent(id)}`);
+                const url = new URL("/dashboard/market", window.location.origin);
+                url.searchParams.set("conditionId", id);
+                if (market.image) url.searchParams.set("img", market.image);
+                router.push(url.pathname + url.search);
             }
             onSelectMarket?.(id);
         },

@@ -42,6 +42,8 @@ export default function ProfilePage() {
   const [closingId, setClosingId] = useState<string | null>(null);
   const [closeResult, setCloseResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [optimisticClosed, setOptimisticClosed] = useState<Set<string>>(new Set());
+  const [syncingPortfolio, setSyncingPortfolio] = useState(false);
+  const [syncFrame, setSyncFrame] = useState(0);
   const [unfollowingId, setUnfollowingId] = useState<string | null>(null);
   const [approveLoading, setApproveLoading] = useState(false);
   const [approveResult, setApproveResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -215,9 +217,14 @@ export default function ProfilePage() {
     setOptimisticClosed((prev) => new Set(prev).add(conditionId));
     try {
       await closePosition(conditionId, size);
+      // Show beep boop syncing loader while portfolio revalidates
+      setSyncingPortfolio(true);
+      setSyncFrame(0);
+      const syncInterval = setInterval(() => setSyncFrame((f) => f + 1), 300);
+      await Promise.all([mutatePortfolio(), mutateBalance()]);
+      clearInterval(syncInterval);
+      setSyncingPortfolio(false);
       setCloseResult({ ok: true, message: "Position closed successfully." });
-      mutatePortfolio();
-      mutateBalance();
     } catch (err) {
       // Revert optimistic removal on failure
       setOptimisticClosed((prev) => { const s = new Set(prev); s.delete(conditionId); return s; });
@@ -570,7 +577,17 @@ export default function ProfilePage() {
             <h2 className="text-xl font-bold">Portfolio</h2>
           </div>
 
-          {closeResult && (
+          {syncingPortfolio && (() => {
+            const MSGS = ["beep boop...", "syncing ledger...", "crunching numbers...", "bzzzt...", "almost there...", "recalculating..."];
+            return (
+              <div className="flex items-center gap-2 p-3 rounded-lg text-xs font-mono bg-blue-500/10 border border-blue-500/20 text-blue-300 animate-pulse">
+                <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
+                {MSGS[syncFrame % MSGS.length]}
+              </div>
+            );
+          })()}
+
+          {closeResult && !syncingPortfolio && (
             <div className={`flex items-center gap-2 p-3 rounded-lg text-xs font-mono ${closeResult.ok ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}>
               {closeResult.ok
                 ? <CheckCircle2 className="w-4 h-4 shrink-0" />

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Market, postTrade } from "@/lib/api";
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, ExternalLink } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
 
 interface TradePanelProps {
@@ -17,7 +17,7 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
   const [side, setSide] = useState<"Yes" | "No">("Yes");
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [result, setResult] = useState<{ ok: boolean; message: string; txHash?: string } | null>(null);
 
   const yesPrice = market.yes_bid ?? market.last_price ?? 50;
   const noPrice = market.no_bid ?? (market.last_price ? 100 - market.last_price : 50);
@@ -32,14 +32,15 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
     setLoading(true);
     setResult(null);
     try {
-      await postTrade({
+      const data = await postTrade({
         condition_id: conditionId,
         side,
         amount: Number(amount),
         order_side: "BUY",
         auto_prepare: true,
-      });
-      setResult({ ok: true, message: `Successfully bought ${side} for $${amount}` });
+      }) as Record<string, unknown>;
+      const txHash = (data?.tx_hash ?? data?.transaction_hash ?? data?.txHash) as string | undefined;
+      setResult({ ok: true, message: `Successfully bought ${side} for $${amount}`, txHash });
       setAmount("");
       onTradeSuccess?.();
     } catch (err) {
@@ -148,7 +149,20 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
           ) : (
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           )}
-          <span>{result.message}</span>
+          <div className="flex-1 min-w-0">
+            <span>{result.message}</span>
+            {result.ok && result.txHash && (
+              <a
+                href={`https://polygonscan.com/tx/${result.txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 mt-1.5 text-emerald-400/80 hover:text-emerald-400 transition-colors truncate"
+              >
+                <ExternalLink className="w-3 h-3 shrink-0" />
+                <span className="truncate">View on Polygonscan</span>
+              </a>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -57,6 +57,7 @@ function MarketDetailContent() {
   const searchParams = useSearchParams();
   const conditionId = searchParams.get("conditionId") ?? searchParams.get("ticker");
   const decodedConditionId = conditionId ? decodeURIComponent(conditionId) : "";
+  const imageFromParam = searchParams.get("img");
 
   const { data: marketRaw, isLoading: loadingMarket, mutate: mutateMarket } = useSWR<Market>(
     decodedConditionId ? `/api/proxy/markets/by-condition/${encodeURIComponent(decodedConditionId)}` : null,
@@ -65,13 +66,7 @@ function MarketDetailContent() {
   );
   const market = marketRaw ? normalizeMarket(marketRaw) : null;
 
-  // Fetch image from Gamma API (backend doesn't return images)
-  const { data: gammaMarkets } = useSWR<{ image?: string; icon?: string }[]>(
-    decodedConditionId ? `/api/gamma?path=markets&conditionId=${encodeURIComponent(decodedConditionId)}` : null,
-    (url) => fetch(url).then((r) => r.json()),
-    { revalidateOnFocus: false },
-  );
-  const marketImage = gammaMarkets?.[0]?.image ?? gammaMarkets?.[0]?.icon ?? null;
+  const marketImage = imageFromParam ?? null;
 
   // Fetch trades using condition_id from the loaded market
   const tradesKey = market?.condition_id
