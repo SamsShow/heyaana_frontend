@@ -65,6 +65,14 @@ function MarketDetailContent() {
   );
   const market = marketRaw ? normalizeMarket(marketRaw) : null;
 
+  // Fetch image from Gamma API (backend doesn't return images)
+  const { data: gammaMarkets } = useSWR<{ image?: string; icon?: string }[]>(
+    decodedConditionId ? `/api/gamma?path=markets&conditionId=${encodeURIComponent(decodedConditionId)}` : null,
+    (url) => fetch(url).then((r) => r.json()),
+    { revalidateOnFocus: false },
+  );
+  const marketImage = gammaMarkets?.[0]?.image ?? gammaMarkets?.[0]?.icon ?? null;
+
   // Fetch trades using condition_id from the loaded market
   const tradesKey = market?.condition_id
     ? `/api/proxy/data/trades?market=${encodeURIComponent(market.condition_id)}&limit=50`
@@ -141,9 +149,13 @@ function MarketDetailContent() {
               {/* Market header */}
               <div className="space-y-3">
                 <div className="flex items-start gap-4">
-                  {/* Market icon placeholder */}
-                  <div className="w-12 h-12 rounded-xl bg-surface border border-border flex items-center justify-center shrink-0">
-                    <BarChart3 className="w-6 h-6 text-muted" />
+                  {/* Market icon */}
+                  <div className="w-12 h-12 rounded-xl bg-surface border border-border flex items-center justify-center shrink-0 overflow-hidden">
+                    {marketImage ? (
+                      <img src={marketImage} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <BarChart3 className="w-6 h-6 text-muted" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h1 className="text-xl md:text-2xl font-semibold leading-tight">
