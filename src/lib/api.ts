@@ -407,7 +407,7 @@ function normalizeGammaMarket(event: GammaEvent, market: GammaMarket): Market {
 }
 
 export async function gammaFetcher(url: string): Promise<Market[]> {
-    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+    const res = await fetch(url);
     if (!res.ok) throw new Error(`Gamma API error: ${res.status}`);
     const events: GammaEvent[] = await res.json();
     const markets: Market[] = [];
@@ -437,7 +437,8 @@ export function buildGammaUrl(params: {
     if (params.order) p.set("order", params.order);
     if (params.ascending !== undefined) p.set("ascending", String(params.ascending));
     if (params.tag_id !== undefined) p.set("tag_id", String(params.tag_id));
-    return `${GAMMA_API_URL}/events?${p.toString()}`;
+    // Route through Next.js proxy to avoid CORS
+    return `/api/gamma?${p.toString()}`;
 }
 
 // ─── Trade request ────────────────────────────────────────
