@@ -347,25 +347,33 @@ export type TradeRequest = {
 // ─── Client-side fetchers for proxy routes ────────────────
 
 export async function proxyFetcher(url: string) {
-    // In static mode, "proxy" urls like /api/proxy/stats 
-    // should be mapped to the real backend.
     const path = url.replace(/^\/api\/proxy/, "");
-    const res = await fetch(`${API2_BASE_URL}${path}`, {
-        headers: {
-            "User-Agent":
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+        const res = await fetch(`${API2_BASE_URL}${path}`, {
+            signal: controller.signal,
+            headers: {
+                "User-Agent":
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+                "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+            }
+        });
+        if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.error ?? "Request failed");
         }
-    });
-    if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? "Request failed");
+        const ct = res.headers.get("content-type") ?? "";
+        if (!ct.includes("application/json")) {
+            throw new Error("Server returned non-JSON response");
+        }
+        return res.json();
+    } catch (err) {
+        if ((err as Error)?.name === "AbortError") throw new Error("Request timed out");
+        throw err;
+    } finally {
+        clearTimeout(timeout);
     }
-    const ct = res.headers.get("content-type") ?? "";
-    if (!ct.includes("application/json")) {
-        throw new Error("Server returned non-JSON response");
-    }
-    return res.json();
 }
 
 export async function postTrade(trade: TradeRequest) {

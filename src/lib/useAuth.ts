@@ -15,9 +15,18 @@ import {
 const ME_KEY = "/me";
 
 async function meFetcher(path: string): Promise<UserProfile | null> {
-  const res = await api2Fetch(path);
-  if (!res.ok) return null;
-  return res.json();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await api2Fetch(path, undefined, { signal: controller.signal });
+    if (!res.ok) return null;
+    return res.json();
+  } catch (err) {
+    if ((err as Error)?.name === "AbortError") throw new Error("Session check timed out");
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export function useAuth() {
