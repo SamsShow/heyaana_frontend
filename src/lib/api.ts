@@ -339,8 +339,9 @@ export function normalizeMarket(raw: RawMarket): Market {
 const GAMMA_API_URL = "https://gamma-api.polymarket.com";
 
 type GammaMarket = {
-    id?: number;
-    condition_id?: string;
+    id?: number | string;
+    conditionId?: string;     // camelCase from Gamma API
+    condition_id?: string;    // snake_case fallback
     question?: string;
     slug?: string;
     ticker?: string;
@@ -378,11 +379,12 @@ function normalizeGammaMarket(event: GammaEvent, market: GammaMarket): Market {
 
     const volume = typeof market.volume === "string" ? parseFloat(market.volume) : (market.volume ?? 0);
     const liquidity = typeof market.liquidity === "string" ? parseFloat(market.liquidity) : (market.liquidity ?? 0);
+    const conditionId = market.conditionId ?? market.condition_id;
 
     return {
-        id: market.id,
-        condition_id: market.condition_id,
-        ticker: market.condition_id ?? market.slug ?? market.ticker ?? String(market.id ?? ""),
+        id: typeof market.id === "number" ? market.id : undefined,
+        condition_id: conditionId,
+        ticker: conditionId ?? market.slug ?? market.ticker ?? String(market.id ?? ""),
         event_ticker: event.slug ?? event.ticker ?? "UNKNOWN",
         market_type: "binary",
         title: market.question ?? event.title ?? "",
@@ -411,7 +413,7 @@ export async function gammaFetcher(url: string): Promise<Market[]> {
     const markets: Market[] = [];
     for (const event of events) {
         for (const market of event.markets ?? []) {
-            if (market.active && !market.closed) {
+            if (!market.closed) {
                 markets.push(normalizeGammaMarket(event, market));
             }
         }
