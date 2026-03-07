@@ -90,6 +90,7 @@ export default function ProfilePage() {
     try {
       await approveTrading();
       setApproveResult({ ok: true, message: "All 6 transactions approved! You're ready to trade." });
+      mutateStatus();
     } catch (err) {
       setApproveResult({ ok: false, message: err instanceof Error ? err.message : "Approval failed" });
     } finally {
@@ -97,6 +98,12 @@ export default function ProfilePage() {
       setApproveLoading(false);
     }
   }
+
+  const { data: statusData, isLoading: statusLoading, mutate: mutateStatus } = useSWR<{ is_copytrading?: boolean; polymarket_approved?: boolean }>(
+    isAuthenticated ? "/api/proxy/me/status" : null,
+    proxyFetcher,
+    { revalidateOnFocus: true },
+  );
 
   const { data: walletData } = useSWR<Record<string, string>>(
     isAuthenticated ? "/api/proxy/me/wallet/address" : null,
@@ -373,26 +380,38 @@ export default function ProfilePage() {
 
           {/* Approve Trades */}
           {isAuthenticated && (() => {
+            const isApproved = statusData?.polymarket_approved === true;
             const BEP_BOP = ["bep", "bop", "bep bop", "bzzzt", "beep", "🤖"];
             const frames = ["⬜⬜⬜⬜⬜⬜", "🟦⬜⬜⬜⬜⬜", "🟦🟦⬜⬜⬜⬜", "🟦🟦🟦⬜⬜⬜", "🟦🟦🟦🟦⬜⬜", "🟦🟦🟦🟦🟦⬜", "🟦🟦🟦🟦🟦🟦"];
             const frameIdx = approveFrame % frames.length;
             const bopIdx = approveFrame % BEP_BOP.length;
             return (
               <div className="p-4 rounded-xl border border-border bg-surface/30 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold">Approve Trades</p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold">Approve Trades</p>
+                      {statusLoading ? (
+                        <span className="text-[10px] font-mono text-muted px-1.5 py-0.5 rounded bg-surface border border-border animate-pulse">checking…</span>
+                      ) : isApproved ? (
+                        <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-400 px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                          <CheckCircle2 className="w-3 h-3" /> approved
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono text-amber-400 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">not approved</span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted mt-0.5">Run the 6-transaction Polymarket approval flow (USDC + CTF allowances).</p>
                   </div>
                   <button
                     onClick={handleApprove}
-                    disabled={approveLoading}
-                    className="shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={approveLoading || isApproved}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {approveLoading
                       ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       : <ShieldCheck className="w-3.5 h-3.5" />}
-                    {approveLoading ? "Approving…" : "Approve"}
+                    {approveLoading ? "Approving…" : isApproved ? "Approved" : "Approve"}
                   </button>
                 </div>
 
