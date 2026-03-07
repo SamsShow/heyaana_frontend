@@ -117,13 +117,13 @@ export default function ProfilePage() {
   const { data: balanceData, isLoading: balanceLoading, mutate: mutateBalance } = useSWR<Record<string, unknown>>(
     isAuthenticated ? "/api/proxy/me/balance" : null,
     proxyFetcher,
-    { revalidateOnFocus: true, refreshInterval: 8000, dedupingInterval: 2000 },
+    { revalidateOnFocus: true, refreshInterval: 3000, dedupingInterval: 0 },
   );
 
   const { data: portfolio, isLoading: portfolioLoading, mutate: mutatePortfolio } = useSWR<Portfolio>(
     isAuthenticated ? "/api/proxy/me/portfolio" : null,
     proxyFetcher,
-    { revalidateOnFocus: true, refreshInterval: 8000, dedupingInterval: 2000 },
+    { revalidateOnFocus: true, refreshInterval: 3000, dedupingInterval: 0 },
   );
 
   type FollowingEntry = { username?: string; leader_username?: string; first_name?: string; [key: string]: unknown };

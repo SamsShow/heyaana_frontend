@@ -424,6 +424,33 @@ export async function gammaFetcher(url: string): Promise<Market[]> {
     return markets;
 }
 
+export type GammaCategory = { id: number; label: string; count: number };
+
+export async function fetchGammaCategories(url: string): Promise<GammaCategory[]> {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Failed to fetch categories");
+    const events: Array<{ tags?: Array<{ id: string | number; label: string }> }> = await res.json();
+
+    const counts = new Map<number, { label: string; count: number }>();
+    for (const event of events) {
+        const seenInEvent = new Set<number>();
+        for (const tag of event.tags ?? []) {
+            const id = parseInt(String(tag.id));
+            if (isNaN(id) || seenInEvent.has(id)) continue;
+            seenInEvent.add(id);
+            const entry = counts.get(id);
+            if (entry) entry.count++;
+            else counts.set(id, { label: tag.label, count: 1 });
+        }
+    }
+
+    return Array.from(counts.entries())
+        .filter(([id, { count }]) => id < 2000 && count >= 2)
+        .map(([id, { label, count }]) => ({ id, label, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8);
+}
+
 export function buildGammaUrl(params: {
     title?: string;
     limit?: number;
@@ -463,10 +490,13 @@ export async function proxyFetcher(url: string) {
     try {
         const res = await fetch(`${API2_BASE_URL}${path}`, {
             signal: controller.signal,
+            cache: "no-store",
             headers: {
                 "User-Agent":
                     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-                "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+                "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`,
+                "Cache-Control": "no-cache, no-store",
+                "Pragma": "no-cache",
             }
         });
         if (!res.ok) {

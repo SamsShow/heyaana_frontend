@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
-import { Market, gammaFetcher, buildGammaUrl } from "@/lib/api";
-import { Search, Loader2, Flame, Zap, TrendingUp, Trophy, Tv2 } from "lucide-react";
+import { Market, GammaCategory, gammaFetcher, fetchGammaCategories, buildGammaUrl } from "@/lib/api";
+import { Search, Loader2, Flame } from "lucide-react";
 
 interface MarketSearchProps {
     onSelectMarket?: (ticker: string) => void;
@@ -15,16 +15,7 @@ interface MarketSearchProps {
     maxHeight?: string;
 }
 
-// tag_ids from Polymarket: https://gamma-api.polymarket.com/tags
-const CATEGORIES = [
-    { id: "trending", label: "Trending", icon: Flame,       tag_id: undefined, order: "volume" as const },
-    { id: "sports",   label: "Sports",   icon: Trophy,      tag_id: 100381,    order: "volume" as const },
-    { id: "crypto",   label: "Crypto",   icon: TrendingUp,  tag_id: 100085,    order: "volume" as const },
-    { id: "politics", label: "Politics", icon: null,         tag_id: 100053,    order: "volume" as const },
-    { id: "pop",      label: "Pop Culture", icon: Tv2,      tag_id: 100063,    order: "volume" as const },
-] as const;
-
-type CategoryId = (typeof CATEGORIES)[number]["id"];
+const TRENDING_URL = "/api/gamma?active=true&closed=false&limit=100&order=volume&ascending=false";
 
 export function MarketSearch({
     onSelectMarket,
@@ -35,7 +26,7 @@ export function MarketSearch({
     const router = useRouter();
     const [query, setQuery] = useState("");
     const [debouncedQuery, setDebouncedQuery] = useState("");
-    const [activeCategory, setActiveCategory] = useState<CategoryId>("trending");
+    const [activeTagId, setActiveTagId] = useState<number | null>(null);
 
     useEffect(() => {
         const timer = setTimeout(() => setDebouncedQuery(query), 300);
@@ -43,11 +34,17 @@ export function MarketSearch({
     }, [query]);
 
     const isSearching = debouncedQuery.length > 0;
-    const activeCat = CATEGORIES.find((c) => c.id === activeCategory)!;
+
+    // Fetch dynamic categories from top trending events
+    const { data: categories = [] } = useSWR<GammaCategory[]>(
+        TRENDING_URL,
+        fetchGammaCategories,
+        { revalidateOnFocus: false, dedupingInterval: 300000 },
+    );
 
     const endpoint = isSearching
         ? buildGammaUrl({ title: debouncedQuery, limit: 30 })
-        : buildGammaUrl({ tag_id: activeCat.tag_id, order: activeCat.order, ascending: false, limit: 30 });
+        : buildGammaUrl({ tag_id: activeTagId ?? undefined, order: "volume", ascending: false, limit: 30 });
 
     const { data: markets = [], isLoading } = useSWR<Market[]>(
         endpoint,
@@ -85,23 +82,31 @@ export function MarketSearch({
 
             {/* Category tabs (hidden while searching) */}
             {!isSearching && (
-                <div className="flex items-center gap-1 mt-3 overflow-x-auto pb-1">
-                    {CATEGORIES.map((cat) => {
-                        const Icon = cat.icon;
-                        return (
-                            <button
-                                key={cat.id}
-                                onClick={() => setActiveCategory(cat.id)}
-                                className={`flex items-center gap-1 px-3 py-1.5 text-xs font-mono rounded-full whitespace-nowrap transition-all ${activeCategory === cat.id
-                                    ? "bg-blue-primary/10 text-blue-primary border border-blue-primary/30"
-                                    : "text-muted hover:text-foreground border border-transparent hover:border-border"
-                                    }`}
-                            >
-                                {Icon && <Icon className="w-3 h-3" />}
-                                {cat.label}
-                            </button>
-                        );
-                    })}
+                <div className="flex items-center gap-1 mt-3 overflow-x-auto pb-1 scrollbar-none">
+                    {/* Trending — always first */}
+                    <button
+                        onClick={() => setActiveTagId(null)}
+                        className={`flex items-center gap-1 px-3 py-1.5 text-xs font-mono rounded-full whitespace-nowrap transition-all shrink-0 ${activeTagId === null
+                            ? "bg-blue-primary/10 text-blue-primary border border-blue-primary/30"
+                            : "text-muted hover:text-foreground border border-transparent hover:border-border"
+                        }`}
+                    >
+                        <Flame className="w-3 h-3" />
+                        Trending
+                    </button>
+
+                    {categories.map((cat) => (
+                        <button
+                            key={cat.id}
+                            onClick={() => setActiveTagId(cat.id)}
+                            className={`px-3 py-1.5 text-xs font-mono rounded-full whitespace-nowrap transition-all shrink-0 ${activeTagId === cat.id
+                                ? "bg-blue-primary/10 text-blue-primary border border-blue-primary/30"
+                                : "text-muted hover:text-foreground border border-transparent hover:border-border"
+                            }`}
+                        >
+                            {cat.label}
+                        </button>
+                    ))}
                 </div>
             )}
 
