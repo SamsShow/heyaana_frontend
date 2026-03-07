@@ -349,7 +349,7 @@ export type TradeRequest = {
 export async function proxyFetcher(url: string) {
     const path = url.replace(/^\/api\/proxy/, "");
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(() => controller.abort(), 30000);
     try {
         const res = await fetch(`${API2_BASE_URL}${path}`, {
             signal: controller.signal,

@@ -16,7 +16,7 @@ const ME_KEY = "/me";
 
 async function meFetcher(path: string): Promise<UserProfile | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), 20000);
   try {
     const res = await api2Fetch(path, undefined, { signal: controller.signal });
     if (!res.ok) return null;
