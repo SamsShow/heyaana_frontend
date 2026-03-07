@@ -468,110 +468,97 @@ export default function SocialFeedPage() {
                 const isOwnTrade = trade.username && user?.username === trade.username;
                 const isFollowing = trade.username ? followed.has(trade.username) : false;
                 const isPending = trade.username ? pendingFollow.has(trade.username) : false;
+                const cost = trade.cost ?? (trade.price !== undefined && trade.amount !== undefined ? trade.amount * trade.price : null);
+                const displayName = trade.first_name ?? trade.username ?? `User #${trade.user_id}`;
 
                 return (
                   <div
                     key={`${trade.user_id}-${trade.executed_at}-${i}`}
-                    className="rounded-xl border border-border bg-surface/30 p-4"
+                    className="rounded-2xl border border-border bg-surface/40 overflow-hidden"
                   >
-                    <div className="flex items-start gap-3">
-                      {/* Avatar */}
+                    {/* User header row */}
+                    <div className="flex items-center gap-3 px-4 py-3">
                       <button
                         onClick={() => trade.username && setSelectedUser(trade.username)}
-                        className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-primary/30 to-purple-500/30 flex items-center justify-center text-xs font-bold font-mono shrink-0 hover:ring-2 hover:ring-blue-primary/40 transition-all"
+                        className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-primary/40 to-purple-500/40 flex items-center justify-center text-xs font-bold font-mono shrink-0 hover:opacity-80 transition-opacity"
                       >
-                        {(trade.first_name ?? trade.username ?? "?").slice(0, 2).toUpperCase()}
+                        {displayName.slice(0, 2).toUpperCase()}
                       </button>
 
-                      {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <button
                             onClick={() => trade.username && setSelectedUser(trade.username)}
                             className="text-sm font-semibold hover:text-blue-primary transition-colors"
                           >
-                            {trade.first_name ?? trade.username ?? `User #${trade.user_id}`}
+                            @{trade.username ?? displayName}
                           </button>
-                          {trade.username && (
-                            <span className="text-[10px] font-mono text-muted">@{trade.username}</span>
-                          )}
                           {trade.copied_from_username && (
-                            <span className="text-[10px] font-mono text-blue-primary/70 flex items-center gap-0.5">
+                            <span className="text-[10px] font-mono text-blue-primary/60 flex items-center gap-0.5">
                               <Copy className="w-2.5 h-2.5" />
                               copied @{trade.copied_from_username}
                             </span>
                           )}
                           {timeStr && (
-                            <span className="text-[10px] font-mono text-muted ml-auto">
-                              {formatRelativeTime(timeStr)}
-                            </span>
+                            <span className="text-[10px] font-mono text-muted">· {formatRelativeTime(timeStr)}</span>
                           )}
                         </div>
-
-                        {/* Trade details */}
-                        <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                          <span className={`inline-flex items-center gap-0.5 text-xs font-mono font-semibold px-2 py-0.5 rounded ${
-                            isBuy
-                              ? "bg-emerald-500/10 text-emerald-400"
-                              : "bg-red-500/10 text-red-400"
-                          }`}>
-                            {isBuy ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                            {trade.side ?? "—"}
-                          </span>
-                          {trade.amount !== undefined && (() => {
-                            const cost = trade.cost ?? (trade.price !== undefined ? trade.amount * trade.price : null);
-                            return cost !== null ? (
-                              <span className="text-xs font-mono text-foreground">${cost.toFixed(2)}</span>
-                            ) : (
-                              <span className="text-xs font-mono text-muted">{trade.amount} shares</span>
-                            );
-                          })()}
-                          {trade.market_title && (
-                            <span className="text-xs font-mono text-muted truncate max-w-[300px]">
-                              {trade.market_title}
-                            </span>
-                          )}
-                        </div>
-
-                        {trade.status && (
-                          <span className={`inline-block mt-1 text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                            trade.status === "filled" || trade.status === "success"
-                              ? "bg-emerald-500/10 text-emerald-400"
-                              : trade.status === "pending"
-                                ? "bg-amber-500/10 text-amber-400"
-                                : "bg-surface-hover text-muted"
-                          }`}>
-                            {trade.status}
-                          </span>
-                        )}
                       </div>
 
-                      {/* Follow button */}
                       {isAuthenticated && trade.username && !isOwnTrade && (
                         <button
                           onClick={() => requestFollow(trade.username!)}
                           disabled={isPending}
-                          className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg transition-all border disabled:opacity-50 ${
+                          className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border transition-all disabled:opacity-50 ${
                             isFollowing
-                              ? "border-red-500/30 text-red-400 hover:bg-red-500/10"
-                              : "border-blue-primary/30 text-blue-primary hover:bg-blue-primary/10"
+                              ? "border-border text-muted hover:border-red-500/40 hover:text-red-400"
+                              : "border-border text-foreground hover:border-blue-primary/40 hover:text-blue-primary"
                           }`}
                         >
                           {isPending ? (
                             <Loader2 className="w-3 h-3 animate-spin" />
                           ) : isFollowing ? (
-                            <>
-                              <UserMinus className="w-3 h-3" />
-                              Unfollow
-                            </>
+                            <><UserMinus className="w-3 h-3" /> Unfollow</>
                           ) : (
-                            <>
-                              <UserPlus className="w-3 h-3" />
-                              Follow
-                            </>
+                            <><UserPlus className="w-3 h-3" /> Follow</>
                           )}
                         </button>
                       )}
+                    </div>
+
+                    {/* Trade detail row */}
+                    <div className={`mx-3 mb-3 rounded-xl px-4 py-3 flex items-center gap-3 ${isBuy ? "bg-emerald-500/8 border border-emerald-500/15" : "bg-red-500/8 border border-red-500/15"}`}>
+                      <div className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${isBuy ? "bg-emerald-500" : "bg-red-500"}`}>
+                        {isBuy
+                          ? <ArrowUpRight className="w-3 h-3 text-white" />
+                          : <ArrowDownRight className="w-3 h-3 text-white" />}
+                      </div>
+
+                      <p className="flex-1 text-sm text-foreground/90 min-w-0 truncate">
+                        Bet{" "}
+                        <span className={`font-semibold ${isBuy ? "text-emerald-400" : "text-red-400"}`}>
+                          &apos;{trade.side ?? "—"}&apos;
+                        </span>
+                        {trade.market_title && (
+                          <> on {trade.market_title}</>
+                        )}
+                      </p>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {trade.status && (trade.status === "filled" || trade.status === "success" || trade.status === "matched") && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                            {trade.status === "filled" ? "matched" : trade.status}
+                          </span>
+                        )}
+                        {trade.status === "pending" && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                            pending
+                          </span>
+                        )}
+                        {cost !== null && (
+                          <span className="text-sm font-bold font-mono">${cost.toFixed(2)}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
