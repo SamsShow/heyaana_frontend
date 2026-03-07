@@ -728,6 +728,11 @@ export default function ProfilePage() {
                       );
                     })}
                   </div>
+                ) : portfolioValidating ? (
+                  <div className="flex items-center justify-center gap-2 text-muted py-8">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-xs font-mono">Loading positions…</span>
+                  </div>
                 ) : (
                   <p className="text-sm text-muted font-mono py-4 text-center">No open positions.</p>
                 )}
