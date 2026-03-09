@@ -4,8 +4,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { useAuth } from "@/lib/useAuth";
+import { MobileTradingModal } from "@/components/shared/MobileTradingModal";
 
 const navLinks = [
   { label: "Features", href: "/#features" },
@@ -15,8 +17,10 @@ const navLinks = [
 ];
 
 export function Navbar() {
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [visible, setVisible] = useState(false);
+  const [mobileModalOpen, setMobileModalOpen] = useState(false);
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -79,6 +83,12 @@ export function Navbar() {
             {!isAuthenticated && (
               <a
                 href="/dashboard"
+                onClick={(e) => {
+                  if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                    e.preventDefault();
+                    setMobileModalOpen(true);
+                  }
+                }}
                 className="text-sm px-5 py-2 rounded-full bg-blue-primary text-white font-medium hover:bg-blue-dark transition-all glow-blue"
               >
                 Trade Now
@@ -108,29 +118,43 @@ export function Navbar() {
               </Link>
             ))}
             <a href="https://x.com/tryheyanna" target="_blank" rel="noopener noreferrer" className="block text-sm text-white/60 hover:text-white px-2 py-1" onClick={() => setMobileOpen(false)}>Twitter / X</a>
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-col gap-2 pt-2">
               <a
-                href="https://t.me/+i9D5bDox8lNmNDk9"
+                href="https://t.me/heyanna_ai_bot"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-1.5 flex-1 text-center text-sm px-4 py-2 rounded-full border border-white/15 text-white/60 hover:text-[#26A5E4]"
+                className="flex items-center justify-center gap-1.5 text-center text-sm px-4 py-2 rounded-full border border-[#26A5E4]/30 bg-[#26A5E4]/10 text-[#26A5E4]"
                 onClick={() => setMobileOpen(false)}
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.919l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.978.64z" />
                 </svg>
-                Telegram
+                Launch Bot
               </a>
               <a
                 href="/dashboard"
                 className="flex-1 text-center text-sm px-4 py-2 rounded-full bg-blue-primary text-white font-medium"
-                onClick={() => setMobileOpen(false)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMobileOpen(false);
+                  setMobileModalOpen(true);
+                }}
               >
                 Start Trading
               </a>
             </div>
           </div>
         )}
+
+        <MobileTradingModal
+          isOpen={mobileModalOpen}
+          onClose={() => setMobileModalOpen(false)}
+          onProceed={() => {
+            setMobileModalOpen(false);
+            setMobileOpen(false);
+            router.push("/dashboard");
+          }}
+        />
       </div>
     </nav>
   );

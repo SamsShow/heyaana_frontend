@@ -30,6 +30,8 @@ export function ProductDemo() {
 
     return (
         <section ref={sectionRef} className="py-24 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-[#060B1A] to-transparent pointer-events-none z-[1]" />
+            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#060B1A] to-transparent pointer-events-none z-[1]" />
             <motion.div style={{ y: gridY }} className="absolute inset-0 grid-bg opacity-20" />
             <motion.div style={{ y: glowY }} className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-primary/5 blur-[120px]" />
 

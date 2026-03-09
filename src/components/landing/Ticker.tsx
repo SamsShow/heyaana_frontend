@@ -18,9 +18,9 @@ export function Ticker() {
     const items = [...tickerItems, ...tickerItems];
 
     return (
-        <div className="relative overflow-hidden py-4 bg-[#080D1E] border-y border-[#466EFF]/10">
-            <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#0A0F20] to-transparent z-10" />
-            <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#0A0F20] to-transparent z-10" />
+        <div className="relative overflow-hidden py-4 bg-[#060B1A] border-y border-[#466EFF]/8">
+            <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#060B1A] to-transparent z-10" />
+            <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#060B1A] to-transparent z-10" />
 
             <motion.div
                 className="flex gap-8 whitespace-nowrap"

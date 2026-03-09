@@ -47,6 +47,10 @@ export function ProductValue() {
 
     return (
         <section ref={sectionRef} id="features" className="py-24 relative">
+            {/* Top fade-in from hero */}
+            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-[#060B1A] to-transparent pointer-events-none" />
+            {/* Bottom fade-out */}
+            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#060B1A] to-transparent pointer-events-none" />
             <motion.div style={{ y: dotsY }} className="absolute inset-0 terminal-dots opacity-30" />
             <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Section Header */}
