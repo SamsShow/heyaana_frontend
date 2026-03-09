@@ -84,9 +84,12 @@ function OnboardingPageContent() {
   const next = () => setStep((s) => Math.min(s + 1, 5));
   const prev = () => setStep((s) => Math.max(s - 1, 1));
   const handleContinue = useCallback(() => {
-    if (step === 1 && !isAuthenticated) {
-      setLoginError("Please sign in with Telegram before continuing.");
-      return;
+    if (step === 1) {
+      const hasToken = typeof window !== "undefined" && !!localStorage.getItem(TOKEN_STORAGE_KEY);
+      if (!isAuthenticated && !hasToken) {
+        setLoginError("Please sign in with Telegram before continuing.");
+        return;
+      }
     }
     next();
   }, [step, isAuthenticated]);
@@ -529,8 +532,9 @@ function OnboardingPageContent() {
                 <Link
                   href="/dashboard"
                   onClick={(e) => {
-                    // Allow if authenticated OR has token (avoids false error when /me is still loading)
-                    if (!isAuthenticated && !hasSessionToken) {
+                    // Check token directly — hasSessionToken is stale (set only on mount, before login)
+                    const hasToken = typeof window !== "undefined" && !!localStorage.getItem(TOKEN_STORAGE_KEY);
+                    if (!isAuthenticated && !hasToken) {
                       e.preventDefault();
                       setLoginError("Please sign in with Telegram before launching dashboard.");
                       setStep(1);
