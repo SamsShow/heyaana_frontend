@@ -21,6 +21,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
         return !!localStorage.getItem(TOKEN_STORAGE_KEY);
     });
 
+    const [redirecting, setRedirecting] = useState(false);
+
     useEffect(() => {
         // No token at all — send straight to onboarding.
         if (!hasToken) {
@@ -31,12 +33,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
         if (!isLoading && !isAuthenticated) {
             // Clear the stale token so the user isn't stuck in a redirect loop.
             localStorage.removeItem(TOKEN_STORAGE_KEY);
+            setRedirecting(true);
             router.replace("/onboarding");
         }
     }, [isAuthenticated, isLoading, hasToken, router]);
 
-    // No token — redirect pending, render nothing.
-    if (!hasToken) return null;
+    // No token or already redirecting — render nothing immediately.
+    if (!hasToken || redirecting) return null;
 
     // Token exists, SWR still verifying.
     if (isLoading) {
