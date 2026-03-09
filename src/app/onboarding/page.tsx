@@ -28,7 +28,7 @@ function OnboardingPageContent() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [currentHostname, setCurrentHostname] = useState<string | null>(null);
-  const [showDevLogin, setShowDevLogin] = useState(false);
+  const [showDevLogin, setShowDevLogin] = useState(true);
   const telegramRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
@@ -265,7 +265,14 @@ function OnboardingPageContent() {
                         <button
                           onClick={() => {
                             const val = (document.getElementById("dev-user-id") as HTMLInputElement)?.value;
-                            if (val) loginManual(Number(val)).then(() => next());
+                            if (val) {
+                              setLoginLoading(true);
+                              setLoginError(null);
+                              loginManual(Number(val))
+                                .then(() => next())
+                                .catch((err) => setLoginError(err instanceof Error ? err.message : "Dev login failed"))
+                                .finally(() => setLoginLoading(false));
+                            }
                           }}
                           disabled={loginLoading}
                           className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-primary text-white text-sm font-medium hover:bg-red-dark transition-all disabled:opacity-50"
