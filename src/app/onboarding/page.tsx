@@ -34,7 +34,7 @@ function OnboardingPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, loginManual, login, loginWidget } = useAuth();
-  const TELEGRAM_BOT_USERNAME = (process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "heyanna_ai_bot").replace(/^@/, "");
+  const TELEGRAM_BOT_USERNAME = (process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "heyannadev_bot").replace(/^@/, "");
 
   const next = () => setStep((s) => Math.min(s + 1, 5));
   const prev = () => setStep((s) => Math.max(s - 1, 1));
