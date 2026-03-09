@@ -1,7 +1,7 @@
 "use client";
 
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
-import { MarketSearch } from "@/components/dashboard/MarketSearch";
+import { EventList } from "@/components/dashboard/EventList";
 import { BarChart3 } from "lucide-react";
 
 export default function MarketsPage() {
@@ -20,7 +20,7 @@ export default function MarketsPage() {
           </div>
 
           <div className="dashboard-card overflow-hidden">
-            <MarketSearch navigateOnSelect />
+            <EventList />
           </div>
         </div>
       </div>

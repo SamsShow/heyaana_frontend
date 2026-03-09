@@ -1,0 +1,415 @@
+"use client";
+
+import useSWR from "swr";
+import Link from "next/link";
+import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
+import { proxyFetcher, followTrader, unfollowTrader } from "@/lib/api";
+import { useAuth } from "@/lib/useAuth";
+import { CopyTradeModal } from "@/components/dashboard/CopyTradeModal";
+import {
+  Loader2, Users, UserPlus, UserMinus, AlertCircle,
+  Search, ChevronDown, X, Lightbulb,
+} from "lucide-react";
+import { useState, useMemo } from "react";
+
+// ── Types ──────────────────────────────────────────────────────
+
+type FeedTrade = {
+  user_id?: number; username?: string; first_name?: string;
+  side?: string; amount?: number; price?: number;
+  cost?: number; pnl_cash?: number; pnl?: number; current_pnl?: number;
+  executed_at?: string | number; created_at?: string | number;
+  [key: string]: unknown;
+};
+
+type TraderStat = {
+  rank: number; username: string; name: string;
+  roi: number; winRate: number; wins30d: number; losses30d: number;
+  profit: number; tradeCount: number; volume: number;
+  lastTradeTs: number; alphaScore: number;
+};
+
+type SortKey = "alpha" | "pnl" | "winRate" | "volume";
+type Timeframe = "weekly" | "monthly" | "all";
+
+// ── Build leaderboard from feed ─────────────────────────────────
+
+function buildLeaderboard(feed: FeedTrade[]): TraderStat[] {
+  const now = Date.now();
+  const ms30d = 30 * 24 * 60 * 60 * 1000;
+  const map = new Map<string, { username: string; name: string; trades: FeedTrade[] }>();
+
+  for (const t of feed) {
+    if (!t.username) continue;
+    if (!map.has(t.username)) map.set(t.username, { username: t.username, name: t.first_name ?? t.username, trades: [] });
+    map.get(t.username)!.trades.push(t);
+  }
+
+  return Array.from(map.values())
+    .map((trader) => {
+      let totalCost = 0, totalPnl = 0, wins30d = 0, losses30d = 0, lastTradeTs = 0;
+      for (const t of trader.trades) {
+        const cost = t.cost ?? (t.price !== undefined && t.amount !== undefined ? t.amount * t.price : 0);
+        const pnl = Number(t.pnl_cash ?? t.pnl ?? t.current_pnl ?? 0);
+        totalCost += cost; totalPnl += pnl;
+        const rawTime = t.executed_at ?? t.created_at;
+        const ts = typeof rawTime === "number" ? rawTime * 1000 : rawTime ? new Date(rawTime as string).getTime() : 0;
+        if (ts > lastTradeTs) lastTradeTs = ts;
+        if (now - ts < ms30d) { if (pnl >= 0) wins30d++; else losses30d++; }
+      }
+      const roi = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+      const total30d = wins30d + losses30d;
+      const winRate = total30d > 0 ? (wins30d / total30d) * 100 : trader.trades.length > 0 ? 60 : 0;
+      // Alpha score: composite of win rate (40%), ROI (30%), trade count (30%)
+      const alphaScore = winRate * 0.4 + Math.max(0, roi) * 0.3 + Math.min(trader.trades.length * 2, 30);
+      return {
+        rank: 0, username: trader.username, name: trader.name,
+        roi, winRate, wins30d, losses30d, profit: totalPnl,
+        tradeCount: trader.trades.length, volume: totalCost,
+        lastTradeTs, alphaScore,
+      };
+    })
+    .sort((a, b) => b.profit - a.profit)
+    .map((t, i) => ({ ...t, rank: i + 1 }));
+}
+
+function formatProfit(v: number): string {
+  const abs = Math.abs(v);
+  const sign = v >= 0 ? "+" : "-";
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(1)}K`;
+  return `${sign}$${abs.toFixed(0)}`;
+}
+
+// ── Trader card ─────────────────────────────────────────────────
+
+function TraderCard({ trader, isFollowing, isPending, onFollow }: {
+  trader: TraderStat; isFollowing: boolean; isPending: boolean; onFollow: () => void;
+}) {
+  const initials = trader.name.slice(0, 2).toUpperCase();
+  const profileHref = `/dashboard/traders/${trader.username}?roi=${trader.roi.toFixed(2)}&profit=${trader.profit.toFixed(2)}&tradeCount=${trader.tradeCount}&winRate=${trader.winRate.toFixed(2)}`;
+
+  return (
+    <div className="flex items-center gap-4 px-5 py-4 border-b border-border/30 last:border-0 hover:bg-surface/40 transition-all">
+      <Link href={profileHref} className="relative shrink-0">
+        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-primary/30 to-purple-500/20 border border-border flex items-center justify-center text-sm font-bold">
+          {initials}
+        </div>
+        <span className="absolute -bottom-1 -left-1 w-5 h-5 rounded-full bg-surface border border-border flex items-center justify-center text-[10px] font-bold font-mono text-muted">
+          {trader.rank}
+        </span>
+      </Link>
+
+      <Link href={profileHref} className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <span className="text-sm font-semibold">{trader.name}</span>
+          <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
+        </div>
+        <div className="flex items-center gap-4 text-xs font-mono">
+          <span className="text-muted">
+            ROI <span className={`font-semibold ${trader.roi >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+              {trader.roi >= 0 ? "+" : ""}{trader.roi.toFixed(1)}%
+            </span>
+          </span>
+          <span className="text-muted">
+            Win Rate <span className="text-emerald-400 font-semibold">{trader.winRate.toFixed(0)}%</span>
+          </span>
+          <span className="text-muted hidden sm:inline">
+            30D{" "}
+            <span className="text-emerald-400 font-semibold">{trader.wins30d}W</span>
+            {" / "}
+            <span className="text-red-400 font-semibold">{trader.losses30d}L</span>
+          </span>
+        </div>
+      </Link>
+
+      <div className="flex flex-col items-end gap-0.5 shrink-0 mr-2">
+        <span className={`text-base font-bold font-mono ${trader.profit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+          {formatProfit(trader.profit)}
+        </span>
+        <span className="text-[10px] font-mono text-muted/60">Profit</span>
+      </div>
+
+      <button
+        onClick={onFollow}
+        disabled={isPending}
+        className={`shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all disabled:opacity-50 ${
+          isFollowing
+            ? "border-red-500/30 text-red-400 hover:bg-red-500/10"
+            : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+        }`}
+      >
+        {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> :
+          isFollowing ? <><UserMinus className="w-3 h-3" /> Stop Copy</> :
+          <><UserPlus className="w-3 h-3" /> Copy</>}
+      </button>
+    </div>
+  );
+}
+
+// ── Filter pill ─────────────────────────────────────────────────
+
+function FilterPill({ label, active, onClick }: { label: string; active?: boolean; onClick?: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${
+        active
+          ? "border-blue-primary/50 bg-blue-primary/10 text-blue-primary"
+          : "border-border text-muted hover:text-foreground hover:border-border/80"
+      }`}
+    >
+      {label}
+      <ChevronDown className="w-3 h-3 opacity-60" />
+    </button>
+  );
+}
+
+// ── Page ────────────────────────────────────────────────────────
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "alpha", label: "Alpha Score" },
+  { key: "pnl", label: "P+L" },
+  { key: "winRate", label: "Win Rate" },
+  { key: "volume", label: "Volume" },
+];
+
+const TIMEFRAME_OPTIONS: { key: Timeframe; label: string }[] = [
+  { key: "weekly", label: "Weekly" },
+  { key: "monthly", label: "Monthly" },
+  { key: "all", label: "All Time" },
+];
+
+export default function TradersPage() {
+  const { isAuthenticated } = useAuth();
+  const [pendingFollow, setPendingFollow] = useState<Set<string>>(new Set());
+  const [followError, setFollowError] = useState<string | null>(null);
+  const [confirmFollowUser, setConfirmFollowUser] = useState<string | null>(null);
+  const [optimisticFollowed, setOptimisticFollowed] = useState<Set<string>>(new Set());
+  const [optimisticUnfollowed, setOptimisticUnfollowed] = useState<Set<string>>(new Set());
+
+  // Filter state
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("pnl");
+  const [timeframe, setTimeframe] = useState<Timeframe>("all");
+  const [activeOnly, setActiveOnly] = useState(false);
+  const [tipDismissed, setTipDismissed] = useState(false);
+
+  const { data: feedRaw, isLoading } = useSWR<unknown>("/api/proxy/trades?limit=100", proxyFetcher, { revalidateOnFocus: false, dedupingInterval: 60000 });
+  const { data: followingData, mutate: mutateFollowing } = useSWR<unknown>(isAuthenticated ? "/api/proxy/copy-trading/following" : null, proxyFetcher, { revalidateOnFocus: true });
+
+  const rawFollowingArr = (() => {
+    if (Array.isArray(followingData)) return followingData;
+    const w = followingData as { following?: unknown[]; data?: unknown[] } | null;
+    return Array.isArray(w?.following) ? w!.following : Array.isArray(w?.data) ? w!.data : [];
+  })();
+  const serverFollowed = new Set<string>((rawFollowingArr as Array<{ leader_username?: string; username?: string }>).map(f => f.leader_username ?? f.username ?? "").filter(Boolean));
+  const followed = new Set<string>([...[...serverFollowed].filter(u => !optimisticUnfollowed.has(u)), ...optimisticFollowed]);
+
+  const feedArr: FeedTrade[] = Array.isArray(feedRaw) ? feedRaw : Array.isArray((feedRaw as { trades?: FeedTrade[] })?.trades) ? (feedRaw as { trades: FeedTrade[] }).trades : [];
+  const leaderboard = useMemo(() => buildLeaderboard(feedArr), [feedArr]);
+
+  const now = Date.now();
+  const timeframeCutoff = timeframe === "weekly" ? now - 7 * 86400_000 : timeframe === "monthly" ? now - 30 * 86400_000 : 0;
+
+  const filtered = useMemo(() => {
+    let list = leaderboard;
+    // Search
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(t => t.name.toLowerCase().includes(q) || t.username.toLowerCase().includes(q));
+    }
+    // Timeframe — filter to traders who had at least one trade within window
+    if (timeframeCutoff > 0) {
+      list = list.filter(t => t.lastTradeTs >= timeframeCutoff);
+    }
+    // Active only — traded in last 7 days
+    if (activeOnly) {
+      list = list.filter(t => t.lastTradeTs >= now - 7 * 86400_000);
+    }
+    // Sort
+    const sorted = [...list].sort((a, b) => {
+      if (sortKey === "alpha") return b.alphaScore - a.alphaScore;
+      if (sortKey === "pnl") return b.profit - a.profit;
+      if (sortKey === "winRate") return b.winRate - a.winRate;
+      if (sortKey === "volume") return b.volume - a.volume;
+      return 0;
+    });
+    // Re-rank
+    return sorted.map((t, i) => ({ ...t, rank: i + 1 }));
+  }, [leaderboard, search, sortKey, timeframeCutoff, activeOnly, now]);
+
+  function requestFollow(username: string) {
+    if (!isAuthenticated) { window.location.href = "/onboarding"; return; }
+    if (!followed.has(username)) setConfirmFollowUser(username);
+    else handleFollowToggle(username);
+  }
+
+  async function handleFollowToggle(username: string) {
+    if (!isAuthenticated) { window.location.href = "/onboarding"; return; }
+    setConfirmFollowUser(null); setFollowError(null);
+    const isCurrentlyFollowing = followed.has(username);
+    if (isCurrentlyFollowing) { setOptimisticUnfollowed(p => new Set(p).add(username)); setOptimisticFollowed(p => { const s = new Set(p); s.delete(username); return s; }); }
+    else { setOptimisticFollowed(p => new Set(p).add(username)); setOptimisticUnfollowed(p => { const s = new Set(p); s.delete(username); return s; }); }
+    setPendingFollow(p => new Set(p).add(username));
+    try {
+      if (isCurrentlyFollowing) await unfollowTrader(username); else await followTrader(username);
+      await mutateFollowing();
+      setOptimisticFollowed(p => { const s = new Set(p); s.delete(username); return s; });
+      setOptimisticUnfollowed(p => { const s = new Set(p); s.delete(username); return s; });
+    } catch (err) {
+      if (isCurrentlyFollowing) setOptimisticUnfollowed(p => { const s = new Set(p); s.delete(username); return s; }); else setOptimisticFollowed(p => { const s = new Set(p); s.delete(username); return s; });
+      setFollowError(err instanceof Error ? err.message : "Failed");
+    } finally { setPendingFollow(p => { const n = new Set(p); n.delete(username); return n; }); }
+  }
+
+  return (
+    <DashboardChrome title="Traders">
+      {confirmFollowUser && (
+        <CopyTradeModal
+          username={confirmFollowUser}
+          displayName={leaderboard.find(t => t.username === confirmFollowUser)?.name ?? confirmFollowUser}
+          isPending={pendingFollow.has(confirmFollowUser)}
+          onConfirm={() => handleFollowToggle(confirmFollowUser)}
+          onClose={() => setConfirmFollowUser(null)}
+        />
+      )}
+
+      <div className="h-full overflow-y-auto">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-4 md:py-6">
+
+          {/* Header */}
+          <div className="section-header mb-5">
+            <Users className="w-5 h-5 text-blue-primary" />
+            <div><h1 className="text-xl font-bold">Top Traders</h1><p className="text-xs text-muted mt-0.5">Top performers ranked by profit</p></div>
+          </div>
+
+          {followError && <div className="flex items-center gap-2 px-3 py-2 mb-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono"><AlertCircle className="w-4 h-4 shrink-0" />{followError}</div>}
+
+          <div className="flex gap-5 items-start">
+
+            {/* ── Main column ─────────────────────────────── */}
+            <div className="flex-1 min-w-0 space-y-3">
+
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted/60 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search Traders"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full h-11 pl-10 pr-4 text-sm rounded-xl bg-surface/60 border border-border/70 text-foreground placeholder:text-muted focus:outline-none focus:border-blue-primary/50 focus:ring-2 focus:ring-blue-primary/20 transition-all"
+                />
+              </div>
+
+              {/* Tip card */}
+              {!tipDismissed && (
+                <div className="relative flex items-start gap-3 px-4 py-3.5 rounded-xl border border-blue-primary/20 bg-blue-primary/5">
+                  <Lightbulb className="w-4 h-4 text-blue-primary shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground/90">Tip for smaller portfolios</p>
+                    <p className="text-xs text-muted mt-0.5 leading-relaxed">
+                      With $1 minimum trades, focus on traders with{" "}
+                      <span className="font-semibold text-foreground/80">high win rates</span> and{" "}
+                      <span className="font-semibold text-foreground/80">consistent returns</span> rather than raw PnL.{" "}
+                      More wins = more gains on your $1 positions!
+                    </p>
+                  </div>
+                  <button onClick={() => setTipDismissed(true)} className="shrink-0 text-muted hover:text-foreground transition-colors p-0.5">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {/* Filter pills */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Timeframe */}
+                <div className="flex items-center gap-1 p-1 rounded-xl border border-border bg-surface/40">
+                  {TIMEFRAME_OPTIONS.map(tf => (
+                    <button
+                      key={tf.key}
+                      onClick={() => setTimeframe(tf.key)}
+                      className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                        timeframe === tf.key
+                          ? "bg-white/[0.08] text-foreground"
+                          : "text-muted hover:text-foreground"
+                      }`}
+                    >
+                      {tf.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Topics — UI only */}
+                <FilterPill label="All Topics" />
+
+                {/* Active */}
+                <button
+                  onClick={() => setActiveOnly(p => !p)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${
+                    activeOnly
+                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+                      : "border-border text-muted hover:text-foreground"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${activeOnly ? "bg-emerald-400" : "bg-muted/40"}`} />
+                  Active
+                </button>
+              </div>
+
+              {/* Count */}
+              {!isLoading && filtered.length > 0 && (
+                <p className="text-xs font-mono text-muted text-center py-1">
+                  {filtered.length} trader{filtered.length !== 1 ? "s" : ""}
+                </p>
+              )}
+
+              {/* List */}
+              <div className="dashboard-card overflow-hidden">
+                {isLoading && leaderboard.length === 0 ? (
+                  <div className="flex items-center justify-center py-16">
+                    <div className="flex items-center gap-2 text-muted"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm font-mono">Loading traders…</span></div>
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-muted">
+                    <Users className="w-6 h-6 mb-2 opacity-30" />
+                    <p className="text-sm font-mono">{search ? `No traders matching "${search}"` : "No trader data yet."}</p>
+                  </div>
+                ) : filtered.map((trader) => (
+                  <TraderCard
+                    key={trader.username}
+                    trader={trader}
+                    isFollowing={followed.has(trader.username)}
+                    isPending={pendingFollow.has(trader.username)}
+                    onFollow={() => requestFollow(trader.username)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* ── Sort panel (desktop) ─────────────────────── */}
+            <div className="hidden lg:block w-[200px] shrink-0">
+              <div className="dashboard-card overflow-hidden">
+                {SORT_OPTIONS.map((opt, i) => (
+                  <button
+                    key={opt.key}
+                    onClick={() => setSortKey(opt.key)}
+                    className={`w-full px-5 py-4 text-right text-sm transition-all ${
+                      sortKey === opt.key
+                        ? "font-bold text-foreground border-b-2 border-blue-primary"
+                        : "font-medium text-muted hover:text-foreground border-b border-border/30 last:border-0"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </DashboardChrome>
+  );
+}

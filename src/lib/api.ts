@@ -426,6 +426,56 @@ export async function gammaFetcher(url: string): Promise<Market[]> {
 
 export type GammaCategory = { id: number; label: string; count: number };
 
+export type GammaEventSummary = {
+    id: number;
+    slug: string;
+    title: string;
+    image?: string;
+    volume: number;
+    volume_24h: number;
+    liquidity: number;
+    market_count: number;
+    close_time: string | null;
+};
+
+type GammaEventExtended = GammaEvent & {
+    volume?: string | number;
+    volume24hr?: string | number;
+    liquidity?: string | number;
+    endDate?: string;
+    tags?: Array<{ id: string | number; label: string }>;
+};
+
+export async function gammaEventsFetcher(url: string): Promise<GammaEventSummary[]> {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Gamma API error: ${res.status}`);
+    const events: GammaEventExtended[] = await res.json();
+    const parseNum = (v: string | number | undefined): number => {
+        const n = typeof v === "string" ? parseFloat(v) : (typeof v === "number" ? v : NaN);
+        return isNaN(n) ? 0 : n;
+    };
+    return events
+        .map((event) => {
+            const markets = (event.markets ?? []).filter((m) => !m.closed);
+            const vol = parseNum(event.volume);
+            const volume = vol > 0 ? vol : markets.reduce((s, m) => s + parseNum(m.volume), 0);
+            const liq = parseNum(event.liquidity);
+            const liquidity = liq > 0 ? liq : markets.reduce((s, m) => s + parseNum(m.liquidity), 0);
+            return {
+                id: event.id ?? 0,
+                slug: event.slug ?? event.ticker ?? String(event.id ?? ""),
+                title: event.title ?? "",
+                image: event.image ?? event.icon,
+                volume,
+                volume_24h: parseNum(event.volume24hr),
+                liquidity,
+                market_count: markets.length,
+                close_time: event.endDate ?? markets[0]?.endDate ?? null,
+            };
+        })
+        .filter((e) => e.market_count > 0 && !!e.title);
+}
+
 export async function fetchGammaCategories(url: string): Promise<GammaCategory[]> {
     const res = await fetch(url);
     if (!res.ok) throw new Error("Failed to fetch categories");

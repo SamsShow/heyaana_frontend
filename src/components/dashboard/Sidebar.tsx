@@ -16,9 +16,9 @@ import {
 
 const mobileNavItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Home" },
-  { href: "/dashboard/analytics", icon: TrendingUp, label: "Analytics" },
   { href: "/dashboard/markets", icon: Activity, label: "Markets" },
-  { href: "/dashboard/social", icon: Users, label: "Social" },
+  { href: "/dashboard/social", icon: TrendingUp, label: "Trades" },
+  { href: "/dashboard/traders", icon: Users, label: "Traders" },
   { href: "/dashboard/profile", icon: Settings, label: "Profile" },
 ];
 
