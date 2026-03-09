@@ -43,17 +43,12 @@ export function ActivityFeed({ trades, isLoading }: ActivityFeedProps) {
 
   return (
     <div>
-      {/* Filter tabs */}
-      <div className="flex items-center gap-1 mb-4">
+      <div className="pill-tabs mb-4">
         {(["all", "yes", "no"] as FilterSide[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 text-xs font-mono rounded-md transition-all capitalize ${
-              filter === f
-                ? "bg-surface-hover text-foreground border border-border"
-                : "text-muted hover:text-foreground"
-            }`}
+            className={`pill-tab capitalize ${filter === f ? "active" : ""}`}
           >
             {f === "all" ? "All" : f === "yes" ? "Yes / Buy" : "No / Sell"}
           </button>

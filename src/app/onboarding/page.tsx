@@ -7,8 +7,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, ArrowLeft, Send, Sparkles, Wand2, Shield, Zap, Globe, Lock, Coins, TrendingUp, Users, Info, HelpCircle, Mail, MessageSquare, Twitter, Github, Globe2, Wallet, LogIn, ChevronDown, Check, Copy, LogOut, MessageCircle, ArrowRight, Bot, Flame, Loader2 } from "lucide-react";
 import { useTelegramWidget } from "@/lib/useTelegramWidget";
-import { API2_BASE_URL } from "@/lib/auth-api";
-import { marketCategories, topTraders } from "@/lib/mock-data";
 import { useAuth } from "@/lib/useAuth";
 
 const STEPS = [
@@ -19,44 +17,140 @@ const STEPS = [
   { id: 5, title: "Launch", subtitle: "Start trading" },
 ];
 
+const ONBOARDING_COMPLETE_MAP_KEY = "heyanna_onboarding_complete_users";
+const ONBOARDING_DRAFT_PREFIX = "heyanna_onboarding_draft_";
+
+type OnboardingDraft = {
+  step: number;
+  selectedMarkets: string[];
+  riskLevel: "conservative" | "moderate" | "aggressive";
+  maxExposure: number;
+  selectedTraders: number[];
+};
+
+function getUserOnboardingKey(user: { user_id?: number; telegram_id?: number; username?: string | null } | null | undefined): string | null {
+  if (!user) return null;
+  if (typeof user.telegram_id === "number") return `tg:${user.telegram_id}`;
+  if (typeof user.user_id === "number") return `uid:${user.user_id}`;
+  if (user.username) return `u:${user.username}`;
+  return null;
+}
+
+function readCompletionMap(): Record<string, boolean> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(ONBOARDING_COMPLETE_MAP_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, boolean>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function markOnboardingComplete(userKey: string | null) {
+  if (typeof window === "undefined" || !userKey) return;
+  const map = readCompletionMap();
+  map[userKey] = true;
+  localStorage.setItem(ONBOARDING_COMPLETE_MAP_KEY, JSON.stringify(map));
+}
+
+function isOnboardingComplete(userKey: string | null): boolean {
+  if (!userKey) return false;
+  const map = readCompletionMap();
+  return map[userKey] === true;
+}
+
 function OnboardingPageContent() {
   const [step, setStep] = useState(1);
-  const [selectedMarkets, setSelectedMarkets] = useState<string[]>(["Politics", "Crypto", "Tech"]);
+  const [selectedMarkets, setSelectedMarkets] = useState<string[]>([]);
   const [riskLevel, setRiskLevel] = useState<"conservative" | "moderate" | "aggressive">("moderate");
   const [maxExposure, setMaxExposure] = useState(25);
-  const [selectedTraders, setSelectedTraders] = useState<number[]>([1, 2]);
+  const [selectedTraders, setSelectedTraders] = useState<number[]>([]);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [currentHostname, setCurrentHostname] = useState<string | null>(null);
   const [showDevLogin, setShowDevLogin] = useState(true);
+  const [bootstrapped, setBootstrapped] = useState(false);
   const telegramRef = useRef<HTMLDivElement>(null);
+  const draftHydratedRef = useRef(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, loginManual, login, loginWidget } = useAuth();
+  const { user, isLoading, hasSessionToken, isAuthenticated, loginManual, login, loginWidget } = useAuth({ probeOnboarding: true });
   const TELEGRAM_BOT_USERNAME = (process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "heyannadev_bot").replace(/^@/, "");
+  const userOnboardingKey = getUserOnboardingKey(user);
 
   const next = () => setStep((s) => Math.min(s + 1, 5));
   const prev = () => setStep((s) => Math.max(s - 1, 1));
-
-  const toggleMarket = (name: string) => {
-    setSelectedMarkets((prev) =>
-      prev.includes(name) ? prev.filter((m) => m !== name) : [...prev, name]
-    );
-  };
-
-  const toggleTrader = (id: number) => {
-    setSelectedTraders((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
-    );
-  };
-
-  // If already authenticated, go directly to dashboard.
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.replace("/dashboard");
+  const handleContinue = useCallback(() => {
+    if (step === 1 && !isAuthenticated) {
+      setLoginError("Please sign in with Telegram before continuing.");
+      return;
     }
-  }, [isAuthenticated, router]);
+    next();
+  }, [step, isAuthenticated]);
+
+  // Returning users who already finished onboarding should go straight to dashboard.
+  useEffect(() => {
+    if (!isAuthenticated || !userOnboardingKey) return;
+    if (isOnboardingComplete(userOnboardingKey)) {
+      router.replace("/dashboard");
+      return;
+    }
+
+    // Logged-in but not completed: skip connect step.
+    setStep((prev) => (prev < 2 ? 2 : prev));
+  }, [isAuthenticated, userOnboardingKey, router]);
+
+  // Restore draft once per logged-in user.
+  useEffect(() => {
+    if (!isAuthenticated || !userOnboardingKey || draftHydratedRef.current) {
+      setBootstrapped(true);
+      return;
+    }
+    if (typeof window === "undefined") {
+      setBootstrapped(true);
+      return;
+    }
+
+    draftHydratedRef.current = true;
+    try {
+      const raw = localStorage.getItem(`${ONBOARDING_DRAFT_PREFIX}${userOnboardingKey}`);
+      if (raw) {
+        const draft = JSON.parse(raw) as OnboardingDraft;
+        if (Array.isArray(draft.selectedMarkets)) setSelectedMarkets(draft.selectedMarkets);
+        if (draft.riskLevel === "conservative" || draft.riskLevel === "moderate" || draft.riskLevel === "aggressive") {
+          setRiskLevel(draft.riskLevel);
+        }
+        if (typeof draft.maxExposure === "number") setMaxExposure(Math.min(75, Math.max(5, draft.maxExposure)));
+        if (Array.isArray(draft.selectedTraders)) setSelectedTraders(draft.selectedTraders);
+        if (typeof draft.step === "number") setStep(Math.min(5, Math.max(2, draft.step)));
+      }
+    } catch {
+      // Ignore malformed draft payloads.
+    } finally {
+      setBootstrapped(true);
+    }
+  }, [isAuthenticated, userOnboardingKey]);
+
+  // Persist draft while onboarding is in progress.
+  useEffect(() => {
+    if (!bootstrapped || !isAuthenticated || !userOnboardingKey || step >= 5) return;
+    if (typeof window === "undefined") return;
+
+    const draft: OnboardingDraft = {
+      step,
+      selectedMarkets,
+      riskLevel,
+      maxExposure,
+      selectedTraders,
+    };
+
+    localStorage.setItem(`${ONBOARDING_DRAFT_PREFIX}${userOnboardingKey}`, JSON.stringify(draft));
+  }, [bootstrapped, isAuthenticated, userOnboardingKey, step, selectedMarkets, riskLevel, maxExposure, selectedTraders]);
+
+  const showVerifyingGate = hasSessionToken && isLoading && !isAuthenticated;
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -145,6 +239,12 @@ function OnboardingPageContent() {
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
+      {showVerifyingGate && (
+        <div className="absolute inset-0 z-30 bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center p-4">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-primary mb-4" />
+          <p className="text-sm font-mono text-muted animate-pulse">Verifying session...</p>
+        </div>
+      )}
       {/* Background */}
       <div className="absolute inset-0 grid-bg opacity-30" />
       <div className="absolute inset-0 radial-fade" />
@@ -158,10 +258,10 @@ function OnboardingPageContent() {
               alt="HeyAnna logo"
               width={32}
               height={32}
-              className="w-8 h-8 rounded-lg glow-red"
+              className="w-8 h-8 rounded-lg glow-blue"
             />
             <span className="text-lg font-bold">
-              Hey<span className="text-red-primary">Anna</span>
+              Hey<span className="text-blue-primary">Anna</span>
             </span>
           </Link>
           <Link href="/dashboard" className="text-xs text-muted hover:text-foreground transition-colors">
@@ -178,7 +278,7 @@ function OnboardingPageContent() {
                   className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-mono font-bold transition-all ${step > s.id
                     ? "bg-green-500 text-white"
                     : step === s.id
-                      ? "bg-red-primary text-white glow-red"
+                      ? "bg-blue-primary text-white glow-blue"
                       : "bg-surface border border-border text-muted"
                     }`}
                 >
@@ -216,7 +316,7 @@ function OnboardingPageContent() {
 
                 <div className="space-y-4 max-w-md mx-auto">
                   {/* Telegram Login Widget */}
-                  <div className="w-full flex items-center justify-between p-5 rounded-xl border border-border bg-surface/50">
+                  <div className="w-full flex items-center justify-between p-5 dashboard-card">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
                         <MessageCircle className="w-6 h-6 text-blue-400" />
@@ -244,7 +344,7 @@ function OnboardingPageContent() {
 
                   {/* Dev Login (hidden by default, use ?dev=true to show) */}
                   {showDevLogin && (
-                    <div className="w-full p-5 rounded-xl border border-dashed border-border bg-surface/30">
+                    <div className="w-full p-5 dashboard-card" style={{ borderStyle: 'dashed' }}>
                       <div className="flex items-center gap-4 mb-3">
                         <div className="w-12 h-12 rounded-xl bg-yellow-500/10 flex items-center justify-center">
                           <Zap className="w-6 h-6 text-yellow-400" />
@@ -260,7 +360,7 @@ function OnboardingPageContent() {
                           defaultValue="1"
                           id="dev-user-id"
                           placeholder="Telegram User ID"
-                          className="flex-1 px-3 py-2 text-sm font-mono rounded-lg border border-border bg-background text-foreground placeholder:text-muted focus:outline-none focus:border-red-primary/50"
+                          className="flex-1 px-3 py-2 text-sm font-mono dark-input"
                         />
                         <button
                           onClick={() => {
@@ -275,7 +375,7 @@ function OnboardingPageContent() {
                             }
                           }}
                           disabled={loginLoading}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-primary text-white text-sm font-medium hover:bg-red-dark transition-all disabled:opacity-50"
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-primary text-white text-sm font-medium hover:bg-blue-dark transition-all disabled:opacity-50"
                         >
                           {loginLoading ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -294,10 +394,10 @@ function OnboardingPageContent() {
                     </div>
                   )}
 
-                  <button className="w-full flex items-center justify-between p-5 rounded-xl border border-border hover:border-red-primary/30 bg-surface/50 hover:bg-surface transition-all group opacity-50 cursor-not-allowed" disabled>
+                  <button className="w-full flex items-center justify-between p-5 dashboard-card opacity-50 cursor-not-allowed" disabled>
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                        <Bot className="w-6 h-6 text-purple-400" />
+                      <div className="w-12 h-12 rounded-xl bg-blue-primary/10 flex items-center justify-center">
+                        <Bot className="w-6 h-6 text-blue-light" />
                       </div>
                       <div className="text-left">
                         <div className="font-semibold">Elsa AI x402</div>
@@ -318,34 +418,11 @@ function OnboardingPageContent() {
                   <p className="text-muted">Choose the prediction market categories you want to trade in</p>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-lg mx-auto">
-                  {marketCategories.map((cat) => {
-                    const isSelected = selectedMarkets.includes(cat.name);
-                    return (
-                      <button
-                        key={cat.name}
-                        onClick={() => toggleMarket(cat.name)}
-                        className={`p-4 rounded-xl border text-center transition-all ${isSelected
-                          ? "border-red-primary bg-red-primary/10 glow-red"
-                          : "border-border bg-surface/50 hover:border-red-primary/20"
-                          }`}
-                      >
-                        <div className="text-2xl mb-1">{cat.icon}</div>
-                        <div className="text-sm font-medium">{cat.name}</div>
-                        <div className="text-[10px] text-muted font-mono">{cat.count} markets</div>
-                        {cat.hot && (
-                          <span className="inline-block mt-1 text-[8px] font-mono text-red-primary border border-red-primary/20 rounded px-1">
-                            HOT
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                <div className="max-w-md mx-auto p-8 dashboard-card flex flex-col items-center justify-center text-center text-muted">
+                  <Globe className="w-12 h-12 mb-4 opacity-30" />
+                  <p className="text-sm font-medium">Coming soon</p>
+                  <p className="text-xs mt-1">Market categories will appear here when available</p>
                 </div>
-
-                <p className="text-center text-xs text-muted">
-                  Selected: <span className="text-red-primary font-mono">{selectedMarkets.length}</span> categories
-                </p>
               </div>
             )}
 
@@ -392,22 +469,22 @@ function OnboardingPageContent() {
                         setRiskLevel(level.key);
                         setMaxExposure(level.key === "conservative" ? 10 : level.key === "moderate" ? 25 : 50);
                       }}
-                      className={`p-5 rounded-xl border text-left transition-all ${riskLevel === level.key
-                        ? "border-red-primary bg-red-primary/5 glow-red"
-                        : "border-border bg-surface/50 hover:border-red-primary/20"
+                      className={`p-5 dashboard-card text-left transition-all ${riskLevel === level.key
+                        ? "!border-blue-primary/50 bg-blue-primary/5 glow-blue"
+                        : "hover:!border-blue-primary/20"
                         }`}
                     >
-                      <level.icon className={`w-6 h-6 mb-3 ${riskLevel === level.key ? "text-red-primary" : "text-muted"}`} />
+                      <level.icon className={`w-6 h-6 mb-3 ${riskLevel === level.key ? "text-blue-primary" : "text-muted"}`} />
                       <div className="font-semibold mb-1">{level.label}</div>
                       <p className="text-xs text-muted mb-3">{level.desc}</p>
                       <div className="space-y-1">
                         <div className="flex justify-between text-[10px] font-mono">
                           <span className="text-muted">Max Exposure</span>
-                          <span className="text-red-primary">{level.maxExp}</span>
+                          <span className="text-blue-primary">{level.maxExp}</span>
                         </div>
                         <div className="flex justify-between text-[10px] font-mono">
                           <span className="text-muted">Per Trade</span>
-                          <span className="text-red-primary">{level.perTrade}</span>
+                          <span className="text-blue-primary">{level.perTrade}</span>
                         </div>
                       </div>
                     </button>
@@ -417,7 +494,7 @@ function OnboardingPageContent() {
                 <div className="max-w-md mx-auto mt-6">
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-sm text-muted">Custom Max Exposure</label>
-                    <span className="text-sm font-mono font-bold text-red-primary">{maxExposure}%</span>
+                    <span className="text-sm font-mono font-bold text-blue-primary">{maxExposure}%</span>
                   </div>
                   <input
                     type="range"
@@ -425,7 +502,7 @@ function OnboardingPageContent() {
                     max={75}
                     value={maxExposure}
                     onChange={(e) => setMaxExposure(Number(e.target.value))}
-                    className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-red-primary bg-border"
+                    className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-blue-primary bg-border"
                   />
                 </div>
               </div>
@@ -439,49 +516,11 @@ function OnboardingPageContent() {
                   <p className="text-muted">Select top-performing traders to automatically mirror</p>
                 </div>
 
-                <div className="space-y-3 max-w-lg mx-auto">
-                  {topTraders.map((trader) => {
-                    const isSelected = selectedTraders.includes(trader.id);
-                    return (
-                      <button
-                        key={trader.id}
-                        onClick={() => toggleTrader(trader.id)}
-                        className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all text-left ${isSelected
-                          ? "border-red-primary bg-red-primary/5 glow-red"
-                          : "border-border bg-surface/50 hover:border-red-primary/20"
-                          }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xs font-mono ${isSelected ? "bg-red-primary text-white" : "bg-red-primary/10 text-red-primary"
-                            }`}>
-                            {trader.avatar}
-                          </div>
-                          <div>
-                            <div className="font-medium text-sm">{trader.name}</div>
-                            <div className="flex items-center gap-2 text-[10px] text-muted">
-                              <Flame className="w-2.5 h-2.5 text-red-primary" />
-                              {trader.streak} streak &bull; {trader.trades} trades
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <div className="text-sm font-mono font-bold text-green-500">{trader.winRate}%</div>
-                            <div className="text-[10px] text-muted">{trader.pnl}</div>
-                          </div>
-                          <div className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${isSelected ? "bg-red-primary border-red-primary" : "border-border"
-                            }`}>
-                            {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
+                <div className="max-w-md mx-auto p-8 dashboard-card flex flex-col items-center justify-center text-center text-muted">
+                  <Users className="w-12 h-12 mb-4 opacity-30" />
+                  <p className="text-sm font-medium">Coming soon</p>
+                  <p className="text-xs mt-1">Top traders will appear here when available</p>
                 </div>
-
-                <p className="text-center text-xs text-muted">
-                  Copying: <span className="text-red-primary font-mono">{selectedTraders.length}</span> traders
-                </p>
               </div>
             )}
 
@@ -489,36 +528,48 @@ function OnboardingPageContent() {
             {step === 5 && (
               <div className="space-y-8 text-center">
                 <div className="mb-8">
-                  <div className="w-20 h-20 rounded-2xl bg-red-primary/10 border border-red-primary/20 flex items-center justify-center mx-auto mb-6 glow-red-strong">
-                    <Zap className="w-10 h-10 text-red-primary" />
+                  <div className="w-20 h-20 rounded-2xl bg-blue-primary/10 border border-blue-primary/20 flex items-center justify-center mx-auto mb-6 glow-blue-strong">
+                    <Zap className="w-10 h-10 text-blue-primary" />
                   </div>
                   <h2 className="text-3xl font-bold mb-2">You&apos;re All Set!</h2>
                   <p className="text-muted">HeyAnna will now automatically copy trades from your selected traders</p>
                 </div>
 
-                <div className="max-w-md mx-auto p-6 rounded-xl border border-border bg-surface/50 text-left space-y-3">
+                <div className="max-w-md mx-auto p-6 dashboard-card text-left space-y-3">
                   <h4 className="text-sm font-semibold mb-3">Configuration Summary</h4>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted">Markets</span>
-                    <span className="font-mono text-red-primary">{selectedMarkets.length} selected</span>
+                    <span className="font-mono text-blue-primary">{selectedMarkets.length} selected</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted">Risk Profile</span>
-                    <span className="font-mono text-red-primary capitalize">{riskLevel}</span>
+                    <span className="font-mono text-blue-primary capitalize">{riskLevel}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted">Max Exposure</span>
-                    <span className="font-mono text-red-primary">{maxExposure}%</span>
+                    <span className="font-mono text-blue-primary">{maxExposure}%</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted">Copied Traders</span>
-                    <span className="font-mono text-red-primary">{selectedTraders.length}</span>
+                    <span className="font-mono text-blue-primary">{selectedTraders.length}</span>
                   </div>
                 </div>
 
                 <Link
                   href="/dashboard"
-                  className="inline-flex items-center gap-2 px-8 py-3.5 rounded-lg bg-red-primary text-white font-medium hover:bg-red-dark transition-all glow-red-strong"
+                  onClick={(e) => {
+                    if (!isAuthenticated) {
+                      e.preventDefault();
+                      setLoginError("Please sign in with Telegram before launching dashboard.");
+                      setStep(1);
+                      return;
+                    }
+                    markOnboardingComplete(userOnboardingKey);
+                    if (typeof window !== "undefined" && userOnboardingKey) {
+                      localStorage.removeItem(`${ONBOARDING_DRAFT_PREFIX}${userOnboardingKey}`);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-8 py-3.5 rounded-lg bg-blue-primary text-white font-medium hover:bg-blue-dark transition-all glow-blue-strong"
                 >
                   Launch Dashboard
                   <ArrowRight className="w-4 h-4" />
@@ -536,15 +587,15 @@ function OnboardingPageContent() {
               disabled={step === 1}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm transition-all ${step === 1
                 ? "text-muted/30 cursor-not-allowed"
-                : "text-muted hover:text-foreground border border-border hover:border-red-primary/30"
+                : "text-muted hover:text-foreground border border-border hover:border-blue-primary/30"
                 }`}
             >
               <ArrowLeft className="w-4 h-4" />
               Back
             </button>
             <button
-              onClick={next}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-red-primary text-white text-sm font-medium hover:bg-red-dark transition-all glow-red"
+              onClick={handleContinue}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-blue-primary text-white text-sm font-medium hover:bg-blue-dark transition-all glow-blue"
             >
               Continue
               <ArrowRight className="w-4 h-4" />

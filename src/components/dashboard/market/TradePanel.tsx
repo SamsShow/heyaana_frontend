@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Market, postTrade } from "@/lib/api";
-import { Loader2, CheckCircle2, AlertCircle, ExternalLink } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, ExternalLink, TrendingUp } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
 
 interface TradePanelProps {
@@ -51,8 +51,11 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
   }
 
   return (
-    <div className="rounded-xl border border-border bg-surface/50 p-4 space-y-4">
-      <h3 className="text-sm font-semibold">Buy shares</h3>
+    <div className="dashboard-card p-4 space-y-4">
+      <div className="section-header mb-0">
+        <TrendingUp className="w-4 h-4 text-blue-primary" />
+        <h3 className="text-sm font-semibold">Buy Shares</h3>
+      </div>
 
       {/* Side selector */}
       <div className="grid grid-cols-2 gap-2">
@@ -90,7 +93,7 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
             placeholder="0.00"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="w-full pl-7 pr-4 py-2.5 text-sm font-mono bg-background border border-border rounded-lg focus:outline-none focus:border-blue-primary/50 focus:ring-1 focus:ring-blue-primary/20 placeholder:text-muted/50 transition-all"
+            className="w-full pl-7 pr-4 py-2.5 text-sm font-mono dark-input"
           />
         </div>
         {amount && Number(amount) > 0 && (
@@ -106,7 +109,11 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
           <button
             key={v}
             onClick={() => setAmount(String(v))}
-            className="flex-1 py-1.5 text-xs font-mono rounded-md border border-border hover:bg-surface-hover transition-all text-muted hover:text-foreground"
+            className={`flex-1 py-2 text-xs font-mono rounded-lg border transition-all ${
+              amount === String(v)
+                ? "border-blue-primary/40 bg-blue-primary/10 text-blue-primary"
+                : "border-border hover:bg-surface-hover text-muted hover:text-foreground"
+            }`}
           >
             ${v}
           </button>
@@ -117,10 +124,10 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
       <button
         onClick={handleTrade}
         disabled={loading || !amount || Number(amount) <= 0 || !isAuthenticated}
-        className={`w-full py-3 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+        className={`w-full py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
           side === "Yes"
-            ? "bg-emerald-500 hover:bg-emerald-600 text-white"
-            : "bg-red-500 hover:bg-red-600 text-white"
+            ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
+            : "bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20"
         }`}
       >
         {loading ? (

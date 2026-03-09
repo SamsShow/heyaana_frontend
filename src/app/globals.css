@@ -35,12 +35,12 @@
 }
 
 .dark {
-  --background: #060B1A;
-  --foreground: #fafafa;
-  --surface: #0D1429;
-  --surface-hover: #141D3A;
-  --border-color: #1A2548;
-  --muted: #7B87A8;
+  --background: #0A0A0F;
+  --foreground: #EAEAF0;
+  --surface: #111118;
+  --surface-hover: #181822;
+  --border-color: rgba(255, 255, 255, 0.06);
+  --muted: #6B6B80;
   --primary: #466EFF;
   --primary-foreground: #ffffff;
 }
@@ -60,7 +60,7 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
-/* Film-grain noise overlay — bold, visible texture */
+/* Film-grain noise overlay — disabled on dashboard for cleaner look */
 body::before {
   content: '';
   position: fixed;
@@ -77,6 +77,11 @@ body::before {
 
 .dark body::before {
   opacity: 0.5;
+}
+
+.dashboard-layout body::before,
+.dashboard-layout::before {
+  display: none;
 }
 
 /* ————————————————————————————————
@@ -268,6 +273,166 @@ body::before {
 .terminal-card:hover {
   border-color: rgba(70, 110, 255, 0.22);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+/* ————————————————————————————————
+   DASHBOARD CARDS (Stakent-inspired)
+   ———————————————————————————————— */
+.dashboard-card {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    #111118 30%,
+    #0E0E15 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.35s ease, box-shadow 0.35s ease, transform 0.35s ease;
+}
+
+.dashboard-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 30%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.08) 70%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+.dashboard-card:hover {
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transform: translateY(-2px);
+}
+
+/* Stat card — gradient top accent */
+.stat-card {
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    #111118 25%,
+    #0D0D14 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.35s ease, box-shadow 0.35s ease, transform 0.35s ease;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 2;
+}
+
+.stat-card.accent-green::before {
+  background: linear-gradient(90deg, #10B981, #34D399);
+}
+
+.stat-card.accent-blue::before {
+  background: linear-gradient(90deg, #466EFF, #7F9CFF);
+}
+
+.stat-card.accent-amber::before {
+  background: linear-gradient(90deg, #F59E0B, #FBBF24);
+}
+
+.stat-card.accent-purple::before {
+  background: linear-gradient(90deg, #466EFF, #7F9CFF);
+}
+
+.stat-card:hover {
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transform: translateY(-2px);
+}
+
+/* Promo / CTA card */
+.promo-card {
+  background: linear-gradient(
+    135deg,
+    #1a2a6c 0%,
+    #2845a7 40%,
+    #466EFF 100%
+  );
+  border: 1px solid rgba(70, 110, 255, 0.3);
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.35s ease, transform 0.35s ease;
+}
+
+.promo-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.25),
+    transparent
+  );
+  z-index: 2;
+}
+
+.promo-card::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -30%;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(127, 156, 255, 0.3) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.promo-card:hover {
+  box-shadow:
+    0 12px 40px rgba(70, 110, 255, 0.2),
+    0 0 0 1px rgba(70, 110, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+/* Mini sparkline container */
+.sparkline-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.sparkline-container svg {
+  display: block;
 }
 
 /* ————————————————————————————————
@@ -646,4 +811,302 @@ body::before {
   width: 100%;
   height: 4px;
   border-radius: 2px;
+}
+
+/* ————————————————————————————————
+   PILL TABS (Stakent-style tab selectors)
+   ———————————————————————————————— */
+.pill-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.03), #111118);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pill-tab {
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 11px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+}
+
+.pill-tab:hover {
+  color: var(--foreground);
+}
+
+.pill-tab.active {
+  background: #466EFF;
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(70, 110, 255, 0.25);
+}
+
+/* ————————————————————————————————
+   INNER CARD (nested inside dashboard-card)
+   ———————————————————————————————— */
+.inner-card {
+  background: linear-gradient(
+    155deg,
+    rgba(255, 255, 255, 0.025) 0%,
+    rgba(17, 17, 24, 0.6) 30%,
+    rgba(14, 14, 21, 0.4) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s ease;
+}
+
+.inner-card:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ————————————————————————————————
+   DARK INPUT (Stakent-style form inputs)
+   ———————————————————————————————— */
+.dark-input {
+  background: #0E0E15;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  color: var(--foreground);
+  font-size: 14px;
+  padding: 10px 14px;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.dark-input:focus {
+  outline: none;
+  border-color: rgba(70, 110, 255, 0.4);
+  box-shadow: 0 0 0 3px rgba(70, 110, 255, 0.1);
+}
+
+.dark-input::placeholder {
+  color: var(--muted);
+  opacity: 0.5;
+}
+
+/* ————————————————————————————————
+   SECTION HEADER (professional section labels)
+   ———————————————————————————————— */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.section-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.06), transparent);
+}
+
+.section-header h2,
+.section-header h3 {
+  white-space: nowrap;
+}
+
+/* ————————————————————————————————
+   PROFILE BANNER (gradient header for profile)
+   ———————————————————————————————— */
+.profile-banner {
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(70, 110, 255, 0.08) 0%,
+    rgba(70, 110, 255, 0.03) 40%,
+    transparent 70%
+  );
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.profile-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(70, 110, 255, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* ————————————————————————————————
+   AVATAR (consistent avatar styles)
+   ———————————————————————————————— */
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  border-radius: 9999px;
+  background: linear-gradient(135deg, rgba(70, 110, 255, 0.25), rgba(127, 156, 255, 0.15));
+  border: 2px solid rgba(70, 110, 255, 0.2);
+  color: var(--foreground);
+  flex-shrink: 0;
+}
+
+.avatar-lg {
+  width: 56px;
+  height: 56px;
+  font-size: 20px;
+}
+
+.avatar-md {
+  width: 40px;
+  height: 40px;
+  font-size: 14px;
+}
+
+.avatar-sm {
+  width: 32px;
+  height: 32px;
+  font-size: 11px;
+}
+
+/* ————————————————————————————————
+   TOKEN ROW (balance list items)
+   ———————————————————————————————— */
+.token-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  transition: background 0.2s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.token-row:last-child {
+  border-bottom: none;
+}
+
+.token-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* ————————————————————————————————
+   STATUS BADGES (polished status indicators)
+   ———————————————————————————————— */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #34D399;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.badge-danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #FBBF24;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.badge-info {
+  background: rgba(70, 110, 255, 0.1);
+  color: #7F9CFF;
+  border: 1px solid rgba(70, 110, 255, 0.2);
+}
+
+/* ————————————————————————————————
+   TRADE CARD (polished social feed trade)
+   ———————————————————————————————— */
+.trade-detail {
+  margin: 0 12px 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: background 0.2s ease;
+}
+
+.trade-detail-buy {
+  background: rgba(16, 185, 129, 0.04);
+  border: 1px solid rgba(16, 185, 129, 0.1);
+}
+
+.trade-detail-sell {
+  background: rgba(239, 68, 68, 0.04);
+  border: 1px solid rgba(239, 68, 68, 0.1);
+}
+
+/* ————————————————————————————————
+   PRICE TAG (yes/no price display)
+   ———————————————————————————————— */
+.price-tag {
+  text-align: center;
+  padding: 14px 12px;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.price-tag::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 1;
+}
+
+.price-tag-yes {
+  background: rgba(16, 185, 129, 0.04);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+.price-tag-yes::before {
+  background: linear-gradient(90deg, transparent, #10B981, transparent);
+}
+
+.price-tag-no {
+  background: rgba(239, 68, 68, 0.04);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.price-tag-no::before {
+  background: linear-gradient(90deg, transparent, #EF4444, transparent);
+}
+
+/* ————————————————————————————————
+   META ROW (key-value pair display)
+   ———————————————————————————————— */
+.meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.meta-row:last-child {
+  border-bottom: none;
 }

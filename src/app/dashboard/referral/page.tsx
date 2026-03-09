@@ -8,8 +8,8 @@ export default function ReferralPage() {
     <DashboardChrome title="Referral">
       <div className="flex items-center justify-center h-full">
         <div className="flex flex-col items-center gap-4 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-surface border border-border flex items-center justify-center">
-            <Gift className="w-7 h-7 text-muted" />
+          <div className="w-16 h-16 rounded-2xl bg-blue-primary/10 border border-blue-primary/20 flex items-center justify-center glow-blue">
+            <Gift className="w-7 h-7 text-blue-primary" />
           </div>
           <div>
             <h2 className="text-xl font-bold">Coming Soon</h2>
