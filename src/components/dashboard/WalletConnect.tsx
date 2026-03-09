@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useAuth } from "@/lib/useAuth";
 import { ChevronDown, LogOut, Copy, Check, Loader2, LogIn } from "lucide-react";
@@ -14,17 +15,27 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
     const { user, isLoading, isAuthenticated, logout } = useAuth();
     const [open, setOpen] = useState(false);
     const [copied, setCopied] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
+    const btnRef = useRef<HTMLButtonElement>(null);
+    const portalRef = useRef<HTMLDivElement>(null);
 
     // Close dropdown on outside click
     useEffect(() => {
         function handleClick(e: MouseEvent) {
-            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-                setOpen(false);
-            }
+            const t = e.target as Node;
+            if (btnRef.current?.contains(t) || portalRef.current?.contains(t)) return;
+            setOpen(false);
         }
-        document.addEventListener("mousedown", handleClick);
+        if (open) document.addEventListener("mousedown", handleClick);
         return () => document.removeEventListener("mousedown", handleClick);
+    }, [open]);
+
+    const openDropdown = useCallback(() => {
+        if (btnRef.current) {
+            const rect = btnRef.current.getBoundingClientRect();
+            setDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+        }
+        setOpen(o => !o);
     }, []);
 
     const copyAddress = async () => {
@@ -63,9 +74,10 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
     const displayName = user.first_name ?? user.username ?? `User ${user.telegram_id}`;
 
     return (
-        <div className="relative" ref={dropdownRef}>
+        <div className="relative">
             <button
-                onClick={() => setOpen((o) => !o)}
+                ref={btnRef}
+                onClick={openDropdown}
                 className={`flex items-center gap-1.5 font-mono transition-all rounded border border-border bg-surface hover:bg-surface-hover ${compact ? "px-2 py-1 text-[10px]" : "px-2.5 py-1.5 text-[11px]"
                     }`}
             >
@@ -79,8 +91,12 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
                 <ChevronDown className={`w-3 h-3 text-muted transition-transform ${open ? "rotate-180" : ""}`} />
             </button>
 
-            {open && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-background border border-border rounded-xl shadow-xl shadow-black/30 z-50 overflow-hidden">
+            {open && typeof document !== "undefined" && createPortal(
+                <div
+                    ref={portalRef}
+                    className="fixed w-56 rounded-xl shadow-xl shadow-black/50 overflow-hidden border border-white/[0.08]"
+                    style={{ top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999, background: "linear-gradient(145deg, rgba(255,255,255,0.03) 0%, #111118 30%, #0E0E15 100%)" }}
+                >
                     {/* User info */}
                     <div className="px-3 py-2.5 border-b border-border">
                         <div className="text-[10px] text-muted font-mono uppercase tracking-wider mb-1">Signed in</div>
@@ -109,7 +125,8 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
                             Sign out
                         </button>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

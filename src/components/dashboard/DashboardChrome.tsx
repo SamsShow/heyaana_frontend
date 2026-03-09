@@ -12,14 +12,24 @@ import {
   User,
   LogOut,
   Users,
+  TrendingUp,
   Bell,
   Settings,
   Loader2,
+  ArrowDownToLine,
+  Share2,
+  Send,
+  Sun,
+  AlignJustify,
+  X,
 } from "lucide-react";
 import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { MobileTopBar, MobileBottomNav } from "@/components/dashboard/Sidebar";
+import { DepositModal } from "@/components/dashboard/DepositModal";
 import { useAuth } from "@/lib/useAuth";
 import { proxyFetcher } from "@/lib/api";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 interface DashboardChromeProps {
   title: string;
@@ -30,7 +40,8 @@ const navItems = [
   { icon: Home, label: "Dashboard", href: "/dashboard" },
   { icon: BarChart2, label: "Analytics", href: "/dashboard/analytics" },
   { icon: Activity, label: "Markets", href: "/dashboard/markets" },
-  { icon: Users, label: "Social", href: "/dashboard/social" },
+  { icon: TrendingUp, label: "Trades", href: "/dashboard/social" },
+  { icon: Users, label: "Traders", href: "/dashboard/traders" },
   { icon: Gift, label: "Referral", href: "/dashboard/referral" },
   { icon: User, label: "Profile", href: "/dashboard/profile" },
 ];
@@ -77,9 +88,125 @@ function HeaderStat({
   );
 }
 
+// ── Hamburger menu ──────────────────────────────────────────────
+
+type MenuItem =
+  | { type: "divider" }
+  | {
+      type?: undefined;
+      icon: React.FC<{ className?: string }>;
+      label: string;
+      href?: string;
+      onClick?: () => void;
+      danger?: boolean;
+      disabled?: boolean;
+      badge?: string;
+    };
+
+function HamburgerMenu({ onLogout, onDeposit }: { onLogout: () => void; onDeposit: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || portalRef.current?.contains(t)) return;
+      setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  function openMenu() {
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    }
+    setOpen(p => !p);
+  }
+
+  function handleShare() {
+    navigator.share?.({ url: window.location.href, title: "HeyAnna" }).catch(() => {
+      navigator.clipboard.writeText(window.location.href);
+    });
+    setOpen(false);
+  }
+
+  const items: MenuItem[] = [
+    { icon: ArrowDownToLine, label: "Deposit", onClick: () => { setOpen(false); onDeposit(); } },
+    { icon: Share2, label: "Share", onClick: handleShare },
+    { icon: Send, label: "Join Community", onClick: () => { window.open("https://t.me/+i9D5bDox8lNmNDk9", "_blank"); setOpen(false); } },
+    { type: "divider" },
+    { icon: Sun, label: "Light Mode", onClick: () => setOpen(false), disabled: true, badge: "Soon" },
+    { icon: Settings, label: "Settings", href: "/dashboard/profile", onClick: () => setOpen(false) },
+    { type: "divider" },
+    { icon: LogOut, label: "Logout", onClick: () => { onLogout(); setOpen(false); }, danger: true },
+  ];
+
+  return (
+    <div className="relative">
+      <button
+        ref={btnRef}
+        onClick={openMenu}
+        className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all ${
+          open
+            ? "border-blue-primary/40 bg-blue-primary/10 text-blue-primary"
+            : "border-border text-muted hover:text-foreground hover:bg-white/[0.04]"
+        }`}
+        aria-label="Menu"
+      >
+        {open ? <X className="w-4 h-4" /> : <AlignJustify className="w-4 h-4" />}
+      </button>
+
+      {open && typeof document !== "undefined" && createPortal(
+        <div
+          ref={portalRef}
+          className="fixed w-52 py-1.5 rounded-2xl shadow-2xl border border-white/[0.08]"
+          style={{ top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999, background: "linear-gradient(145deg, rgba(255,255,255,0.03) 0%, #111118 30%, #0E0E15 100%)" }}
+        >
+          {items.map((item, i) => {
+            if (item.type === "divider") {
+              return <div key={i} className="h-px bg-border/50 my-1.5" />;
+            }
+            const Icon = item.icon;
+            const inner = (
+              <>
+                <Icon className={`w-4 h-4 shrink-0 ${item.danger ? "text-red-400" : "text-muted"}`} />
+                <span className={`flex-1 text-sm ${item.danger ? "text-red-400" : "text-foreground/90"}`}>
+                  {item.label}
+                </span>
+                {item.badge && (
+                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                    {item.badge}
+                  </span>
+                )}
+              </>
+            );
+            const cls = `w-full flex items-center gap-3 px-4 py-2.5 transition-all ${
+              item.disabled ? "opacity-40 cursor-not-allowed" : item.danger ? "hover:bg-red-500/10" : "hover:bg-white/[0.04]"
+            }`;
+            if (item.href) {
+              return <Link key={i} href={item.href} className={cls} onClick={item.onClick}>{inner}</Link>;
+            }
+            return (
+              <button key={i} className={cls} onClick={item.disabled ? undefined : item.onClick} disabled={item.disabled}>
+                {inner}
+              </button>
+            );
+          })}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 export function DashboardChrome({ title, children }: DashboardChromeProps) {
   const pathname = usePathname();
   const { user, logout, isAuthenticated, hasSessionToken, isValidating, error } = useAuth();
+  const [showDeposit, setShowDeposit] = useState(false);
 
   const showSessionSync = hasSessionToken && isValidating;
   const showSessionOffline = hasSessionToken && !!error;
@@ -219,7 +346,7 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
       </aside>
 
       {/* ── Main area ── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0">
         <MobileTopBar />
         <MobileBottomNav />
 
@@ -251,7 +378,7 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {showSessionSync && (
               <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-blue-primary/25 bg-blue-primary/10 text-blue-300 text-[10px] font-mono">
                 <Loader2 className="w-3 h-3 animate-spin" />
@@ -263,18 +390,17 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
                 Session unstable
               </div>
             )}
+
             <button className="p-2 rounded-xl text-muted hover:text-foreground hover:bg-white/[0.04] transition-all relative">
               <Bell className="w-4 h-4" />
               <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-primary" />
             </button>
 
-            <button className="p-2 rounded-xl text-muted hover:text-foreground hover:bg-white/[0.04] transition-all">
-              <Settings className="w-4 h-4" />
-            </button>
-
             <div className="w-px h-5 bg-border mx-1" />
 
             <UserBadge />
+
+            <HamburgerMenu onLogout={logout} onDeposit={() => setShowDeposit(true)} />
           </div>
         </header>
 
@@ -282,6 +408,8 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
           {children}
         </main>
       </div>
+
+      {showDeposit && <DepositModal onClose={() => setShowDeposit(false)} />}
     </div>
   );
 }

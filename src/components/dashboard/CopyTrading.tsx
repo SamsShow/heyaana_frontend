@@ -18,7 +18,10 @@ import {
   Zap,
   Users,
   TriangleAlert,
+  UserMinus,
+  ExternalLink,
 } from "lucide-react";
+import Link from "next/link";
 import { useAuth } from "@/lib/useAuth";
 
 type SocialTrader = {
@@ -237,7 +240,56 @@ export function CopyTrading() {
         </p>
       </div>
 
-      {/* Traders list */}
+      {/* Currently copying */}
+      <div>
+        <div className="section-header">
+          <Copy className="w-4 h-4 text-amber-400" />
+          <h3 className="text-sm font-semibold">Copying</h3>
+          <span className="text-[10px] font-mono text-muted ml-auto">{followed.size} trader{followed.size !== 1 ? "s" : ""}</span>
+        </div>
+
+        <div className="space-y-2">
+          {followingRaw.length === 0 ? (
+            <div className="inner-card p-6 flex flex-col items-center justify-center text-center text-muted">
+              <Copy className="w-6 h-6 mb-2 opacity-30" />
+              <p className="text-sm font-medium">Not copying anyone yet</p>
+              <p className="text-xs mt-1">Go to the <Link href="/dashboard/traders" className="text-blue-primary hover:underline">Traders</Link> page to find someone to copy</p>
+            </div>
+          ) : followingRaw.map((f, i) => {
+            const username = f.leader_username ?? f.username ?? "";
+            const isPending = pendingFollow.has(username);
+            const initials = username.slice(0, 2).toUpperCase();
+            return (
+              <div key={username || i} className="inner-card p-4 !border-amber-500/20 bg-amber-500/5 flex items-center gap-3">
+                <Link href={`/dashboard/traders/${username}`} className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20 flex items-center justify-center text-sm font-bold shrink-0 hover:opacity-80 transition-opacity">
+                  {initials}
+                </Link>
+                <div className="flex-1 min-w-0">
+                  <Link href={`/dashboard/traders/${username}`} className="text-sm font-semibold hover:text-blue-primary transition-colors">
+                    @{username}
+                  </Link>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    <span className="text-[10px] font-mono text-amber-400/80">Copying</span>
+                  </div>
+                </div>
+                <Link href={`/dashboard/traders/${username}`} className="p-1.5 text-muted hover:text-foreground transition-colors">
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+                <button
+                  onClick={() => handleFollowToggle(username)}
+                  disabled={isPending}
+                  className="shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
+                >
+                  {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <><UserMinus className="w-3 h-3" /> Stop</>}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Top Traders discovery */}
       <div>
         <div className="section-header">
           <Users className="w-4 h-4 text-blue-primary" />
@@ -246,95 +298,44 @@ export function CopyTrading() {
 
         <div className="space-y-2">
           {traders.length === 0 ? (
-            <div className="inner-card p-8 flex flex-col items-center justify-center text-center text-muted">
-              <Users className="w-8 h-8 mb-3 opacity-30" />
+            <div className="inner-card p-6 flex flex-col items-center justify-center text-center text-muted">
+              <Users className="w-6 h-6 mb-2 opacity-30" />
               <p className="text-sm font-medium">Coming soon</p>
               <p className="text-xs mt-1">Top traders will appear here when available</p>
             </div>
-          ) : (
-          traders.map((trader) => {
+          ) : traders.map((trader) => {
             const isFollowing = followed.has(trader.username);
             const isPending = pendingFollow.has(trader.username);
-
             return (
-              <div
-                key={trader.id}
-                className={`inner-card p-4 transition-all ${
-                  isFollowing
-                    ? "!border-blue-primary/30 bg-blue-primary/5"
-                    : ""
-                }`}
-              >
+              <div key={trader.id} className={`inner-card p-4 transition-all ${isFollowing ? "!border-amber-500/20 bg-amber-500/5" : ""}`}>
                 <div className="flex items-center gap-3">
-                  {/* Avatar */}
-                  <div className="avatar avatar-md">
+                  <Link href={`/dashboard/traders/${trader.username}`} className="avatar avatar-md hover:opacity-80 transition-opacity">
                     {trader.avatar}
-                  </div>
-
-                  {/* Info */}
+                  </Link>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold truncate">{trader.name}</span>
-                      {"streak" in trader && (trader as { streak: number }).streak > 5 && (
-                        <span className="text-[10px] bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded font-mono flex items-center gap-0.5">
-                          <Zap className="w-2.5 h-2.5" />
-                          {(trader as { streak: number }).streak}
-                        </span>
-                      )}
+                    <Link href={`/dashboard/traders/${trader.username}`} className="text-sm font-semibold hover:text-blue-primary transition-colors truncate block">
+                      {trader.name}
+                    </Link>
+                    <div className="flex items-center gap-3 mt-0.5">
+                      <span className="text-[10px] font-mono text-muted">{trader.trades} trades</span>
+                      {isFollowing && <span className="text-[10px] font-mono text-amber-400 flex items-center gap-0.5"><Copy className="w-2.5 h-2.5" />Copying</span>}
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                      {"winRate" in trader && (
-                        <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-0.5">
-                          <TrendingUp className="w-3 h-3" />
-                          {(trader as { winRate: number }).winRate}% win
-                        </span>
-                      )}
-                      {"pnl" in trader && (
-                        <span className="text-[10px] font-mono text-muted">
-                          {(trader as { pnl: string }).pnl}
-                        </span>
-                      )}
-                      <span className="text-[10px] font-mono text-muted">
-                        {trader.trades} trades
-                      </span>
-                    </div>
-                    {"markets" in trader && (
-                      <div className="flex items-center gap-1 mt-1 flex-wrap">
-                        {((trader as { markets: string[] }).markets).map((m) => (
-                          <span
-                            key={m}
-                            className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-surface-hover text-muted border border-border/50"
-                          >
-                            {m}
-                          </span>
-                        ))}
-                      </div>
-                    )}
                   </div>
-
-                  {/* Follow / Unfollow */}
                   <button
                     onClick={() => handleFollowToggle(trader.username)}
                     disabled={isPending}
-                    className={`shrink-0 min-w-[76px] flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-lg transition-all border disabled:opacity-50 ${
+                    className={`shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all disabled:opacity-50 ${
                       isFollowing
                         ? "border-red-500/30 text-red-400 hover:bg-red-500/10"
-                        : "border-blue-primary/30 text-blue-primary hover:bg-blue-primary/10"
+                        : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
                     }`}
                   >
-                    {isPending ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : isFollowing ? (
-                      "Unfollow"
-                    ) : (
-                      "Follow"
-                    )}
+                    {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : isFollowing ? <><UserMinus className="w-3 h-3" /> Stop</> : <><Copy className="w-3 h-3" /> Copy</>}
                   </button>
                 </div>
               </div>
             );
-          })
-          )}
+          })}
         </div>
       </div>
     </div>
