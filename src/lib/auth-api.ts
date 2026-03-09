@@ -90,13 +90,11 @@ export async function loginWidgetTelegram(user: any) {
 /** Login with a manual user_id (dev only) */
 export async function loginManual(userId: number) {
   const params = new URLSearchParams({ user_id: String(userId) });
-  const res = await api2Fetch(`/auth/manual?${params}`, undefined, {
-    method: "POST",
-  });
+  const res = await fetch(`/api/auth/manual?${params}`, { method: "POST" });
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? "Login failed");
+    throw new Error(body.error ?? body.detail ?? "Login failed");
   }
 
   const data = await res.json();

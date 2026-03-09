@@ -274,7 +274,7 @@ export default function ProfilePage() {
       {pkStep !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleClosePkModal} />
-          <div className="relative w-full max-w-md mx-4 bg-surface border border-border rounded-2xl shadow-2xl z-10 overflow-hidden">
+          <div className="relative w-full max-w-md mx-4 dashboard-card shadow-2xl z-10 overflow-hidden">
 
             {/* Warning / Confirmation step */}
             {(pkStep === 'warning' || pkStep === 'loading') && (
@@ -397,129 +397,176 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <div className="p-3 md:p-4 space-y-6">
-        {/* Account Info */}
-        <div className="max-w-3xl mx-auto border border-border rounded-xl bg-surface/20 p-6 md:p-8 space-y-6">
-          <div>
-            <h2 className="text-xl font-bold">Account Profile</h2>
-            <p className="text-sm text-muted mt-1">Live session profile from authenticated user endpoint.</p>
-          </div>
-
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="space-y-2 text-sm font-mono">
-              <div>
-                <span className="text-muted">Username:</span>{" "}
-                <span>{isLoading ? "Loading…" : (user?.username ? `@${user.username}` : "—")}</span>
+      <div className="p-3 md:p-4 space-y-6 max-w-[1400px] mx-auto">
+        {/* Profile Header */}
+        <div className="dashboard-card overflow-hidden">
+          <div className="profile-banner px-6 md:px-8 pt-6 md:pt-8 pb-5">
+            <div className="flex items-center gap-5">
+              <div className="avatar avatar-lg">
+                {isLoading ? "…" : (user?.username ?? "?").slice(0, 2).toUpperCase()}
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-muted">Wallet:</span>{" "}
-                <span className="break-all">{isLoading ? "Loading…" : (walletAddress ?? "Not connected")}</span>
-                {walletAddress && (
-                  <button
-                    onClick={handleCopyWallet}
-                    title="Copy wallet address"
-                    className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded border border-border text-muted hover:text-foreground hover:border-foreground/20 transition-all"
-                  >
-                    {walletCopied ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                    {walletCopied ? "Copied" : "Copy"}
-                  </button>
-                )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h2 className="text-xl font-bold truncate">
+                    {isLoading ? "Loading…" : (user?.username ? `@${user.username}` : "Anonymous")}
+                  </h2>
+                  <UserBadge />
+                </div>
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  <span className="text-xs font-mono text-muted truncate max-w-[240px]">
+                    {isLoading ? "Loading…" : (walletAddress ? `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}` : "No wallet")}
+                  </span>
+                  {walletAddress && (
+                    <button
+                      onClick={handleCopyWallet}
+                      title="Copy wallet address"
+                      className="flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full border border-border text-muted hover:text-foreground hover:border-blue-primary/30 transition-all"
+                    >
+                      {walletCopied ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      {walletCopied ? "Copied" : "Copy"}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-            <UserBadge />
           </div>
+        </div>
 
-          {/* Export Private Key */}
+        {/* Stats Bar */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="stat-card accent-blue p-4">
+            <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1">Portfolio Value</div>
+            <div className="text-lg font-bold font-mono">
+              {portfolioLoading ? "…" : portfolioValue !== undefined ? `$${Number(portfolioValue).toFixed(2)}` : "—"}
+            </div>
+          </div>
+          <div className="stat-card accent-green p-4">
+            <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1">Total PnL</div>
+            <div className={`text-lg font-bold font-mono flex items-center gap-1 ${totalPnl !== undefined && Number(totalPnl) >= 0 ? "text-emerald-400" : totalPnl !== undefined ? "text-red-400" : ""}`}>
+              {portfolioLoading ? "…" : totalPnl !== undefined ? (
+                <>{Number(totalPnl) >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}{Number(totalPnl) >= 0 ? "+" : ""}${Number(totalPnl).toFixed(2)}</>
+              ) : "—"}
+            </div>
+          </div>
+          <div className="stat-card accent-amber p-4">
+            <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1">Open Positions</div>
+            <div className="text-lg font-bold font-mono">
+              {portfolioLoading ? "…" : positions.length}
+            </div>
+          </div>
+          <div className="stat-card accent-purple p-4">
+            <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1">Balance</div>
+            <div className="text-lg font-bold font-mono">
+              {(balanceLoading || portfolioLoading) && !balanceParsed ? "…" : balanceParsed?.total || "—"}
+            </div>
+          </div>
+        </div>
+
+        {/* Card Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+          {/* Account & Settings Card */}
           {isAuthenticated && (
-            <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-surface/30">
-              <div>
-                <p className="text-sm font-semibold">Private Key</p>
-                <p className="text-xs text-muted mt-0.5">Export your wallet&apos;s private key for backup or migration.</p>
+            <div className="dashboard-card p-5 md:p-6 space-y-4">
+              <div className="section-header">
+                <ShieldAlert className="w-4 h-4 text-blue-primary" />
+                <h3 className="text-sm font-semibold">Account &amp; Settings</h3>
               </div>
-              <button
-                onClick={() => setPkStep('warning')}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-amber-500/30 text-amber-400 hover:bg-amber-500/10 transition-all"
-              >
-                <KeyRound className="w-3.5 h-3.5" />
-                Export
-              </button>
+
+              {/* Export Private Key */}
+              <div className="flex items-center justify-between p-4 inner-card">
+                <div>
+                  <p className="text-sm font-semibold">Private Key</p>
+                  <p className="text-xs text-muted mt-0.5">Export for backup or migration.</p>
+                </div>
+                <button
+                  onClick={() => setPkStep('warning')}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-amber-500/30 text-amber-400 hover:bg-amber-500/10 transition-all"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  Export
+                </button>
+              </div>
+
+              {/* Approve Trades */}
+              {(() => {
+                const isApproved = statusData?.polymarket_approved === true;
+                const BEP_BOP = ["bep", "bop", "bep bop", "bzzzt", "beep", "🤖"];
+                const frames = ["⬜⬜⬜⬜⬜⬜", "🟦⬜⬜⬜⬜⬜", "🟦🟦⬜⬜⬜⬜", "🟦🟦🟦⬜⬜⬜", "🟦🟦🟦🟦⬜⬜", "🟦🟦🟦🟦🟦⬜", "🟦🟦🟦🟦🟦🟦"];
+                const frameIdx = approveFrame % frames.length;
+                const bopIdx = approveFrame % BEP_BOP.length;
+                return (
+                  <div className="p-4 inner-card space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold">Approve Trades</p>
+                          {statusLoading ? (
+                            <span className="text-[10px] font-mono text-muted px-1.5 py-0.5 rounded bg-surface border border-border animate-pulse">checking…</span>
+                          ) : isApproved ? (
+                            <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-400 px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                              <CheckCircle2 className="w-3 h-3" /> approved
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-mono text-amber-400 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">not approved</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted mt-0.5">Polymarket USDC + CTF allowances.</p>
+                      </div>
+                      <button
+                        onClick={handleApprove}
+                        disabled={approveLoading || isApproved}
+                        className="shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {approveLoading
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <ShieldCheck className="w-3.5 h-3.5" />}
+                        {approveLoading ? "Approving…" : isApproved ? "Approved" : "Approve"}
+                      </button>
+                    </div>
+
+                    {approveLoading && (
+                      <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2.5 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-mono text-blue-400 uppercase tracking-wide">Signing transactions</span>
+                          <span className="text-[10px] font-mono text-blue-300 animate-pulse">{BEP_BOP[bopIdx]}</span>
+                        </div>
+                        <p className="text-[11px] font-mono text-foreground/70">{frames[frameIdx]}</p>
+                      </div>
+                    )}
+
+                    {approveResult && !approveLoading && (
+                      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono ${approveResult.ok ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}>
+                        {approveResult.ok
+                          ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                          : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
+                        {approveResult.message}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
-          {/* Approve Trades */}
-          {isAuthenticated && (() => {
-            const isApproved = statusData?.polymarket_approved === true;
-            const BEP_BOP = ["bep", "bop", "bep bop", "bzzzt", "beep", "🤖"];
-            const frames = ["⬜⬜⬜⬜⬜⬜", "🟦⬜⬜⬜⬜⬜", "🟦🟦⬜⬜⬜⬜", "🟦🟦🟦⬜⬜⬜", "🟦🟦🟦🟦⬜⬜", "🟦🟦🟦🟦🟦⬜", "🟦🟦🟦🟦🟦🟦"];
-            const frameIdx = approveFrame % frames.length;
-            const bopIdx = approveFrame % BEP_BOP.length;
-            return (
-              <div className="p-4 rounded-xl border border-border bg-surface/30 space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold">Approve Trades</p>
-                      {statusLoading ? (
-                        <span className="text-[10px] font-mono text-muted px-1.5 py-0.5 rounded bg-surface border border-border animate-pulse">checking…</span>
-                      ) : isApproved ? (
-                        <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-400 px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                          <CheckCircle2 className="w-3 h-3" /> approved
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-mono text-amber-400 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">not approved</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted mt-0.5">Run the 6-transaction Polymarket approval flow (USDC + CTF allowances).</p>
-                  </div>
-                  <button
-                    onClick={handleApprove}
-                    disabled={approveLoading || isApproved}
-                    className="shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {approveLoading
-                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      : <ShieldCheck className="w-3.5 h-3.5" />}
-                    {approveLoading ? "Approving…" : isApproved ? "Approved" : "Approve"}
-                  </button>
-                </div>
-
-                {approveLoading && (
-                  <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2.5 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono text-blue-400 uppercase tracking-wide">Signing transactions</span>
-                      <span className="text-[10px] font-mono text-blue-300 animate-pulse">{BEP_BOP[bopIdx]}</span>
-                    </div>
-                    <p className="text-[11px] font-mono text-foreground/70">{frames[frameIdx]}</p>
-                  </div>
-                )}
-
-                {approveResult && !approveLoading && (
-                  <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono ${approveResult.ok ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}>
-                    {approveResult.ok
-                      ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                      : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
-                    {approveResult.message}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* Balance */}
-          <div className="rounded-xl border border-border bg-surface/30 overflow-hidden">
-            <div className="px-4 pt-4 pb-2 text-[10px] font-mono text-muted uppercase tracking-wider">Wallet Balance</div>
+          {/* Wallet Balance Card */}
+          <div className="dashboard-card overflow-hidden">
+            <div className="section-header px-5 pt-5 pb-0">
+              <Wallet className="w-4 h-4 text-blue-primary" />
+              <h3 className="text-sm font-semibold">Wallet Balance</h3>
+            </div>
             {(balanceLoading || portfolioLoading) && !balanceParsed ? (
-              <div className="flex items-center gap-2 text-muted px-4 pb-4">
+              <div className="flex items-center gap-2 text-muted px-5 py-6 justify-center">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span className="text-xs font-mono">Loading balance…</span>
               </div>
             ) : balanceParsed ? (
               <div>
-                <div className="divide-y divide-border">
+                <div>
                   {balanceParsed.tokens.map((t) => (
-                    <div key={t.symbol} className="flex items-center justify-between px-4 py-2.5">
+                    <div key={t.symbol} className="token-row">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center text-[10px] font-bold font-mono text-blue-primary shrink-0">
+                        <div className="avatar avatar-sm text-blue-primary">
                           {t.symbol.slice(0, 2)}
                         </div>
                         <div>
@@ -532,231 +579,198 @@ export default function ProfilePage() {
                   ))}
                 </div>
                 {balanceParsed.total && (
-                  <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-surface/40">
+                  <div className="flex items-center justify-between px-5 py-3 border-t border-border/50 bg-surface/30">
                     <span className="text-xs font-mono text-muted uppercase tracking-wide">Total</span>
-                    <span className="text-base font-bold font-mono">{balanceParsed.total}</span>
+                    <span className="text-lg font-bold font-mono">{balanceParsed.total}</span>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-muted px-4 pb-4">
+              <div className="flex items-center gap-2 text-muted px-5 py-6 justify-center">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span className="text-xs font-mono">Loading balance…</span>
               </div>
             )}
           </div>
-        </div>
 
-        {/* Following Section */}
-        {isAuthenticated && (
-          <div className="max-w-3xl mx-auto border border-border rounded-xl bg-surface/20 p-6 md:p-8 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-primary" />
-                <h2 className="text-xl font-bold">Following</h2>
+          {/* Following Card */}
+          {isAuthenticated && (
+            <div className="dashboard-card p-5 md:p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="section-header mb-0">
+                  <Users className="w-4 h-4 text-blue-primary" />
+                  <h3 className="text-sm font-semibold">Following</h3>
+                </div>
+                {followingList.length > 0 && (
+                  <span className="text-xs font-mono px-2 py-1 rounded-lg bg-surface border border-border text-muted">
+                    {followingList.length}
+                  </span>
+                )}
               </div>
-              {followingList.length > 0 && (
-                <span className="text-xs font-mono px-2 py-1 rounded-lg bg-surface border border-border text-muted">
-                  {followingList.length} trader{followingList.length !== 1 ? "s" : ""}
-                </span>
+
+              {followingLoading ? (
+                <div className="flex items-center gap-2 text-muted py-4 justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-xs font-mono">Loading…</span>
+                </div>
+              ) : followingList.length === 0 ? (
+                <p className="text-sm text-muted font-mono text-center py-4">Not following any traders yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {followingList.map((f, i) => {
+                    const username = f.leader_username ?? f.username ?? "";
+                    const displayName = f.first_name ?? username;
+                    return (
+                      <div key={username || i} className="flex items-center gap-3 p-3 inner-card">
+                        <div className="avatar avatar-sm">
+                          {(displayName || "?").slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold truncate">{displayName}</p>
+                          {username && <p className="text-[10px] font-mono text-muted">@{username}</p>}
+                        </div>
+                        <button
+                          onClick={() => handleUnfollow(username)}
+                          disabled={unfollowingId === username}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
+                        >
+                          {unfollowingId === username
+                            ? <Loader2 className="w-3 h-3 animate-spin" />
+                            : <UserMinus className="w-3 h-3" />}
+                          Unfollow
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
+          )}
 
-            {followingLoading ? (
-              <div className="flex items-center gap-2 text-muted py-4 justify-center">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-xs font-mono">Loading…</span>
+          {/* Positions Card — spans full width */}
+          <div className="lg:col-span-2 dashboard-card p-5 md:p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="section-header mb-0">
+                <BarChart3 className="w-4 h-4 text-blue-primary" />
+                <h3 className="text-sm font-semibold">Open Positions</h3>
+                {portfolioValidating && !syncingPortfolio && <PortfolioSyncLabel />}
               </div>
-            ) : followingList.length === 0 ? (
-              <p className="text-sm text-muted font-mono text-center py-4">Not following any traders yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {followingList.map((f, i) => {
-                  const username = f.leader_username ?? f.username ?? "";
-                  const displayName = f.first_name ?? username;
+              <span className="text-xs font-mono px-2 py-1 rounded-lg bg-surface border border-border text-muted">
+                {positions.length}
+              </span>
+            </div>
+
+            {syncingPortfolio && (() => {
+              const MSGS = ["beep boop...", "syncing ledger...", "crunching numbers...", "bzzzt...", "almost there...", "recalculating..."];
+              return (
+                <div className="flex items-center gap-2 p-3 rounded-lg text-xs font-mono bg-blue-500/10 border border-blue-500/20 text-blue-300 animate-pulse">
+                  <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
+                  {MSGS[syncFrame % MSGS.length]}
+                </div>
+              );
+            })()}
+
+            {closeResult && !syncingPortfolio && (
+              <div className={`flex items-center gap-2 p-3 rounded-lg text-xs font-mono ${closeResult.ok ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}>
+                {closeResult.ok
+                  ? <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  : <AlertCircle className="w-4 h-4 shrink-0" />}
+                {closeResult.message}
+              </div>
+            )}
+
+            {!isAuthenticated ? (
+              <p className="text-sm text-muted font-mono">Log in to view your portfolio.</p>
+            ) : portfolioLoading ? (
+              <div className="flex items-center gap-2 text-muted py-8 justify-center">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="text-sm font-mono">Loading portfolio…</span>
+              </div>
+            ) : !portfolio ? (
+              <p className="text-sm text-muted font-mono">Unable to load portfolio data.</p>
+            ) : positions.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {positions.map((pos, i) => {
+                  const condId = positionConditionId(pos);
+                  const pnlCash = positionPnlCash(pos);
+                  const pnlPct = positionPnlPct(pos);
+                  const isPositive = pnlCash >= 0;
+                  const isClosing = closingId === condId;
+
                   return (
-                    <div key={username || i} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-surface/30">
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-primary/30 to-purple-500/30 flex items-center justify-center text-xs font-bold font-mono shrink-0">
-                        {(displayName || "?").slice(0, 2).toUpperCase()}
+                    <div key={condId ?? i} className="p-4 inner-card">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {pos.icon && (
+                            <img src={pos.icon} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <div className="text-sm font-semibold truncate">{pos.title ?? pos.ticker ?? `Position #${i + 1}`}</div>
+                              {condId && (
+                                <Link
+                                  href={`/dashboard/market?conditionId=${encodeURIComponent(condId)}`}
+                                  className="shrink-0 text-muted hover:text-blue-primary transition-colors"
+                                  title="Open market"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                </Link>
+                              )}
+                            </div>
+                            <div className="text-[10px] font-mono text-muted mt-0.5">
+                              <span className={`font-semibold ${positionSide(pos) === "Yes" ? "text-emerald-400" : "text-red-400"}`}>
+                                {positionSide(pos)}
+                              </span>
+                              {" • "}{positionSize(pos).toFixed(4)} shares
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className={`text-right ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
+                            <div className="text-sm font-bold font-mono flex items-center gap-1 justify-end">
+                              {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                              {isPositive ? "+" : ""}${pnlCash.toFixed(4)}
+                            </div>
+                            {pnlPct !== undefined && (
+                              <div className="text-[10px] font-mono">
+                                {isPositive ? "+" : ""}{pnlPct.toFixed(2)}%
+                              </div>
+                            )}
+                          </div>
+
+                          {condId && (
+                            <button
+                              onClick={() => handleClose(condId, positionSize(pos))}
+                              disabled={isClosing}
+                              title="Close position"
+                              className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
+                            >
+                              {isClosing ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                              Close
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold truncate">{displayName}</p>
-                        {username && <p className="text-[10px] font-mono text-muted">@{username}</p>}
+
+                      <div className="flex gap-4 text-[10px] font-mono text-muted">
+                        {pos.avg_price !== undefined && <span>Avg: ${pos.avg_price.toFixed(4)}</span>}
+                        {pos.current_price !== undefined && <span>Current: ${pos.current_price.toFixed(4)}</span>}
+                        {pos.current_value !== undefined && <span>Value: ${pos.current_value.toFixed(4)}</span>}
                       </div>
-                      <button
-                        onClick={() => handleUnfollow(username)}
-                        disabled={unfollowingId === username}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
-                      >
-                        {unfollowingId === username
-                          ? <Loader2 className="w-3 h-3 animate-spin" />
-                          : <UserMinus className="w-3 h-3" />}
-                        Unfollow
-                      </button>
                     </div>
                   );
                 })}
               </div>
+            ) : portfolioValidating ? (
+              <div className="flex items-center justify-center gap-2 text-muted py-8">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-xs font-mono">Loading positions…</span>
+              </div>
+            ) : (
+              <p className="text-sm text-muted font-mono py-4 text-center">No open positions.</p>
             )}
           </div>
-        )}
-
-        {/* Portfolio Section */}
-        <div className="max-w-3xl mx-auto border border-border rounded-xl bg-surface/20 p-6 md:p-8 space-y-6">
-          <div className="flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-blue-primary" />
-            <h2 className="text-xl font-bold">Portfolio</h2>
-            {portfolioValidating && !syncingPortfolio && (
-              <PortfolioSyncLabel />
-            )}
-          </div>
-
-          {syncingPortfolio && (() => {
-            const MSGS = ["beep boop...", "syncing ledger...", "crunching numbers...", "bzzzt...", "almost there...", "recalculating..."];
-            return (
-              <div className="flex items-center gap-2 p-3 rounded-lg text-xs font-mono bg-blue-500/10 border border-blue-500/20 text-blue-300 animate-pulse">
-                <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
-                {MSGS[syncFrame % MSGS.length]}
-              </div>
-            );
-          })()}
-
-          {closeResult && !syncingPortfolio && (
-            <div className={`flex items-center gap-2 p-3 rounded-lg text-xs font-mono ${closeResult.ok ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}>
-              {closeResult.ok
-                ? <CheckCircle2 className="w-4 h-4 shrink-0" />
-                : <AlertCircle className="w-4 h-4 shrink-0" />}
-              {closeResult.message}
-            </div>
-          )}
-
-          {!isAuthenticated ? (
-            <p className="text-sm text-muted font-mono">Log in to view your portfolio.</p>
-          ) : portfolioLoading ? (
-            <div className="flex items-center gap-2 text-muted py-8 justify-center">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="text-sm font-mono">Loading portfolio…</span>
-            </div>
-          ) : !portfolio ? (
-            <p className="text-sm text-muted font-mono">Unable to load portfolio data.</p>
-          ) : (
-            <div className="space-y-4">
-              {/* PnL summary */}
-              {(portfolioValue !== undefined || totalPnl !== undefined) && (
-                <div className="grid grid-cols-2 gap-3">
-                  {portfolioValue !== undefined && (
-                    <div className="p-4 rounded-xl border border-border bg-surface/30">
-                      <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1">Portfolio Value</div>
-                      <div className="text-lg font-bold font-mono">${Number(portfolioValue).toFixed(2)}</div>
-                    </div>
-                  )}
-                  {totalPnl !== undefined && (
-                    <div className="p-4 rounded-xl border border-border bg-surface/30">
-                      <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1">Total PnL</div>
-                      <div className={`text-lg font-bold font-mono flex items-center gap-1 ${Number(totalPnl) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                        {Number(totalPnl) >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                        {Number(totalPnl) >= 0 ? "+" : ""}${Number(totalPnl).toFixed(2)}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Open Positions */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <BarChart3 className="w-4 h-4 text-muted" />
-                  <h3 className="text-sm font-semibold">Open Positions ({positions.length})</h3>
-                </div>
-
-                {positions.length > 0 ? (
-                  <div className="space-y-2">
-                    {positions.map((pos, i) => {
-                      const condId = positionConditionId(pos);
-                      const pnlCash = positionPnlCash(pos);
-                      const pnlPct = positionPnlPct(pos);
-                      const isPositive = pnlCash >= 0;
-                      const isClosing = closingId === condId;
-
-                      return (
-                        <div key={condId ?? i} className="p-4 rounded-xl border border-border bg-surface/30">
-                          <div className="flex items-start justify-between gap-3 mb-2">
-                            {/* Left: title + meta */}
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                              {pos.icon && (
-                                <img src={pos.icon} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
-                              )}
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-1.5">
-                                  <div className="text-sm font-semibold truncate">{pos.title ?? pos.ticker ?? `Position #${i + 1}`}</div>
-                                  {condId && (
-                                    <Link
-                                      href={`/dashboard/market?conditionId=${encodeURIComponent(condId)}`}
-                                      className="shrink-0 text-muted hover:text-blue-primary transition-colors"
-                                      title="Open market"
-                                    >
-                                      <ExternalLink className="w-3.5 h-3.5" />
-                                    </Link>
-                                  )}
-                                </div>
-                                <div className="text-[10px] font-mono text-muted mt-0.5">
-                                  <span className={`font-semibold ${positionSide(pos) === "Yes" ? "text-emerald-400" : "text-red-400"}`}>
-                                    {positionSide(pos)}
-                                  </span>
-                                  {" • "}{positionSize(pos).toFixed(4)} shares
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Right: PnL + close button */}
-                            <div className="flex items-center gap-3 shrink-0">
-                              <div className={`text-right ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
-                                <div className="text-sm font-bold font-mono flex items-center gap-1 justify-end">
-                                  {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                                  {isPositive ? "+" : ""}${pnlCash.toFixed(4)}
-                                </div>
-                                {pnlPct !== undefined && (
-                                  <div className="text-[10px] font-mono">
-                                    {isPositive ? "+" : ""}{pnlPct.toFixed(2)}%
-                                  </div>
-                                )}
-                              </div>
-
-                              {condId && (
-                                <button
-                                  onClick={() => handleClose(condId, positionSize(pos))}
-                                  disabled={isClosing}
-                                  title="Close position"
-                                  className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
-                                >
-                                  {isClosing ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
-                                  Close
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Price details */}
-                          <div className="flex gap-4 text-[10px] font-mono text-muted">
-                            {pos.avg_price !== undefined && <span>Avg: ${pos.avg_price.toFixed(4)}</span>}
-                            {pos.current_price !== undefined && <span>Current: ${pos.current_price.toFixed(4)}</span>}
-                            {pos.current_value !== undefined && <span>Value: ${pos.current_value.toFixed(4)}</span>}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : portfolioValidating ? (
-                  <div className="flex items-center justify-center gap-2 text-muted py-8">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-xs font-mono">Loading positions…</span>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted font-mono py-4 text-center">No open positions.</p>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </DashboardChrome>

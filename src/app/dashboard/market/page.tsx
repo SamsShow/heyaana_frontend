@@ -142,10 +142,10 @@ function MarketDetailContent() {
             {/* Left column — Market info + Chart + Tabs */}
             <div className="flex-1 min-w-0 space-y-6">
               {/* Market header */}
-              <div className="space-y-3">
+              <div className="dashboard-card p-5 md:p-6">
                 <div className="flex items-start gap-4">
                   {/* Market icon */}
-                  <div className="w-12 h-12 rounded-xl bg-surface border border-border flex items-center justify-center shrink-0 overflow-hidden">
+                  <div className="w-14 h-14 rounded-xl inner-card flex items-center justify-center shrink-0 overflow-hidden">
                     {marketImage ? (
                       <img src={marketImage} alt="" className="w-full h-full object-cover" />
                     ) : (
@@ -161,7 +161,7 @@ function MarketDetailContent() {
                         {parsedTitle.subtitle}
                       </p>
                     )}
-                    <div className="flex items-center gap-3 mt-2 flex-wrap">
+                    <div className="flex items-center gap-3 mt-3 flex-wrap">
                       <span className="text-sm text-muted font-mono flex items-center gap-1">
                         <Volume2 className="w-3.5 h-3.5" />
                         Volume {formatVolume(market.volume)}
@@ -173,11 +173,11 @@ function MarketDetailContent() {
                         </span>
                       )}
                       <span
-                        className={`text-xs px-2 py-0.5 rounded-full font-mono ${market.status === "open"
-                            ? "bg-emerald-500/10 text-emerald-400"
+                        className={`badge ${market.status === "open"
+                            ? "badge-success"
                             : market.status === "closed"
-                              ? "bg-red-500/10 text-red-400"
-                              : "bg-amber-500/10 text-amber-400"
+                              ? "badge-danger"
+                              : "badge-warning"
                           }`}
                       >
                         {market.status}
@@ -187,7 +187,7 @@ function MarketDetailContent() {
                 </div>
 
                 {/* Timestamps */}
-                <div className="flex flex-wrap gap-4 text-xs font-mono text-muted">
+                <div className="flex flex-wrap gap-4 text-xs font-mono text-muted mt-4 pt-4 border-t border-border/50">
                   {market.open_time && (
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" /> Opened:{" "}
@@ -204,7 +204,7 @@ function MarketDetailContent() {
               </div>
 
               {/* Price chart */}
-              <div className="rounded-xl border border-border bg-surface/30 p-4 md:p-5">
+              <div className="dashboard-card p-4 md:p-5">
                 <PriceChart
                   trades={trades ?? []}
                   conditionId={market.condition_id}
@@ -232,7 +232,7 @@ function MarketDetailContent() {
               </div>
 
               {/* Tabbed content */}
-              <div className="rounded-xl border border-border bg-surface/30 p-4 md:p-5">
+              <div className="dashboard-card p-4 md:p-5">
                 <MarketTabs
                   market={market}
                   trades={trades ?? []}
@@ -244,24 +244,25 @@ function MarketDetailContent() {
             {/* Right column — Trading panel + Position */}
             <div className="lg:w-[360px] shrink-0 space-y-4">
               {/* Quick price display */}
-              <div className="rounded-xl border border-border bg-surface/30 p-4">
-                <div className="text-xs text-muted font-mono mb-3">
+              <div className="dashboard-card p-4">
+                <div className="text-xs text-muted font-mono mb-3 flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-blue-primary" />
                   Current Prices
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="text-center p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
-                    <div className="text-lg font-bold text-emerald-400 font-mono">
+                  <div className="price-tag price-tag-yes">
+                    <div className="text-xl font-bold text-emerald-400 font-mono">
                       {yesPrice}¢
                     </div>
-                    <div className="text-[10px] font-mono text-emerald-400/60 uppercase mt-0.5">
+                    <div className="text-[10px] font-mono text-emerald-400/60 uppercase mt-1 tracking-wider">
                       Yes
                     </div>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-red-500/5 border border-red-500/20">
-                    <div className="text-lg font-bold text-red-400 font-mono">
+                  <div className="price-tag price-tag-no">
+                    <div className="text-xl font-bold text-red-400 font-mono">
                       {noPrice}¢
                     </div>
-                    <div className="text-[10px] font-mono text-red-400/60 uppercase mt-0.5">
+                    <div className="text-[10px] font-mono text-red-400/60 uppercase mt-1 tracking-wider">
                       No
                     </div>
                   </div>
@@ -280,9 +281,12 @@ function MarketDetailContent() {
               />
 
               {/* Market meta */}
-              <div className="rounded-xl border border-border bg-surface/30 p-4 space-y-2">
-                <div className="text-xs font-mono text-muted">Market Info</div>
-                <div className="space-y-1.5">
+              <div className="dashboard-card p-4 space-y-3">
+                <div className="text-xs font-mono text-muted flex items-center gap-1.5">
+                  <BarChart3 className="w-3.5 h-3.5 text-blue-primary" />
+                  Market Info
+                </div>
+                <div>
                   <MetaRow label="Ticker" value={market.ticker} />
                   <MetaRow label="Event" value={market.event_ticker} />
                   <MetaRow label="Type" value={market.market_type} />
@@ -301,7 +305,7 @@ function MarketDetailContent() {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="p-3 rounded-xl border border-border bg-surface/30">
+    <div className="p-3 stat-card accent-blue">
       <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1">
         {label}
       </div>
@@ -312,7 +316,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
 
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between text-xs">
+    <div className="meta-row">
       <span className="text-muted font-mono">{label}</span>
       <span className="font-mono text-foreground truncate max-w-[200px]">
         {value}

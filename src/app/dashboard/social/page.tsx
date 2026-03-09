@@ -68,7 +68,7 @@ function UserProfileModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md bg-surface border border-border rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl z-10">
+      <div className="relative w-full sm:max-w-md dashboard-card rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl z-10">
         {/* Close */}
         <button
           onClick={onClose}
@@ -90,7 +90,7 @@ function UserProfileModal({
           <div className="overflow-y-auto max-h-[80vh]">
             {/* Header */}
             <div className="flex items-center gap-4 mb-5">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-primary/30 to-purple-500/30 flex items-center justify-center text-lg font-bold font-mono shrink-0">
+              <div className="w-14 h-14 avatar avatar-lg shrink-0">
                 {(data?.first_name ?? username ?? "?").slice(0, 2).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
@@ -137,7 +137,7 @@ function UserProfileModal({
               return (
                 <div className="grid grid-cols-2 gap-2 mb-5">
                   {portfolioVal !== undefined && (
-                    <div className="rounded-xl border border-border bg-surface/60 p-3">
+                    <div className="inner-card p-3">
                       <div className="flex items-center gap-1.5 text-muted mb-1">
                         <Wallet className="w-3.5 h-3.5" />
                         <span className="text-[10px] font-mono uppercase tracking-wide">Portfolio</span>
@@ -148,7 +148,7 @@ function UserProfileModal({
                     </div>
                   )}
                   {pnl !== undefined && (
-                    <div className="rounded-xl border border-border bg-surface/60 p-3">
+                    <div className="inner-card p-3">
                       <div className="flex items-center gap-1.5 text-muted mb-1">
                         <TrendingUp className="w-3.5 h-3.5" />
                         <span className="text-[10px] font-mono uppercase tracking-wide">P&amp;L</span>
@@ -159,7 +159,7 @@ function UserProfileModal({
                     </div>
                   )}
                   {balance !== undefined && (
-                    <div className="rounded-xl border border-border bg-surface/60 p-3">
+                    <div className="inner-card p-3">
                       <div className="flex items-center gap-1.5 text-muted mb-1">
                         <Wallet className="w-3.5 h-3.5" />
                         <span className="text-[10px] font-mono uppercase tracking-wide">Balance</span>
@@ -170,7 +170,7 @@ function UserProfileModal({
                     </div>
                   )}
                   {posCount !== undefined && (
-                    <div className="rounded-xl border border-border bg-surface/60 p-3">
+                    <div className="inner-card p-3">
                       <div className="flex items-center gap-1.5 text-muted mb-1">
                         <BarChart2 className="w-3.5 h-3.5" />
                         <span className="text-[10px] font-mono uppercase tracking-wide">Positions</span>
@@ -193,7 +193,7 @@ function UserProfileModal({
                     const pnlVal = pos.pnl_cash ?? pos.pnl;
                     const size = pos.size ?? pos.shares;
                     return (
-                      <div key={i} className="rounded-lg border border-border bg-surface/40 p-3 flex items-start gap-3">
+                      <div key={i} className="inner-card p-3 flex items-start gap-3">
                         <div className="w-7 h-7 rounded-md bg-surface flex items-center justify-center text-[10px] font-bold font-mono shrink-0 border border-border">
                           {(pos.title ?? "?")[0]?.toUpperCase()}
                         </div>
@@ -245,6 +245,10 @@ type FeedTrade = {
   amount?: number;   // share count (size)
   price?: number;    // price per share (0–1 scale)
   cost?: number;     // actual USD cost if provided directly
+  pnl_cash?: number;
+  pnl?: number;
+  current_pnl?: number;
+  unrealized_pnl?: number;
   status?: string;
   tx_hash?: string;
   executed_at?: string | number;
@@ -379,7 +383,7 @@ export default function SocialFeedPage() {
       {confirmFollowUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmFollowUser(null)} />
-          <div className="relative w-full max-w-sm mx-4 bg-surface border border-border rounded-2xl shadow-2xl z-10 p-6 space-y-4">
+          <div className="relative w-full max-w-sm mx-4 dashboard-card shadow-2xl z-10 p-6 space-y-4">
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
                 <AlertCircle className="w-4 h-4 text-amber-400" />
@@ -411,23 +415,26 @@ export default function SocialFeedPage() {
       )}
 
       <div className="h-full overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-4 md:px-6 py-4 md:py-6 space-y-6">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-4 md:py-6 space-y-6">
           {/* Header + Tabs */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="section-header mb-0">
               <Users className="w-5 h-5 text-blue-primary" />
-              <h1 className="text-xl font-bold">Social</h1>
+              <div>
+                <h1 className="text-xl font-bold">Social</h1>
+                <p className="text-xs text-muted mt-0.5">Live trading activity &amp; copy trading</p>
+              </div>
             </div>
-            <div className="flex gap-1 p-1 rounded-xl bg-surface border border-border w-fit">
+            <div className="pill-tabs">
               <button
                 onClick={() => setTab("feed")}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${tab === "feed" ? "bg-blue-primary text-white" : "text-muted hover:text-foreground"}`}
+                className={`pill-tab ${tab === "feed" ? "active" : ""}`}
               >
                 Feed
               </button>
               <button
                 onClick={() => setTab("copy")}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${tab === "copy" ? "bg-blue-primary text-white" : "text-muted hover:text-foreground"}`}
+                className={`pill-tab ${tab === "copy" ? "active" : ""}`}
               >
                 Copy Trading
               </button>
@@ -445,126 +452,170 @@ export default function SocialFeedPage() {
             </div>
           )}
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="flex items-center gap-2 text-muted">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="text-sm font-mono">Loading feed…</span>
+          <div className="dashboard-card overflow-hidden">
+            {/* Table header */}
+            <div className="grid grid-cols-[1fr_80px_80px_80px] md:grid-cols-[minmax(140px,1fr)_1fr_90px_90px_110px_100px_90px] gap-3 px-4 py-2.5 text-[10px] font-mono text-muted uppercase tracking-wider border-b border-border/50">
+              <span>Trader</span>
+              <span className="hidden md:block">Market</span>
+              <span className="text-center">Side</span>
+              <span className="text-right">Amount</span>
+              <span className="text-right hidden md:block">PnL</span>
+              <span className="text-center hidden md:block">Status</span>
+              <span className="text-right">Time</span>
+            </div>
+
+            {isLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="flex items-center gap-2 text-muted">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-sm font-mono">Loading feed…</span>
+                </div>
               </div>
-            </div>
-          ) : feed.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-muted">
-              <Users className="w-8 h-8 mb-3 opacity-30" />
-              <p className="text-sm font-mono">No social trading activity yet.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {feed.map((trade, i) => {
-                const isBuy = (trade.side ?? "").toLowerCase() === "buy" || (trade.side ?? "").toLowerCase() === "yes";
-                const rawTime = trade.executed_at ?? trade.created_at;
-                const timeStr = typeof rawTime === "number"
-                  ? new Date(rawTime * 1000).toISOString()
-                  : rawTime;
-                const isOwnTrade = trade.username && user?.username === trade.username;
-                const isFollowing = trade.username ? followed.has(trade.username) : false;
-                const isPending = trade.username ? pendingFollow.has(trade.username) : false;
-                const cost = trade.cost ?? (trade.price !== undefined && trade.amount !== undefined ? trade.amount * trade.price : null);
-                const displayName = trade.first_name ?? trade.username ?? `User #${trade.user_id}`;
+            ) : feed.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-muted">
+                <Users className="w-6 h-6 mb-2 opacity-30" />
+                <p className="text-sm font-mono">No social trading activity yet.</p>
+              </div>
+            ) : (
+              <div>
+                {feed.map((trade, i) => {
+                  const isBuy = (trade.side ?? "").toLowerCase() === "buy" || (trade.side ?? "").toLowerCase() === "yes";
+                  const rawTime = trade.executed_at ?? trade.created_at;
+                  const timeStr = typeof rawTime === "number"
+                    ? new Date(rawTime * 1000).toISOString()
+                    : rawTime;
+                  const isOwnTrade = trade.username && user?.username === trade.username;
+                  const isFollowing = trade.username ? followed.has(trade.username) : false;
+                  const isPending = trade.username ? pendingFollow.has(trade.username) : false;
+                  const cost = trade.cost ?? (trade.price !== undefined && trade.amount !== undefined ? trade.amount * trade.price : null);
+                  const rawPnl = trade.pnl_cash ?? trade.pnl ?? trade.current_pnl ?? trade.unrealized_pnl;
+                  const pnlValue = rawPnl === undefined || rawPnl === null ? null : Number(rawPnl);
+                  const hasPnl = pnlValue !== null && Number.isFinite(pnlValue);
+                  const displayName = trade.first_name ?? trade.username ?? `User #${trade.user_id}`;
 
-                return (
-                  <div
-                    key={`${trade.user_id}-${trade.executed_at}-${i}`}
-                    className="rounded-2xl border border-border bg-surface/40 overflow-hidden"
-                  >
-                    {/* User header row */}
-                    <div className="flex items-center gap-3 px-4 py-3">
-                      <button
-                        onClick={() => trade.username && setSelectedUser(trade.username)}
-                        className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-primary/40 to-purple-500/40 flex items-center justify-center text-xs font-bold font-mono shrink-0 hover:opacity-80 transition-opacity"
-                      >
-                        {displayName.slice(0, 2).toUpperCase()}
-                      </button>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
+                  return (
+                    <div
+                      key={`${trade.user_id}-${trade.executed_at}-${i}`}
+                      className="grid grid-cols-[1fr_80px_80px_80px] md:grid-cols-[minmax(140px,1fr)_1fr_90px_90px_110px_100px_90px] gap-3 items-center px-4 py-3 border-b border-border/30 transition-all hover:bg-surface/60 group"
+                    >
+                      {/* Trader */}
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <button
+                          onClick={() => trade.username && setSelectedUser(trade.username)}
+                          className="avatar avatar-sm shrink-0 hover:opacity-80 transition-opacity text-[10px]"
+                        >
+                          {displayName.slice(0, 2).toUpperCase()}
+                        </button>
+                        <div className="min-w-0">
                           <button
                             onClick={() => trade.username && setSelectedUser(trade.username)}
-                            className="text-sm font-semibold hover:text-blue-primary transition-colors"
+                            className="text-sm font-semibold truncate block hover:text-blue-primary transition-colors"
                           >
-                            @{trade.username ?? displayName}
+                            {trade.username ? `@${trade.username}` : displayName}
                           </button>
-                          {trade.copied_from_username && (
-                            <span className="text-[10px] font-mono text-blue-primary/60 flex items-center gap-0.5">
-                              <Copy className="w-2.5 h-2.5" />
-                              copied @{trade.copied_from_username}
-                            </span>
-                          )}
-                          {timeStr && (
-                            <span className="text-[10px] font-mono text-muted">· {formatRelativeTime(timeStr)}</span>
-                          )}
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            {trade.copied_from_username && (
+                              <span className="text-[10px] font-mono text-blue-primary/60 flex items-center gap-0.5">
+                                <Copy className="w-2.5 h-2.5" />
+                                @{trade.copied_from_username}
+                              </span>
+                            )}
+                            {isAuthenticated && trade.username && !isOwnTrade && (
+                              <button
+                                onClick={() => requestFollow(trade.username!)}
+                                disabled={isPending}
+                                className={`hidden md:flex items-center gap-1 text-[10px] font-semibold transition-all disabled:opacity-50 ${
+                                  isFollowing
+                                    ? "text-muted hover:text-red-400"
+                                    : "text-muted hover:text-blue-primary"
+                                }`}
+                              >
+                                {isPending ? (
+                                  <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                                ) : isFollowing ? (
+                                  <><UserMinus className="w-2.5 h-2.5" /> Unfollow</>
+                                ) : (
+                                  <><UserPlus className="w-2.5 h-2.5" /> Follow</>
+                                )}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
 
-                      {isAuthenticated && trade.username && !isOwnTrade && (
-                        <button
-                          onClick={() => requestFollow(trade.username!)}
-                          disabled={isPending}
-                          className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border transition-all disabled:opacity-50 ${
-                            isFollowing
-                              ? "border-border text-muted hover:border-red-500/40 hover:text-red-400"
-                              : "border-border text-foreground hover:border-blue-primary/40 hover:text-blue-primary"
-                          }`}
-                        >
-                          {isPending ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : isFollowing ? (
-                            <><UserMinus className="w-3 h-3" /> Unfollow</>
-                          ) : (
-                            <><UserPlus className="w-3 h-3" /> Follow</>
-                          )}
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Trade detail row */}
-                    <div className={`mx-3 mb-3 rounded-xl px-4 py-3 flex items-center gap-3 ${isBuy ? "bg-emerald-500/8 border border-emerald-500/15" : "bg-red-500/8 border border-red-500/15"}`}>
-                      <div className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${isBuy ? "bg-emerald-500" : "bg-red-500"}`}>
-                        {isBuy
-                          ? <ArrowUpRight className="w-3 h-3 text-white" />
-                          : <ArrowDownRight className="w-3 h-3 text-white" />}
+                      {/* Market — hidden on mobile */}
+                      <div className="min-w-0 hidden md:block">
+                        <p className="text-sm truncate text-foreground/80">
+                          {trade.market_title ?? "—"}
+                        </p>
                       </div>
 
-                      <p className="flex-1 text-sm text-foreground/90 min-w-0 truncate">
-                        Bet{" "}
-                        <span className={`font-semibold ${isBuy ? "text-emerald-400" : "text-red-400"}`}>
-                          &apos;{trade.side ?? "—"}&apos;
+                      {/* Side */}
+                      <div className="flex justify-center">
+                        <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                          isBuy
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            : "bg-red-500/10 text-red-400 border border-red-500/20"
+                        }`}>
+                          {isBuy
+                            ? <ArrowUpRight className="w-3 h-3" />
+                            : <ArrowDownRight className="w-3 h-3" />}
+                          {trade.side ?? "—"}
                         </span>
-                        {trade.market_title && (
-                          <> on {trade.market_title}</>
-                        )}
-                      </p>
+                      </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        {trade.status && (trade.status === "filled" || trade.status === "success" || trade.status === "matched") && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                      {/* Amount */}
+                      <div className="text-right">
+                        <span className="text-sm font-bold font-mono">
+                          {cost !== null ? `$${cost.toFixed(2)}` : "—"}
+                        </span>
+                        {trade.amount !== undefined && (
+                          <p className="text-[10px] font-mono text-muted mt-0.5">
+                            {trade.amount.toFixed(2)} shares
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Current PnL — hidden on mobile */}
+                      <div className="text-right hidden md:block">
+                        {hasPnl ? (
+                          <span className={`text-sm font-bold font-mono ${pnlValue >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                            {pnlValue >= 0 ? "+" : ""}${Math.abs(pnlValue).toFixed(2)}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono text-muted">—</span>
+                        )}
+                      </div>
+
+                      {/* Status — hidden on mobile */}
+                      <div className="text-center hidden md:block">
+                        {trade.status && (trade.status === "filled" || trade.status === "success" || trade.status === "matched") ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono text-emerald-400 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                             {trade.status === "filled" ? "matched" : trade.status}
                           </span>
-                        )}
-                        {trade.status === "pending" && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                        ) : trade.status === "pending" ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono text-amber-400 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                             pending
                           </span>
-                        )}
-                        {cost !== null && (
-                          <span className="text-sm font-bold font-mono">${cost.toFixed(2)}</span>
+                        ) : (
+                          <span className="text-[10px] font-mono text-muted">—</span>
                         )}
                       </div>
+
+                      {/* Time */}
+                      <div className="text-right">
+                        <span className="text-[10px] font-mono text-muted">
+                          {timeStr ? formatRelativeTime(timeStr) : "—"}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
             </>
           )}
         </div>

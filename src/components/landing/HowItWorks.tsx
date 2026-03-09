@@ -38,7 +38,6 @@ export function HowItWorks() {
 
   return (
     <section ref={sectionRef} id="how-it-works" className="py-24 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[#060B1A]" />
       <motion.div style={{ y: radialY }} className="absolute inset-0 radial-fade opacity-60" />
       <motion.div style={{ y: dotsY }} className="absolute inset-0 terminal-dots opacity-20" />
 

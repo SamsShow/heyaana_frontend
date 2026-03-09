@@ -4,7 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { proxyFetcher, Portfolio, Position, closePosition } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
-import { TrendingUp, TrendingDown, Loader2, X } from "lucide-react";
+import { TrendingUp, TrendingDown, Loader2, X, BarChart3 } from "lucide-react";
 
 interface PositionCardProps {
   ticker: string;         // conditionId passed from market page
@@ -60,12 +60,14 @@ export function PositionCard({ ticker, marketTitle }: PositionCardProps) {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-surface/50 p-4 space-y-3">
-      <div className="text-xs text-muted font-mono">Your Position</div>
-
-      <div className="flex items-center gap-2">
-        <span className={`text-xs px-2 py-1 rounded font-semibold ${
-          side === "Yes" ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+    <div className="dashboard-card p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-muted font-mono flex items-center gap-1.5">
+          <BarChart3 className="w-3.5 h-3.5 text-blue-primary" />
+          Your Position
+        </div>
+        <span className={`badge ${
+          side === "Yes" ? "badge-success" : "badge-danger"
         }`}>
           {side.toUpperCase()}
         </span>

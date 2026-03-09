@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { topTraders } from "@/lib/mock-data";
 import {
   enableCopyTrading,
   disableCopyTrading,
@@ -61,10 +60,9 @@ export function CopyTrading() {
     { revalidateOnFocus: false },
   );
 
-  // Derive real traders list: use social feed data if available, else fallback to mock
+  // Derive traders list from social feed only — no mock data
   const traders = (() => {
     const feedArray = Array.isArray(socialFeedRaw) ? socialFeedRaw : [];
-    // Deduplicate by username and build trader summaries
     const seen = new Map<string, SocialTrader>();
     for (const item of feedArray as SocialTrader[]) {
       const username = item.username;
@@ -73,7 +71,7 @@ export function CopyTrading() {
         seen.set(username, item);
       }
     }
-    const realTraders = Array.from(seen.values())
+    return Array.from(seen.values())
       .filter((t) => t.username)
       .map((t) => ({
         id: t.user_id ?? 0,
@@ -82,10 +80,7 @@ export function CopyTrading() {
         avatar: (t.first_name ?? t.username ?? "?").slice(0, 2).toUpperCase(),
         trades: t.trade_count ?? (t.recent_trades ? (t.recent_trades as unknown[]).length : 0),
       }));
-    return realTraders.length > 0 ? realTraders : topTraders;
   })();
-
-  const isMockData = traders === topTraders;
 
   // Derive the set of followed usernames from the unified response
   const followed = new Set<string>(
@@ -155,7 +150,7 @@ export function CopyTrading() {
   return (
     <div className="space-y-6">
       {/* Enable / disable toggle */}
-      <div className="rounded-xl border border-border bg-surface/50 p-5">
+      <div className="dashboard-card p-5">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-base font-semibold">Copy Trading</h2>
@@ -207,13 +202,13 @@ export function CopyTrading() {
 
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-border bg-surface/30 p-4">
+        <div className="stat-card accent-blue p-4">
           <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1">
             Following
           </div>
           <div className="text-xl font-bold font-mono">{followed.size}</div>
         </div>
-        <div className="rounded-xl border border-border bg-surface/30 p-4">
+        <div className="stat-card accent-green p-4">
           <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1">
             Status
           </div>
@@ -225,7 +220,7 @@ export function CopyTrading() {
             {enabled ? "Active" : "Off"}
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-surface/30 p-4">
+        <div className="stat-card accent-amber p-4">
           <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1">
             Traders
           </div>
@@ -244,28 +239,35 @@ export function CopyTrading() {
 
       {/* Traders list */}
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <Users className="w-4 h-4 text-muted" />
+        <div className="section-header">
+          <Users className="w-4 h-4 text-blue-primary" />
           <h3 className="text-sm font-semibold">Top Traders</h3>
         </div>
 
         <div className="space-y-2">
-          {traders.map((trader) => {
+          {traders.length === 0 ? (
+            <div className="inner-card p-8 flex flex-col items-center justify-center text-center text-muted">
+              <Users className="w-8 h-8 mb-3 opacity-30" />
+              <p className="text-sm font-medium">Coming soon</p>
+              <p className="text-xs mt-1">Top traders will appear here when available</p>
+            </div>
+          ) : (
+          traders.map((trader) => {
             const isFollowing = followed.has(trader.username);
             const isPending = pendingFollow.has(trader.username);
 
             return (
               <div
                 key={trader.id}
-                className={`rounded-xl border p-4 transition-all ${
+                className={`inner-card p-4 transition-all ${
                   isFollowing
-                    ? "border-blue-primary/30 bg-blue-primary/5"
-                    : "border-border bg-surface/30"
+                    ? "!border-blue-primary/30 bg-blue-primary/5"
+                    : ""
                 }`}
               >
                 <div className="flex items-center gap-3">
                   {/* Avatar */}
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-primary/30 to-purple-500/30 flex items-center justify-center text-xs font-bold font-mono shrink-0">
+                  <div className="avatar avatar-md">
                     {trader.avatar}
                   </div>
 
@@ -331,7 +333,8 @@ export function CopyTrading() {
                 </div>
               </div>
             );
-          })}
+          })
+          )}
         </div>
       </div>
     </div>

@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
 import { TOKEN_STORAGE_KEY } from "@/lib/auth-api";
-import { Loader2 } from "lucide-react";
 
 interface AuthGuardProps {
     children: React.ReactNode;
@@ -21,6 +20,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
         return !!localStorage.getItem(TOKEN_STORAGE_KEY);
     });
 
+    const [redirecting, setRedirecting] = useState(false);
+
     useEffect(() => {
         // No token at all — send straight to onboarding.
         if (!hasToken) {
@@ -28,39 +29,24 @@ export function AuthGuard({ children }: AuthGuardProps) {
             return;
         }
         // Token exists but server confirmed it's invalid/expired.
-        if (!isLoading && !isAuthenticated) {
+        // Don't redirect on transient network errors.
+        if (!isLoading && !error && !isAuthenticated) {
             // Clear the stale token so the user isn't stuck in a redirect loop.
             localStorage.removeItem(TOKEN_STORAGE_KEY);
+            setRedirecting(true);
             router.replace("/onboarding");
         }
-    }, [isAuthenticated, isLoading, hasToken, router]);
+    }, [isAuthenticated, isLoading, error, hasToken, router]);
 
-    // No token — redirect pending, render nothing.
-    if (!hasToken) return null;
+    // No token or already redirecting — render nothing immediately.
+    if (!hasToken || redirecting) return null;
 
-    // Token exists, SWR still verifying.
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-primary mb-4" />
-                <p className="text-sm font-mono text-muted animate-pulse">Verifying session…</p>
-            </div>
-        );
-    }
+    // Token exists but auth isn't resolved yet: do not render protected content yet.
+    if (isLoading) return null;
 
-    // Network error — don't redirect, show a retry prompt instead of bouncing to onboarding.
+    // Network error while unauthenticated — keep guard closed.
     if (error && !isAuthenticated) {
-        return (
-            <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 gap-3">
-                <p className="text-sm font-mono text-red-400">Failed to reach server.</p>
-                <button
-                    onClick={() => window.location.reload()}
-                    className="text-xs font-mono text-muted underline hover:text-foreground"
-                >
-                    Retry
-                </button>
-            </div>
-        );
+        return null;
     }
 
     // Token confirmed invalid by server — redirect pending.

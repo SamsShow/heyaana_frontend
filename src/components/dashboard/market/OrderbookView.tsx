@@ -22,7 +22,7 @@ export function OrderbookView({ market }: OrderbookViewProps) {
       </div>
 
       {/* YES orderbook */}
-      <div className="rounded-lg border border-border overflow-hidden">
+      <div className="inner-card overflow-hidden">
         <div className="px-3 py-2 border-b border-border bg-emerald-500/5">
           <span className="text-xs font-semibold text-emerald-400">YES</span>
         </div>
@@ -33,7 +33,7 @@ export function OrderbookView({ market }: OrderbookViewProps) {
       </div>
 
       {/* NO orderbook */}
-      <div className="rounded-lg border border-border overflow-hidden">
+      <div className="inner-card overflow-hidden">
         <div className="px-3 py-2 border-b border-border bg-red-500/5">
           <span className="text-xs font-semibold text-red-400">NO</span>
         </div>
@@ -45,11 +45,11 @@ export function OrderbookView({ market }: OrderbookViewProps) {
 
       {/* Market stats */}
       <div className="grid grid-cols-2 gap-3 mt-4">
-        <div className="p-3 rounded-lg border border-border bg-background/50">
+        <div className="p-3 inner-card">
           <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1">Volume</div>
           <div className="text-sm font-mono font-bold">{market.volume.toLocaleString()}</div>
         </div>
-        <div className="p-3 rounded-lg border border-border bg-background/50">
+        <div className="p-3 inner-card">
           <div className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1">Open Interest</div>
           <div className="text-sm font-mono font-bold">{market.open_interest.toLocaleString()}</div>
         </div>

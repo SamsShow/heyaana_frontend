@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   loginTelegram,
@@ -9,14 +9,19 @@ import {
   loginManual as loginManualApi,
   logout as logoutApi,
   api2Fetch,
+  TOKEN_STORAGE_KEY,
   type UserProfile,
 } from "./auth-api";
 
 const ME_KEY = "/me";
 
+type UseAuthOptions = {
+  probeOnboarding?: boolean;
+};
+
 async function meFetcher(path: string): Promise<UserProfile | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
     const res = await api2Fetch(path, undefined, { signal: controller.signal });
     if (!res.ok) return null;
@@ -29,17 +34,24 @@ async function meFetcher(path: string): Promise<UserProfile | null> {
   }
 }
 
-export function useAuth() {
+export function useAuth(options?: UseAuthOptions) {
   const router = useRouter();
   const pathname = usePathname();
+  const probeOnboarding = options?.probeOnboarding ?? false;
+  const [hasSessionToken] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return !!localStorage.getItem(TOKEN_STORAGE_KEY);
+  });
 
   // Don't probe /me on unauthenticated pages — avoids a noisy 401 in the console
-  const skipFetch = pathname === "/" || pathname === "/onboarding" || pathname === "/onboarding/";
+  const onOnboarding = pathname === "/onboarding" || pathname === "/onboarding/";
+  const skipFetch = pathname === "/" || !hasSessionToken || (onOnboarding && !probeOnboarding);
 
   const {
     data: user,
     error,
     isLoading,
+    isValidating,
     mutate,
   } = useSWR<UserProfile | null>(skipFetch ? null : ME_KEY, meFetcher, {
     revalidateOnFocus: false,
@@ -85,6 +97,8 @@ export function useAuth() {
     user,
     error,
     isLoading,
+    isValidating,
+    hasSessionToken,
     isAuthenticated,
     login,
     loginWidget,

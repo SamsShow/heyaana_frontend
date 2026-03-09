@@ -1,12 +1,16 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { MobileTradingModal } from "@/components/shared/MobileTradingModal";
 
 export function CTA() {
+  const router = useRouter();
+  const [mobileModalOpen, setMobileModalOpen] = useState(false);
   return (
     <section className="py-24 relative overflow-hidden">
       {/* Background effects */}
-      <div className="absolute inset-0 bg-[#060B1A]" />
       <div className="absolute inset-0 grid-bg opacity-15" />
 
       {/* Gradient orbs */}
@@ -54,12 +58,29 @@ export function CTA() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
               href="/dashboard"
+              onClick={(e) => {
+                if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                  e.preventDefault();
+                  setMobileModalOpen(true);
+                }
+              }}
               className="inline-flex items-center justify-center px-10 py-4 rounded-sm bg-[#466EFF] text-white font-bold text-sm uppercase tracking-widest hover:bg-[#5A7FFF] transition-all duration-300 glow-primary hover:scale-[1.02]"
             >
               Start Trading
               <svg className="ml-3 w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
+            </a>
+            <a
+              href="https://t.me/heyanna_ai_bot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 px-10 py-4 rounded-sm bg-[#26A5E4]/15 border border-[#26A5E4]/30 text-[#26A5E4] font-medium hover:bg-[#26A5E4]/25 transition-all text-sm uppercase tracking-widest"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.919l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.978.64z"/>
+              </svg>
+              Launch Bot
             </a>
             <a
               href="https://t.me/+i9D5bDox8lNmNDk9"
@@ -73,6 +94,12 @@ export function CTA() {
               Telegram
             </a>
           </div>
+
+          <MobileTradingModal
+            isOpen={mobileModalOpen}
+            onClose={() => setMobileModalOpen(false)}
+            onProceed={() => router.push("/dashboard")}
+          />
 
           {/* Trust text */}
           <p className="text-xs text-white/20 mt-8">

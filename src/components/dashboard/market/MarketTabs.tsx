@@ -26,7 +26,7 @@ export function MarketTabs({ market, trades, tradesLoading }: MarketTabsProps) {
   return (
     <div>
       {/* Tab headers */}
-      <div className="flex items-center gap-0 border-b border-border mb-4">
+      <div className="pill-tabs mb-4">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -34,11 +34,7 @@ export function MarketTabs({ market, trades, tradesLoading }: MarketTabsProps) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-3 text-sm transition-all border-b-2 -mb-px ${
-                isActive
-                  ? "border-blue-primary text-foreground"
-                  : "border-transparent text-muted hover:text-foreground"
-              }`}
+              className={`pill-tab flex items-center gap-1.5 ${isActive ? "active" : ""}`}
             >
               <Icon className="w-4 h-4" />
               {tab.label}

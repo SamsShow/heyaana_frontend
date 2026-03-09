@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { fetcher, DashboardResponse } from "@/lib/api";
-import { mockDashboardSummary, topTraders } from "@/lib/mock-data";
-import { Activity, Clock3, Loader2, Users, Zap } from "lucide-react";
+import { mockDashboardSummary } from "@/lib/mock-data";
+import { Activity, Clock3, Loader2, Users, Zap, ExternalLink, ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -12,10 +12,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function formatCompactNumber(value: unknown): string {
   if (typeof value !== "number") return "—";
-  if (Math.abs(value) >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
-  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return value.toFixed(2);
+  if (Math.abs(value) >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(2)}B`;
+  if (Math.abs(value) >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(value) >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
+  return `$${value.toFixed(2)}`;
 }
 
 type TradingSnapshot = {
@@ -35,7 +35,7 @@ export function DashboardMixPanel() {
   useEffect(() => {
     fetcher("/api/v1/trading_snapshot")
       .then((d) => setSnapshot(d as TradingSnapshot))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setSnapshotLoading(false));
   }, []);
 
@@ -51,93 +51,129 @@ export function DashboardMixPanel() {
       : "—";
 
   const volume24h = snapshot ? formatCompactNumber(snapshot.total_volume) : formatCompactNumber(summary.total_volume);
-  const totalTrades = snapshot ? formatCompactNumber(snapshot.total_trades) : formatCompactNumber(summary.total_trades);
+  const totalTrades = snapshot
+    ? (typeof snapshot.total_trades === "number" && snapshot.total_trades >= 1_000_000
+      ? `${(snapshot.total_trades / 1_000_000).toFixed(1)}M`
+      : String(snapshot.total_trades))
+    : (typeof summary.total_trades === "number" && (summary.total_trades as number) >= 1_000_000
+      ? `${((summary.total_trades as number) / 1_000_000).toFixed(1)}M`
+      : String(summary.total_trades ?? "—"));
 
   return (
     <section className="space-y-4">
-      <div>
-        <h2 className="text-lg font-bold tracking-tight">Operations Snapshot</h2>
-        <p className="text-xs text-muted font-mono mt-1">
-          Status, queues, and trader activity beyond chart analytics
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold tracking-tight text-foreground">Market snapshot</h2>
+          <p className="text-xs text-muted mt-1">
+            System-wide trading performance and queue status
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted">
+          <Clock3 className="w-3 h-3" />
+          <span>{lastUpdated}</span>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-4">
-        <div className="terminal-card p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <Clock3 className="w-4 h-4 text-blue-primary" />
-              System Status
+      {/* Wide horizontal layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Trading Snapshot — hero card */}
+        <div className="dashboard-card p-6 lg:col-span-2">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-blue-primary/15 flex items-center justify-center">
+                <Zap className="w-4 h-4 text-blue-primary" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Trading Snapshot</h3>
+                <p className="text-[10px] text-muted">Performance overview</p>
+              </div>
             </div>
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin text-muted" /> : null}
+            {snapshotLoading && <Loader2 className="w-4 h-4 animate-spin text-muted" />}
           </div>
-          <div className="text-xs font-mono text-muted">Last refresh: {lastUpdated}</div>
-          <div className="flex items-center gap-2 text-xs">
-            <span className={`inline-block w-2 h-2 rounded-full ${isMock ? "bg-amber-400" : "bg-green-400"}`} />
-            <span className="font-mono">{isMock ? "Fallback data mode" : "Live data mode"}</span>
-          </div>
-        </div>
 
-        <div className="terminal-card p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold mb-3">
-            <Activity className="w-4 h-4 text-blue-primary" />
-            Queue Health
+          {/* Metrics row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="space-y-1">
+              <div className="text-[11px] text-muted uppercase tracking-wider">Win Rate</div>
+              <div className="text-2xl font-bold text-foreground">{overallWinRate}</div>
+              <div className="flex items-center gap-1 text-xs text-emerald-400">
+                <ArrowUpRight className="w-3 h-3" />
+                <span>Positive</span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-[11px] text-muted uppercase tracking-wider">Total Trades</div>
+              <div className="text-2xl font-bold text-foreground">{totalTrades}</div>
+              <div className="flex items-center gap-1 text-xs text-muted">
+                <Activity className="w-3 h-3" />
+                <span>All time</span>
+              </div>
+            </div>
+            <div className="space-y-1 col-span-2 sm:col-span-1">
+              <div className="text-[11px] text-muted uppercase tracking-wider">Total Volume</div>
+              <div className="text-2xl font-bold text-foreground">{volume24h}</div>
+              <div className="flex items-center gap-1 text-xs text-muted">
+                <ArrowUpRight className="w-3 h-3" />
+                <span>Cumulative</span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-[11px] text-muted uppercase tracking-wider">Status</div>
+              <div className="flex items-center gap-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${isMock ? "bg-amber-400" : "bg-emerald-400"} shadow-sm`} />
+                <span className="text-sm font-medium text-foreground">
+                  {isMock ? "Fallback" : "Live"}
+                </span>
+              </div>
+              <div className="text-xs text-muted">{isMock ? "Using cached data" : "Real-time"}</div>
+            </div>
           </div>
-          <div className="space-y-2">
-            {pendingAnalyses.length > 0 ? (
-              pendingAnalyses.slice(0, 6).map((name) => (
-                <div key={name} className="flex items-center justify-between text-xs font-mono">
-                  <span className="text-muted truncate pr-2">{name.replaceAll("_", " ")}</span>
-                  <span className="text-amber-400">pending</span>
-                </div>
-              ))
-            ) : (
-              <div className="text-xs font-mono text-green-400">No pending analysis jobs</div>
-            )}
-          </div>
-        </div>
 
-        <div className="terminal-card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <Zap className="w-4 h-4 text-blue-primary" />
-              Trading Snapshot
-            </div>
-            {snapshotLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted" />}
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-xs font-mono">
-            <div>
-              <div className="text-muted">Win Rate</div>
-              <div className="text-base font-semibold text-foreground">{overallWinRate}</div>
-            </div>
-            <div>
-              <div className="text-muted">Total Trades</div>
-              <div className="text-base font-semibold text-foreground">{totalTrades}</div>
-            </div>
-            <div className="col-span-2">
-              <div className="text-muted">Total Volume</div>
-              <div className="text-base font-semibold text-foreground">{volume24h}</div>
-            </div>
-          </div>
+          {/* Snapshot timestamp */}
           {snapshot?.refreshed_at && (
-            <div className="mt-3 text-[10px] font-mono text-muted/50">
-              Updated {new Date(snapshot.refreshed_at).toLocaleString()}
+            <div className="mt-4 pt-3 border-t border-border text-[10px] text-muted">
+              Snapshot updated {new Date(snapshot.refreshed_at).toLocaleString()}
             </div>
           )}
         </div>
 
-        <div className="terminal-card p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold mb-3">
-            <Users className="w-4 h-4 text-blue-primary" />
-            Top Copied Traders
+        {/* Right column: Queue + Top Traders */}
+        <div className="space-y-4">
+          {/* Queue Health */}
+          <div className="dashboard-card p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Activity className="w-4 h-4 text-blue-primary" />
+              <h3 className="text-sm font-semibold text-foreground">Queue Health</h3>
+              {isLoading && <Loader2 className="w-3 h-3 animate-spin text-muted ml-auto" />}
+            </div>
+            <div className="space-y-2">
+              {pendingAnalyses.length > 0 ? (
+                pendingAnalyses.slice(0, 4).map((name) => (
+                  <div key={name} className="flex items-center justify-between text-xs">
+                    <span className="text-muted truncate pr-2">{name.replaceAll("_", " ")}</span>
+                    <span className="text-amber-400 text-[10px] px-1.5 py-0.5 rounded bg-amber-400/10">pending</span>
+                  </div>
+                ))
+              ) : (
+                <div className="flex items-center gap-2 text-xs text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  No pending jobs
+                </div>
+              )}
+            </div>
           </div>
-          <div className="space-y-2">
-            {topTraders.slice(0, 4).map((trader) => (
-              <div key={trader.id} className="flex items-center justify-between text-xs">
-                <span className="font-medium truncate pr-2">{trader.name}</span>
-                <span className="font-mono text-green-400">{trader.winRate}%</span>
-              </div>
-            ))}
+
+          {/* Top Traders */}
+          <div className="dashboard-card p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Users className="w-4 h-4 text-blue-primary" />
+              <h3 className="text-sm font-semibold text-foreground">Top Traders</h3>
+            </div>
+            <div className="py-6 flex flex-col items-center justify-center text-center text-muted">
+              <Users className="w-8 h-8 mb-2 opacity-30" />
+              <p className="text-sm font-medium">Coming soon</p>
+              <p className="text-xs mt-0.5">Top traders will appear here</p>
+            </div>
           </div>
         </div>
       </div>

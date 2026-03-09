@@ -197,8 +197,8 @@ export function PriceChart({ trades, conditionId, isLoading }: PriceChartProps) 
       {latestPrice !== null && (
         <div className="flex justify-end">
           <span
-            className="text-sm font-mono font-bold px-2 py-1 rounded"
-            style={{ color: strokeColor, backgroundColor: `${strokeColor}15` }}
+            className="text-sm font-mono font-bold px-3 py-1.5 rounded-full border"
+            style={{ color: strokeColor, backgroundColor: `${strokeColor}08`, borderColor: `${strokeColor}20` }}
           >
             {latestPrice}¢
           </span>
@@ -217,16 +217,12 @@ function TimeRangeSelector({
 }) {
   const ranges: TimeRange[] = ["1D", "1W", "2W", "ALL"];
   return (
-    <div className="flex items-center gap-1">
+    <div className="pill-tabs w-fit">
       {ranges.map((r) => (
         <button
           key={r}
           onClick={() => onChange(r)}
-          className={`px-3 py-1.5 text-xs font-mono rounded-md transition-all ${
-            range === r
-              ? "bg-surface-hover text-foreground border border-border"
-              : "text-muted hover:text-foreground hover:bg-surface"
-          }`}
+          className={`pill-tab ${range === r ? "active" : ""}`}
         >
           {r}
         </button>

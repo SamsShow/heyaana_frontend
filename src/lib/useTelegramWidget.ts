@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 
 interface TelegramUser {
     id: number;
@@ -33,15 +33,26 @@ export function useTelegramWidget({
 }: UseTelegramWidgetOptions) {
     const [scriptLoaded, setScriptLoaded] = useState(false);
 
+    // Keep a stable ref to the latest onAuth callback.
+    // This way window.onTelegramAuth is set once and never wiped,
+    // while always calling the latest version of the handler.
+    const onAuthRef = useRef(onAuth);
     useEffect(() => {
-        // Define the global callback if onAuth is provided
-        if (onAuth) {
-            (window as any).onTelegramAuth = (user: TelegramUser) => {
-                onAuth(user);
-            };
-        }
+        onAuthRef.current = onAuth;
+    }, [onAuth]);
 
-        // Check if script already exists
+    // Set window.onTelegramAuth once — stable, never cleared between renders.
+    useEffect(() => {
+        (window as any).onTelegramAuth = (user: TelegramUser) => {
+            onAuthRef.current?.(user);
+        };
+        return () => {
+            (window as any).onTelegramAuth = undefined;
+        };
+    }, []); // intentionally empty — set once for the lifetime of this hook
+
+    // Load the Telegram widget script
+    useEffect(() => {
         if (document.getElementById("telegram-widget-script")) {
             setScriptLoaded(true);
             return;
@@ -53,20 +64,11 @@ export function useTelegramWidget({
         script.async = true;
         script.onload = () => setScriptLoaded(true);
         document.head.appendChild(script);
-
-        return () => {
-            // We don't necessarily want to remove the script on unmount
-            // as it might be used by other components, but we can clean up the callback
-            if (onAuth) {
-                (window as any).onTelegramAuth = undefined;
-            }
-        };
-    }, [onAuth]);
+    }, []);
 
     const renderWidget = useCallback((container: HTMLElement | null) => {
         if (!container || !scriptLoaded) return;
 
-        // Clear container
         container.innerHTML = "";
 
         const sanitizedBotUsername = botUsername.replace(/^@/, "");
