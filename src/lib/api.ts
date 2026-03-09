@@ -688,7 +688,13 @@ export async function approveTrading(): Promise<unknown> {
         }
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Approval failed");
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? data.message ?? "Approval failed");
+    if (data.success === false) throw new Error(data.message ?? data.error ?? "Approval failed");
+    if (data.status === "error") throw new Error(data.message ?? data.error ?? "Approval failed");
+    if (typeof data.error === "string" && data.error) throw new Error(data.error);
+    if (typeof data.result === "string" && data.result.toUpperCase().includes("FAILED")) {
+        throw new Error(data.result.trim());
+    }
     return data;
 }
 

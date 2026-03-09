@@ -72,12 +72,13 @@ function OnboardingPageContent() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [currentHostname, setCurrentHostname] = useState<string | null>(null);
   const [bootstrapped, setBootstrapped] = useState(false);
+  const [showDevLogin, setShowDevLogin] = useState(false);
   const telegramRef = useRef<HTMLDivElement>(null);
   const draftHydratedRef = useRef(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isLoading, hasSessionToken, isAuthenticated, login, loginWidget } = useAuth({ probeOnboarding: true });
+  const { user, isLoading, hasSessionToken, isAuthenticated, loginManual, login, loginWidget } = useAuth({ probeOnboarding: true });
   const TELEGRAM_BOT_USERNAME = (process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "heyanna_ai_bot").replace(/^@/, "");
   const userOnboardingKey = getUserOnboardingKey(user);
 
@@ -160,6 +161,12 @@ function OnboardingPageContent() {
       setCurrentHostname(window.location.hostname);
     }
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("dev") === "true") {
+      setShowDevLogin(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const tgError = searchParams.get("tg_error");
@@ -361,6 +368,52 @@ function OnboardingPageContent() {
                     Current host:{" "}
                     <span className="text-foreground">{currentHostname ?? "unknown"}</span>
                   </p>
+
+                  {/* Dev Login (use ?dev=true to show) */}
+                  {showDevLogin && (
+                    <div className="w-full p-5 dashboard-card" style={{ borderStyle: "dashed" }}>
+                      <div className="flex items-center gap-4 mb-3">
+                        <div className="w-12 h-12 rounded-xl bg-yellow-500/10 flex items-center justify-center">
+                          <Zap className="w-6 h-6 text-yellow-400" />
+                        </div>
+                        <div className="text-left">
+                          <div className="font-semibold text-sm">Dev Login</div>
+                          <div className="text-[10px] text-muted font-mono tracking-tight leading-none italic opacity-70">Testing/Debug Only</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          defaultValue="1"
+                          id="dev-user-id"
+                          placeholder="Telegram User ID"
+                          className="flex-1 px-3 py-2 text-sm font-mono dark-input"
+                        />
+                        <button
+                          onClick={() => {
+                            const val = (document.getElementById("dev-user-id") as HTMLInputElement)?.value;
+                            if (val) {
+                              setLoginLoading(true);
+                              setLoginError(null);
+                              loginManual(Number(val))
+                                .then(() => next())
+                                .catch((err) => setLoginError(err instanceof Error ? err.message : "Dev login failed"))
+                                .finally(() => setLoginLoading(false));
+                            }
+                          }}
+                          disabled={loginLoading}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-primary text-white text-sm font-medium hover:bg-blue-dark transition-all disabled:opacity-50"
+                        >
+                          {loginLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <ArrowRight className="w-4 h-4" />
+                          )}
+                          Login
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {loginError && (
                     <div className="text-center text-sm text-red-400 font-mono bg-red-500/5 border border-red-500/20 rounded-lg px-4 py-2">
