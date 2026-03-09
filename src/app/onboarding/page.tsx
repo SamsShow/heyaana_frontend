@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, ArrowLeft, Send, Sparkles, Wand2, Shield, Zap, Globe, Lock, Coins, TrendingUp, Users, Info, HelpCircle, Mail, MessageSquare, Twitter, Github, Globe2, Wallet, LogIn, ChevronDown, Check, Copy, LogOut, MessageCircle, ArrowRight, Bot, Flame, Loader2 } from "lucide-react";
 import { useTelegramWidget } from "@/lib/useTelegramWidget";
+import { TOKEN_STORAGE_KEY } from "@/lib/auth-api";
 import { useAuth } from "@/lib/useAuth";
 
 const STEPS = [
@@ -70,23 +71,25 @@ function OnboardingPageContent() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [currentHostname, setCurrentHostname] = useState<string | null>(null);
-  const [showDevLogin, setShowDevLogin] = useState(true);
   const [bootstrapped, setBootstrapped] = useState(false);
   const telegramRef = useRef<HTMLDivElement>(null);
   const draftHydratedRef = useRef(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isLoading, hasSessionToken, isAuthenticated, loginManual, login, loginWidget } = useAuth({ probeOnboarding: true });
+  const { user, isLoading, hasSessionToken, isAuthenticated, login, loginWidget } = useAuth({ probeOnboarding: true });
   const TELEGRAM_BOT_USERNAME = (process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "heyanna_ai_bot").replace(/^@/, "");
   const userOnboardingKey = getUserOnboardingKey(user);
 
   const next = () => setStep((s) => Math.min(s + 1, 5));
   const prev = () => setStep((s) => Math.max(s - 1, 1));
   const handleContinue = useCallback(() => {
-    if (step === 1 && !isAuthenticated) {
-      setLoginError("Please sign in with Telegram before continuing.");
-      return;
+    if (step === 1) {
+      const hasToken = typeof window !== "undefined" && !!localStorage.getItem(TOKEN_STORAGE_KEY);
+      if (!isAuthenticated && !hasToken) {
+        setLoginError("Please sign in with Telegram before continuing.");
+        return;
+      }
     }
     next();
   }, [step, isAuthenticated]);
@@ -161,6 +164,8 @@ function OnboardingPageContent() {
   useEffect(() => {
     const tgError = searchParams.get("tg_error");
     if (!tgError) return;
+    // Don't show tg_error if user already has a token (e.g. logged in via redirect)
+    if (typeof window !== "undefined" && localStorage.getItem(TOKEN_STORAGE_KEY)) return;
     const detail = searchParams.get("tg_detail");
     const readable =
       tgError === "missing_hash"
@@ -170,15 +175,9 @@ function OnboardingPageContent() {
           : tgError === "missing_token"
             ? "Telegram auth response missing token."
             : tgError === "internal_error"
-              ? `Server error during Telegram auth.${detail ? ` ${detail}` : " Please try again or use Dev Login below."}`
+              ? `Server error during Telegram auth.${detail ? ` ${detail}` : " Please try again."}`
               : `Telegram login failed (${tgError}). Please try again.`;
     setLoginError(readable);
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (searchParams.get("dev") === "true") {
-      setShowDevLogin(true);
-    }
   }, [searchParams]);
 
   // If opened inside Telegram Mini App, prefer secure initData auth.
@@ -199,7 +198,17 @@ function OnboardingPageContent() {
       setLoginError(null);
       try {
         await login(initData);
-        if (!cancelled) next();
+        if (!cancelled) {
+          if (typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            if (url.searchParams.has("tg_error") || url.searchParams.has("tg_detail")) {
+              url.searchParams.delete("tg_error");
+              url.searchParams.delete("tg_detail");
+              router.replace(url.pathname + url.search);
+            }
+          }
+          next();
+        }
       } catch (err) {
         if (!cancelled) {
           setLoginError(
@@ -214,7 +223,7 @@ function OnboardingPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [step, login]);
+  }, [step, login, router]);
 
   // Use the onAuth callback for the JSON response flow
   const { renderWidget } = useTelegramWidget({
@@ -223,7 +232,18 @@ function OnboardingPageContent() {
       setLoginLoading(true);
       setLoginError(null);
       loginWidget(user)
-        .then(() => next())
+        .then(() => {
+          // Clear tg_error from URL so it doesn't re-trigger the error effect
+          if (typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            if (url.searchParams.has("tg_error") || url.searchParams.has("tg_detail")) {
+              url.searchParams.delete("tg_error");
+              url.searchParams.delete("tg_detail");
+              router.replace(url.pathname + url.search);
+            }
+          }
+          next();
+        })
         .catch((err) => setLoginError(err instanceof Error ? err.message : "Login failed"))
         .finally(() => setLoginLoading(false));
     },
@@ -341,52 +361,6 @@ function OnboardingPageContent() {
                     Current host:{" "}
                     <span className="text-foreground">{currentHostname ?? "unknown"}</span>
                   </p>
-
-                  {/* Dev Login (hidden by default, use ?dev=true to show) */}
-                  {showDevLogin && (
-                    <div className="w-full p-5 dashboard-card" style={{ borderStyle: 'dashed' }}>
-                      <div className="flex items-center gap-4 mb-3">
-                        <div className="w-12 h-12 rounded-xl bg-yellow-500/10 flex items-center justify-center">
-                          <Zap className="w-6 h-6 text-yellow-400" />
-                        </div>
-                        <div className="text-left">
-                          <div className="font-semibold text-sm">Dev Login</div>
-                          <div className="text-[10px] text-muted font-mono tracking-tight leading-none italic opacity-70">Testing/Debug Only</div>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          defaultValue="1"
-                          id="dev-user-id"
-                          placeholder="Telegram User ID"
-                          className="flex-1 px-3 py-2 text-sm font-mono dark-input"
-                        />
-                        <button
-                          onClick={() => {
-                            const val = (document.getElementById("dev-user-id") as HTMLInputElement)?.value;
-                            if (val) {
-                              setLoginLoading(true);
-                              setLoginError(null);
-                              loginManual(Number(val))
-                                .then(() => next())
-                                .catch((err) => setLoginError(err instanceof Error ? err.message : "Dev login failed"))
-                                .finally(() => setLoginLoading(false));
-                            }
-                          }}
-                          disabled={loginLoading}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-primary text-white text-sm font-medium hover:bg-blue-dark transition-all disabled:opacity-50"
-                        >
-                          {loginLoading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <ArrowRight className="w-4 h-4" />
-                          )}
-                          Login
-                        </button>
-                      </div>
-                    </div>
-                  )}
 
                   {loginError && (
                     <div className="text-center text-sm text-red-400 font-mono bg-red-500/5 border border-red-500/20 rounded-lg px-4 py-2">
@@ -558,7 +532,9 @@ function OnboardingPageContent() {
                 <Link
                   href="/dashboard"
                   onClick={(e) => {
-                    if (!isAuthenticated) {
+                    // Check token directly — hasSessionToken is stale (set only on mount, before login)
+                    const hasToken = typeof window !== "undefined" && !!localStorage.getItem(TOKEN_STORAGE_KEY);
+                    if (!isAuthenticated && !hasToken) {
                       e.preventDefault();
                       setLoginError("Please sign in with Telegram before launching dashboard.");
                       setStep(1);

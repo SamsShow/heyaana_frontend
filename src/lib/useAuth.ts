@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   loginTelegram,
@@ -38,10 +38,8 @@ export function useAuth(options?: UseAuthOptions) {
   const router = useRouter();
   const pathname = usePathname();
   const probeOnboarding = options?.probeOnboarding ?? false;
-  const [hasSessionToken] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return !!localStorage.getItem(TOKEN_STORAGE_KEY);
-  });
+  // Read token on each render so it updates after login (useState would stay stale)
+  const hasSessionToken = typeof window !== "undefined" ? !!localStorage.getItem(TOKEN_STORAGE_KEY) : false;
 
   // Don't probe /me on unauthenticated pages — avoids a noisy 401 in the console
   const onOnboarding = pathname === "/onboarding" || pathname === "/onboarding/";
