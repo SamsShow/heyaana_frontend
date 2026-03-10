@@ -1,18 +1,17 @@
 "use client";
 
 import useSWR from "swr";
+import { gammaFetcher, type Market } from "@/lib/api";
 import { EventCard, EventCardSkeleton, type EventCardData } from "./EventCard";
 import type { ViewMode } from "./MarketFeedNav";
 
-// Raw Gamma API types (matches the actual Polymarket Gamma API response)
+// ── Raw Gamma types for events fetcher ─────────────────────────
 type RawGammaMarket = {
   conditionId?: string;
   condition_id?: string;
   question?: string;
-  outcomePrices?: string; // JSON string e.g. '["0.25","0.75"]'
-  outcomes?: string;      // JSON string e.g. '["Yes","No"]'
+  outcomePrices?: string;
   volume?: string | number;
-  liquidity?: string | number;
   active?: boolean;
   closed?: boolean;
   endDate?: string;
@@ -28,8 +27,6 @@ type RawGammaEvent = {
   image?: string;
   icon?: string;
   volume?: string | number;
-  volume24hr?: string | number;
-  liquidity?: string | number;
   endDate?: string;
   markets?: RawGammaMarket[];
   tags?: Array<{ id: string | number; label: string }>;
@@ -51,31 +48,30 @@ function parseNum(v: string | number | undefined): number {
   return isNaN(n) ? 0 : n;
 }
 
-async function gammaEventsFetcher(url: string): Promise<EventCardData[]> {
+// ── Events fetcher: groups markets under their parent event ─────
+async function eventsFetcher(url: string): Promise<EventCardData[]> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Gamma API error: ${res.status}`);
   const events: RawGammaEvent[] = await res.json();
 
   return events
-    .filter((event) => !!event.title)
+    .filter((e) => !!e.title)
     .map((event) => {
       const allMarkets = event.markets ?? [];
-      // Show active markets (not closed); keep all if none pass filter
-      const activeMarkets = allMarkets.filter((m) => !m.closed);
-      const displayMarkets = (activeMarkets.length > 0 ? activeMarkets : allMarkets).slice(0, 5);
-
+      const active = allMarkets.filter((m) => !m.closed);
+      const display = (active.length > 0 ? active : allMarkets).slice(0, 5);
       const vol = parseNum(event.volume);
-      const volume =
-        vol > 0 ? vol : allMarkets.reduce((s, m) => s + parseNum(m.volume), 0);
+      const volume = vol > 0 ? vol : allMarkets.reduce((s, m) => s + parseNum(m.volume), 0);
 
       return {
         id: event.id ?? 0,
+        slug: event.slug ?? event.ticker ?? String(event.id ?? ""),
         title: event.title ?? "",
         image: event.image ?? event.icon,
         category: event.tags?.[0]?.label ?? "Other",
         volume,
         close_time: event.endDate ?? allMarkets[0]?.endDate ?? null,
-        markets: displayMarkets.map((m) => ({
+        markets: display.map((m) => ({
           question: m.question ?? event.title ?? "",
           yesPrice: parsePrice(m.outcomePrices, 0),
           noPrice: parsePrice(m.outcomePrices, 1),
@@ -85,6 +81,27 @@ async function gammaEventsFetcher(url: string): Promise<EventCardData[]> {
     });
 }
 
+// ── Markets fetcher: individual binary markets ──────────────────
+async function marketsFetcher(url: string): Promise<EventCardData[]> {
+  const markets: Market[] = await gammaFetcher(url);
+  return markets.map((m, i) => ({
+    id: m.id ?? i,
+    slug: m.event_ticker ?? m.ticker ?? String(m.condition_id ?? i),
+    title: m.title,
+    image: m.image,
+    category: "Market",
+    volume: m.volume,
+    close_time: m.close_time,
+    markets: [{
+      question: m.title,
+      yesPrice: m.yes_bid ?? 0,
+      noPrice: m.no_bid ?? 100,
+      conditionId: m.condition_id,
+    }],
+  }));
+}
+
+// ── URL builder ─────────────────────────────────────────────────
 function buildUrl(tagId: number | null): string {
   const p = new URLSearchParams({
     active: "true",
@@ -93,12 +110,11 @@ function buildUrl(tagId: number | null): string {
     order: "volume",
     ascending: "false",
   });
-  if (tagId !== null) {
-    p.set("tag_id", String(tagId));
-  }
+  if (tagId !== null) p.set("tag_id", String(tagId));
   return `/api/gamma?${p.toString()}`;
 }
 
+// ── Component ───────────────────────────────────────────────────
 interface Props {
   viewMode: ViewMode;
   tagId: number | null;
@@ -107,25 +123,26 @@ interface Props {
 
 export function MarketFeed({ viewMode, tagId, className }: Props) {
   const url = buildUrl(tagId);
-  const { data: events, error, isLoading } = useSWR(url, gammaEventsFetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 60_000,
-  });
+
+  const { data: events, error, isLoading } = useSWR(
+    // Different cache key per mode so toggling re-fetches with correct fetcher
+    viewMode === "events" ? `events:${url}` : `markets:${url}`,
+    () => viewMode === "events" ? eventsFetcher(url) : marketsFetcher(url),
+    { revalidateOnFocus: false, dedupingInterval: 60_000 },
+  );
 
   if (error) {
     return (
       <div className={`flex items-center justify-center p-12 ${className}`}>
-        <p className="text-sm text-[var(--muted)]">Failed to load markets. Please try again.</p>
+        <p className="text-sm text-[var(--muted)]">Failed to load. Please try again.</p>
       </div>
     );
   }
 
   if (isLoading || !events) {
     return (
-      <div className={`grid grid-cols-3 gap-3 p-3 content-start ${className}`}>
-        {Array.from({ length: 9 }).map((_, i) => (
-          <EventCardSkeleton key={i} />
-        ))}
+      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-3 content-start ${className}`}>
+        {Array.from({ length: 6 }).map((_, i) => <EventCardSkeleton key={i} />)}
       </div>
     );
   }
@@ -133,15 +150,15 @@ export function MarketFeed({ viewMode, tagId, className }: Props) {
   if (events.length === 0) {
     return (
       <div className={`flex items-center justify-center p-12 ${className}`}>
-        <p className="text-sm text-[var(--muted)]">No markets found for this category.</p>
+        <p className="text-sm text-[var(--muted)]">No markets found.</p>
       </div>
     );
   }
 
   return (
-    <div className={`grid grid-cols-3 gap-3 p-3 content-start ${className}`}>
-      {events.map((event) => (
-        <EventCard key={event.id} event={event} mode={viewMode} />
+    <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-3 content-start ${className}`}>
+      {events.map((event, i) => (
+        <EventCard key={`${event.id}-${i}`} event={event} mode={viewMode} />
       ))}
     </div>
   );

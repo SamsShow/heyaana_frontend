@@ -164,6 +164,48 @@ function TradeItem({ trade }: { trade: Trade }) {
   );
 }
 
+// ── Mobile stats strip (horizontal scroll) ───────────────────
+export function StatsMobileStrip() {
+  const { data: metaStats } = useSWR<MetaStatsResponse>(
+    "/api/v1/analysis/meta_stats",
+    fetcher,
+    { revalidateOnFocus: false, refreshInterval: 60_000 }
+  );
+
+  const metrics = metaStats?.data;
+  const totalVolume = getMetricValue(metrics, "volume");
+  const totalTrades = getMetricValue(metrics, "trades");
+  const uniqueMarkets = getMetricValue(metrics, "market");
+
+  const chips = [
+    { icon: Zap,      label: "Smart Flow", value: fmt(totalVolume * 0.1),  change: "+0.0%",  neg: false },
+    { icon: BarChart2,label: "24h Vol",    value: fmt(totalVolume * 0.25), change: "-1.4%",  neg: true  },
+    { icon: Layers,   label: "Open Int.",  value: fmt(totalVolume * 0.8),  change: "-5.1%",  neg: true  },
+    { icon: FileText, label: "Markets",    value: (totalTrades || uniqueMarkets).toLocaleString(), change: undefined, neg: false },
+  ];
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto scrollbar-none border-b border-[var(--border-color)] flex-shrink-0 lg:hidden w-full min-w-0">
+      {chips.map(({ icon: Icon, label, value, change, neg }) => (
+        <div key={label} className="flex items-center gap-2 bg-[var(--surface)] border border-[var(--border-color)] rounded-xl px-3 py-2 flex-shrink-0">
+          <Icon className="w-3.5 h-3.5 text-[var(--muted)]" />
+          <div>
+            <p className="text-[10px] text-[var(--muted)] leading-none mb-0.5">{label}</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-sm font-bold text-[var(--foreground)] leading-none">{value}</span>
+              {change && (
+                <span className={`text-[10px] font-semibold ${neg ? "text-red-400" : "text-green-400"}`}>
+                  {change}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Main sidebar ─────────────────────────────────────────────
 interface Props {
   className?: string;

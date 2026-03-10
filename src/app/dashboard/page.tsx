@@ -6,7 +6,7 @@ import Link from "next/link";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { MarketFeedNav, type ViewMode } from "@/components/dashboard/MarketFeedNav";
 import { MarketFeed } from "@/components/dashboard/MarketFeed";
-import { StatsSidebar } from "@/components/dashboard/StatsSidebar";
+import { StatsSidebar, StatsMobileStrip } from "@/components/dashboard/StatsSidebar";
 import { proxyFetcher } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
 import { ShieldAlert, X } from "lucide-react";
@@ -32,7 +32,7 @@ export default function DashboardPage() {
 
   return (
     <DashboardChrome title="Dashboard">
-      <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex flex-col h-full w-full overflow-x-hidden overflow-y-hidden">
         {/* Approval warning banner */}
         {showApprovalWarning && (
           <div className="flex items-start gap-3 p-3 mx-3 mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 flex-shrink-0">
@@ -58,6 +58,9 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Mobile stats strip */}
+        <StatsMobileStrip />
+
         {/* Category nav */}
         <MarketFeedNav
           viewMode={viewMode}
@@ -75,8 +78,8 @@ export default function DashboardPage() {
             className="flex-1 overflow-y-auto"
           />
 
-          {/* Right stats sidebar */}
-          <div className="w-[300px] flex-shrink-0 border-l border-[var(--border-color)] overflow-y-auto">
+          {/* Right stats sidebar — desktop only */}
+          <div className="hidden lg:flex w-[300px] flex-shrink-0 border-l border-[var(--border-color)] overflow-y-auto flex-col">
             <StatsSidebar className="h-full" />
           </div>
         </div>

@@ -2,6 +2,7 @@
 
 import { Link2, Bookmark, Clock } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import type { ViewMode } from "./MarketFeedNav";
 
 export type MarketOutcome = {
@@ -13,6 +14,7 @@ export type MarketOutcome = {
 
 export type EventCardData = {
   id: number;
+  slug: string;
   title: string;
   image?: string;
   category: string;
@@ -45,13 +47,30 @@ interface Props {
 }
 
 export function EventCard({ event, mode }: Props) {
+  const router = useRouter();
   const topMarkets = event.markets.slice(0, 3);
   const firstMarket = event.markets[0];
   const yesPrice = firstMarket?.yesPrice ?? 0;
   const noPrice = firstMarket?.noPrice ?? 100;
 
+  function handleClick() {
+    // If single binary market, go directly to market detail
+    if (event.markets.length === 1 && firstMarket?.conditionId) {
+      const url = new URL("/dashboard/market", window.location.origin);
+      url.searchParams.set("conditionId", firstMarket.conditionId);
+      router.push(url.pathname + url.search);
+      return;
+    }
+    // Multi-outcome event → go to event page
+    const url = new URL("/dashboard/markets/event", window.location.origin);
+    url.searchParams.set("slug", event.slug);
+    url.searchParams.set("title", event.title);
+    if (event.image) url.searchParams.set("img", event.image);
+    router.push(url.pathname + url.search);
+  }
+
   return (
-    <div className="flex flex-col bg-[var(--surface)] border border-[var(--border-color)] rounded-2xl cursor-pointer hover:border-white/10 transition-all hover:bg-[var(--surface-hover)]">
+    <div onClick={handleClick} className="flex flex-col bg-[var(--surface)] border border-[var(--border-color)] rounded-2xl cursor-pointer hover:border-white/10 transition-all hover:bg-[var(--surface-hover)]">
       {/* ── Card header ─────────────────────────────── */}
       <div className="flex items-start gap-3 p-4 pb-3">
         {/* Event image */}
@@ -90,70 +109,58 @@ export function EventCard({ event, mode }: Props) {
       </div>
 
       {/* ── Content area ────────────────────────────── */}
-      <div className="px-4 pb-3 flex-1">
+      <div className="px-4 pb-3">
         {mode === "events" ? (
           /* Multi-outcome rows */
-          <div className="space-y-1.5">
-            {topMarkets.length > 0 ? (
-              topMarkets.map((market, i) => (
-                <div key={i} className="flex items-center gap-2 min-w-0">
-                  <span className="text-[13px] text-[var(--foreground)] flex-1 min-w-0 truncate">
-                    {truncate(market.question, 16)}
-                  </span>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#1a3a22] text-[#4ade80]">
-                      Yes {market.yesPrice}¢
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#3a1a1a] text-[#f87171]">
-                      No {market.noPrice}¢
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              /* Fallback: show the event as a single binary market */
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-[13px] text-[var(--muted)] flex-1 min-w-0 truncate">
-                  {truncate(event.title, 16)}
+          <div className="space-y-2">
+            {(topMarkets.length > 0 ? topMarkets : [{ question: event.title, yesPrice: 0, noPrice: 100 }]).map((market, i) => (
+              <div key={i} className="flex items-center justify-between gap-2">
+                <span className="text-[12px] text-[var(--foreground)] truncate shrink min-w-0">
+                  {truncate(market.question, 14)}
                 </span>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#1a3a22] text-[#4ade80]">
-                    Yes –
+                <div className="flex items-center gap-1 shrink-0">
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap"
+                    style={{ background: "rgba(74,222,128,0.18)", color: "#4ade80" }}
+                  >
+                    Yes {market.yesPrice}¢
                   </span>
-                  <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#3a1a1a] text-[#f87171]">
-                    No –
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap"
+                    style={{ background: "rgba(248,113,113,0.18)", color: "#f87171" }}
+                  >
+                    No {market.noPrice}¢
                   </span>
                 </div>
               </div>
-            )}
+            ))}
           </div>
         ) : (
           /* Binary progress bar (Markets mode) */
           <div className="space-y-2.5">
             <div>
               <div className="flex justify-between text-[12px] font-semibold mb-1.5">
-                <span className={yesPrice >= 50 ? "text-[#4ade80]" : "text-[#f87171]"}>
-                  {yesPrice}%
-                </span>
-                <span className={noPrice > 50 ? "text-[#4ade80]" : "text-[#f87171]"}>
-                  {noPrice}%
-                </span>
+                <span style={{ color: yesPrice >= 50 ? "#4ade80" : "#f87171" }}>{yesPrice}%</span>
+                <span style={{ color: noPrice > 50 ? "#4ade80" : "#f87171" }}>{noPrice}%</span>
               </div>
-              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "#3a1a1a" }}>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(248,113,113,0.2)" }}>
                 <div
                   className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${yesPrice}%`,
-                    background: yesPrice > 10 ? "#22c55e" : "#ef4444",
-                  }}
+                  style={{ width: `${yesPrice}%`, background: yesPrice > 10 ? "#22c55e" : "#ef4444" }}
                 />
               </div>
             </div>
             <div className="flex gap-2">
-              <button className="flex-1 py-2 rounded-xl text-[12px] font-semibold bg-[#1a3a22] text-[#4ade80] hover:bg-[#1f4a2a] transition-colors">
+              <button
+                className="flex-1 py-2 rounded-xl text-[12px] font-semibold transition-colors"
+                style={{ background: "rgba(74,222,128,0.15)", color: "#4ade80" }}
+              >
                 Buy Yes {yesPrice}¢
               </button>
-              <button className="flex-1 py-2 rounded-xl text-[12px] font-semibold bg-[#3a1a1a] text-[#f87171] hover:bg-[#4a2020] transition-colors">
+              <button
+                className="flex-1 py-2 rounded-xl text-[12px] font-semibold transition-colors"
+                style={{ background: "rgba(248,113,113,0.15)", color: "#f87171" }}
+              >
                 Buy No {noPrice}¢
               </button>
             </div>
@@ -162,21 +169,19 @@ export function EventCard({ event, mode }: Props) {
       </div>
 
       {/* ── Footer ──────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-4 py-3 border-t border-[var(--border-color)]">
+      <div className="flex items-center gap-2 px-4 py-3 border-t border-[var(--border-color)] mt-1">
         <span className="text-[12px] text-[var(--muted)] flex-1 min-w-0 truncate">
           {formatVolume(event.volume)} Vol.
         </span>
-        <div className="flex items-center gap-2.5 flex-shrink-0">
-          <button className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
-            <Link2 className="w-3.5 h-3.5" />
-          </button>
-          <button className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
-            <Bookmark className="w-3.5 h-3.5" />
-          </button>
-          <div className="flex items-center gap-1 text-[var(--muted)]">
-            <Clock className="w-3 h-3" />
-            <span className="text-[11px]">{formatDate(event.close_time)}</span>
-          </div>
+        <div className="flex items-center gap-2 flex-shrink-0 text-[var(--muted)]">
+          <Link2 className="w-3.5 h-3.5 hover:text-[var(--foreground)] cursor-pointer transition-colors" />
+          <Bookmark className="w-3.5 h-3.5 hover:text-[var(--foreground)] cursor-pointer transition-colors" />
+          {event.close_time && (
+            <div className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              <span className="text-[11px]">{formatDate(event.close_time)}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
