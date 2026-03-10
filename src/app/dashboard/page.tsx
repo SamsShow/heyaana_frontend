@@ -4,14 +4,18 @@ import { useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
-import { DashboardSummary } from "@/components/dashboard/DashboardSummary";
-import { DashboardMixPanel } from "@/components/dashboard/DashboardMixPanel";
+import { MarketFeedNav, type ViewMode } from "@/components/dashboard/MarketFeedNav";
+import { MarketFeed } from "@/components/dashboard/MarketFeed";
+import { StatsSidebar } from "@/components/dashboard/StatsSidebar";
 import { proxyFetcher } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
-import { ShieldAlert, X, ArrowRight, BarChart3 } from "lucide-react";
+import { ShieldAlert, X } from "lucide-react";
 
 export default function DashboardPage() {
   const [warnDismissed, setWarnDismissed] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("events");
+  const [tagId, setTagId] = useState<number | null>(null);
+
   const { isAuthenticated } = useAuth();
 
   const { data: statusData } = useSWR<{ polymarket_approved?: boolean }>(
@@ -28,24 +32,19 @@ export default function DashboardPage() {
 
   return (
     <DashboardChrome title="Dashboard">
-      <div className="p-4 md:p-6 space-y-8 max-w-[1400px] mx-auto">
+      <div className="flex flex-col h-full overflow-hidden">
         {/* Approval warning banner */}
         {showApprovalWarning && (
-          <div className="flex items-start gap-3 p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 dashboard-card">
-            <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 p-3 mx-3 mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 flex-shrink-0">
+            <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-amber-300">
-                Trades not approved yet
-              </p>
+              <p className="text-xs font-semibold text-amber-300">Trades not approved yet</p>
               <p className="text-xs text-amber-400/70 mt-0.5 leading-relaxed">
-                You need to approve Polymarket trading allowances before placing
-                trades. This requires a small amount of{" "}
-                <span className="font-semibold text-amber-300">POL</span> for
-                gas fees on Polygon.
+                You need to approve Polymarket trading allowances before placing trades.
               </p>
               <Link
                 href="/dashboard/profile"
-                className="inline-flex items-center gap-1 mt-2 text-xs font-semibold text-amber-300 hover:text-amber-200 underline underline-offset-2 transition-colors"
+                className="inline-flex items-center gap-1 mt-1.5 text-xs font-semibold text-amber-300 hover:text-amber-200 underline underline-offset-2 transition-colors"
               >
                 Go to Profile → Approve Trades
               </Link>
@@ -59,32 +58,28 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Stats + Promo */}
-        <DashboardSummary />
+        {/* Category nav */}
+        <MarketFeedNav
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          tagId={tagId}
+          setTagId={setTagId}
+        />
 
-        {/* Activity / Operations */}
-        <DashboardMixPanel />
+        {/* Main content: feed + sidebar */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          {/* Market cards grid */}
+          <MarketFeed
+            viewMode={viewMode}
+            tagId={tagId}
+            className="flex-1 overflow-y-auto"
+          />
 
-        {/* Analytics link card */}
-        <Link
-          href="/dashboard/analytics"
-          className="dashboard-card flex items-center justify-between p-5 group hover:border-[var(--blue-primary)]/30 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--blue-primary)]/10 flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-[var(--blue-primary)]" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-[var(--foreground)]">
-                View Full Analytics
-              </p>
-              <p className="text-xs text-[var(--muted)]">
-                15 chart signals &amp; deep market insights
-              </p>
-            </div>
+          {/* Right stats sidebar */}
+          <div className="w-[300px] flex-shrink-0 border-l border-[var(--border-color)] overflow-y-auto">
+            <StatsSidebar className="h-full" />
           </div>
-          <ArrowRight className="w-5 h-5 text-[var(--muted)] group-hover:text-[var(--blue-primary)] transition-colors" />
-        </Link>
+        </div>
       </div>
     </DashboardChrome>
   );
