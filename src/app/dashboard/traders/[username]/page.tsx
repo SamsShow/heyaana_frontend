@@ -158,6 +158,11 @@ export default function TraderProfilePage() {
   const winRateParam = parseFloat(searchParams.get("winRate") ?? "");
   // Wallet address passed from leaderboard — new endpoint uses address
   const walletParam = searchParams.get("wallet") ?? "";
+  // Display name from global leaderboard (Polymarket userName)
+  const nameParam = searchParams.get("name") ?? "";
+  // PNL/Vol from global leaderboard
+  const globalPnl = parseFloat(searchParams.get("pnl") ?? "");
+  const globalVol = parseFloat(searchParams.get("vol") ?? "");
 
   const [activeTab, setActiveTab] = useState<"positions" | "activity">("positions");
   const [activeTf, setActiveTf] = useState<(typeof TIMEFRAMES)[number]>("1M");
@@ -223,11 +228,11 @@ export default function TraderProfilePage() {
   }
 
   const portfolioVal = portfolio?.totals?.portfolio_value ?? portfolio?.portfolio_value;
-  const totalPnl = portfolio?.totals?.total_pnl ?? portfolio?.total_pnl;
+  const totalPnl = portfolio?.totals?.total_pnl ?? portfolio?.total_pnl ?? (Number.isFinite(globalPnl) ? globalPnl : undefined);
   const wallet = portfolio?.wallet;
   const positions = portfolio?.positions ?? [];
   const posValue = positions.reduce((acc, p) => acc + (p.current_value ?? 0), 0);
-  const displayName = portfolio?.first_name ?? username;
+  const displayName = portfolio?.first_name ?? (nameParam || username);
   const initials = displayName.slice(0, 2).toUpperCase();
 
   return (
@@ -376,7 +381,7 @@ export default function TraderProfilePage() {
                       value={posValue > 0 ? fmt$(posValue) : portfolioVal !== undefined ? fmt$(portfolioVal) : "—"}
                     />
                     <StatCell label="Trades/Day" value={Number.isFinite(tradeCountParam) ? String(tradeCountParam) : "—"} />
-                    <StatCell label="Volume" value={Number.isFinite(profitParam) ? fmt$(Math.abs(profitParam)) : "—"} />
+                    <StatCell label="Volume" value={Number.isFinite(globalVol) && globalVol > 0 ? fmt$(globalVol) : Number.isFinite(profitParam) ? fmt$(Math.abs(profitParam)) : "—"} />
                     <StatCell label="Biggest Win" value="—" />
                   </div>
                 </div>

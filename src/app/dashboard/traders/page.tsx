@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/useAuth";
 import { CopyTradeModal } from "@/components/dashboard/CopyTradeModal";
 import {
   Loader2, Users, UserPlus, UserMinus, AlertCircle,
-  Search, ChevronDown, X, Lightbulb, Globe, Trophy, ExternalLink,
+  Search, ChevronDown, X, Lightbulb, Globe, Trophy,
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 
@@ -165,8 +165,10 @@ function GlobalTraderCard({ entry }: { entry: GlobalLeaderboardEntry }) {
   const pnl = Number(entry.pnl ?? 0);
   const vol = Number(entry.vol ?? 0);
   const username = entry.userName ?? "";
-  // Global leaderboard users are Polymarket traders — link to Polymarket profile
-  const polymarketHref = wallet ? `https://polymarket.com/profile/${wallet}` : null;
+  // Link to internal profile using wallet address as the identifier
+  const profileHref = wallet
+    ? `/dashboard/traders/${encodeURIComponent(wallet)}?wallet=${encodeURIComponent(wallet)}&name=${encodeURIComponent(username)}&pnl=${pnl.toFixed(2)}&vol=${vol.toFixed(2)}`
+    : null;
 
   const rankColors: Record<number, string> = {
     1: "from-amber-400/40 to-yellow-500/20 border-amber-500/40",
@@ -175,8 +177,8 @@ function GlobalTraderCard({ entry }: { entry: GlobalLeaderboardEntry }) {
   };
   const avatarClass = rankColors[entry.rank] ?? "from-blue-primary/20 to-purple-500/10 border-border";
 
-  return (
-    <div className="flex items-center gap-4 px-5 py-4 border-b border-border/30 last:border-0 hover:bg-surface/40 transition-all group">
+  const inner = (
+    <div className="flex items-center gap-4 px-5 py-4 border-b border-border/30 last:border-0 hover:bg-surface/40 transition-all group cursor-pointer">
       <div className="relative shrink-0">
         <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${avatarClass} border flex items-center justify-center text-sm font-bold`}>
           {(username || "?").slice(0, 2).toUpperCase()}
@@ -188,7 +190,9 @@ function GlobalTraderCard({ entry }: { entry: GlobalLeaderboardEntry }) {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-sm font-semibold truncate">{username || "Unknown"}</span>
+          <span className="text-sm font-semibold truncate group-hover:text-blue-400 transition-colors">
+            {username || "Unknown"}
+          </span>
         </div>
         <div className="flex items-center gap-3 text-xs font-mono text-muted">
           <span className="truncate">{short}</span>
@@ -198,28 +202,16 @@ function GlobalTraderCard({ entry }: { entry: GlobalLeaderboardEntry }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 shrink-0">
-        <div className="flex flex-col items-end gap-0.5">
-          <span className={`text-sm font-bold font-mono ${pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-            {formatUsd(pnl)}
-          </span>
-          <span className="text-[10px] font-mono text-muted/50">PNL</span>
-        </div>
-        {polymarketHref && (
-          <a
-            href={polymarketHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="View on Polymarket"
-            className="shrink-0 p-1.5 rounded-lg border border-border text-muted hover:text-blue-400 hover:border-blue-500/30 transition-all"
-            onClick={e => e.stopPropagation()}
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-        )}
+      <div className="flex flex-col items-end gap-0.5 shrink-0">
+        <span className={`text-sm font-bold font-mono ${pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+          {formatUsd(pnl)}
+        </span>
+        <span className="text-[10px] font-mono text-muted/50">PNL</span>
       </div>
     </div>
   );
+
+  return profileHref ? <Link href={profileHref}>{inner}</Link> : inner;
 }
 
 // ── Filter pill ─────────────────────────────────────────────────
