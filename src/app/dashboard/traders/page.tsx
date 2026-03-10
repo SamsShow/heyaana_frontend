@@ -24,6 +24,7 @@ type FeedTrade = {
 
 type TraderStat = {
   rank: number; username: string; name: string;
+  wallet?: string;
   roi: number; winRate: number; wins30d: number; losses30d: number;
   profit: number; tradeCount: number; volume: number;
   lastTradeTs: number; alphaScore: number;
@@ -37,12 +38,14 @@ type Timeframe = "weekly" | "monthly" | "all";
 function buildLeaderboard(feed: FeedTrade[]): TraderStat[] {
   const now = Date.now();
   const ms30d = 30 * 24 * 60 * 60 * 1000;
-  const map = new Map<string, { username: string; name: string; trades: FeedTrade[] }>();
+  const map = new Map<string, { username: string; name: string; wallet?: string; trades: FeedTrade[] }>();
 
   for (const t of feed) {
     if (!t.username) continue;
-    if (!map.has(t.username)) map.set(t.username, { username: t.username, name: t.first_name ?? t.username, trades: [] });
-    map.get(t.username)!.trades.push(t);
+    if (!map.has(t.username)) map.set(t.username, { username: t.username, name: t.first_name ?? t.username, wallet: (t.proxyWallet as string | undefined), trades: [] });
+    const entry = map.get(t.username)!;
+    if (!entry.wallet && t.proxyWallet) entry.wallet = t.proxyWallet as string;
+    entry.trades.push(t);
   }
 
   return Array.from(map.values())
@@ -60,10 +63,9 @@ function buildLeaderboard(feed: FeedTrade[]): TraderStat[] {
       const roi = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
       const total30d = wins30d + losses30d;
       const winRate = total30d > 0 ? (wins30d / total30d) * 100 : trader.trades.length > 0 ? 60 : 0;
-      // Alpha score: composite of win rate (40%), ROI (30%), trade count (30%)
       const alphaScore = winRate * 0.4 + Math.max(0, roi) * 0.3 + Math.min(trader.trades.length * 2, 30);
       return {
-        rank: 0, username: trader.username, name: trader.name,
+        rank: 0, username: trader.username, name: trader.name, wallet: trader.wallet,
         roi, winRate, wins30d, losses30d, profit: totalPnl,
         tradeCount: trader.trades.length, volume: totalCost,
         lastTradeTs, alphaScore,
@@ -87,7 +89,7 @@ function TraderCard({ trader, isFollowing, isPending, onFollow }: {
   trader: TraderStat; isFollowing: boolean; isPending: boolean; onFollow: () => void;
 }) {
   const initials = trader.name.slice(0, 2).toUpperCase();
-  const profileHref = `/dashboard/traders/${trader.username}?roi=${trader.roi.toFixed(2)}&profit=${trader.profit.toFixed(2)}&tradeCount=${trader.tradeCount}&winRate=${trader.winRate.toFixed(2)}`;
+  const profileHref = `/dashboard/traders/${trader.username}?roi=${trader.roi.toFixed(2)}&profit=${trader.profit.toFixed(2)}&tradeCount=${trader.tradeCount}&winRate=${trader.winRate.toFixed(2)}${trader.wallet ? `&wallet=${encodeURIComponent(trader.wallet)}` : ""}`;
 
   return (
     <div className="flex items-center gap-4 px-5 py-4 border-b border-border/30 last:border-0 hover:bg-surface/40 transition-all">

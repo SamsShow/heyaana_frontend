@@ -156,6 +156,8 @@ export default function TraderProfilePage() {
   const profitParam = parseFloat(searchParams.get("profit") ?? "");
   const tradeCountParam = parseInt(searchParams.get("tradeCount") ?? "");
   const winRateParam = parseFloat(searchParams.get("winRate") ?? "");
+  // Wallet address passed from leaderboard — new endpoint uses address
+  const walletParam = searchParams.get("wallet") ?? "";
 
   const [activeTab, setActiveTab] = useState<"positions" | "activity">("positions");
   const [activeTf, setActiveTf] = useState<(typeof TIMEFRAMES)[number]>("1M");
@@ -166,8 +168,13 @@ export default function TraderProfilePage() {
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [showWatchModal, setShowWatchModal] = useState(false);
 
+  // Use wallet address for new endpoint, fall back to username
+  const portfolioKey = walletParam
+    ? `/api/proxy/users/${encodeURIComponent(walletParam)}/portfolio`
+    : `/api/proxy/users/${username}/portfolio`;
+
   const { data: portfolio, isLoading, error } = useSWR<UserPortfolio>(
-    `/api/proxy/users/${username}/portfolio`,
+    portfolioKey,
     proxyFetcher,
     { revalidateOnFocus: false }
   );
