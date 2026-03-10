@@ -733,6 +733,105 @@ export async function cancelTrade(orderId: string) {
     return data;
 }
 
+// ─── Global leaderboard ───────────────────────────────────
+
+export type GlobalLeaderboardEntry = {
+    rank: number;
+    userName: string;
+    proxyWallet: string;
+    pnl: number;
+    vol: number;
+    [key: string]: unknown;
+};
+
+export async function fetchGlobalLeaderboard(params?: {
+    limit?: number;
+    category?: string;
+    time_period?: string;
+    order_by?: string;
+    offset?: number;
+}): Promise<{ entries: GlobalLeaderboardEntry[]; params_used: Record<string, unknown> }> {
+    const p = new URLSearchParams();
+    if (params?.limit !== undefined) p.set("limit", String(params.limit));
+    if (params?.category) p.set("category", params.category);
+    if (params?.time_period) p.set("time_period", params.time_period);
+    if (params?.order_by) p.set("order_by", params.order_by);
+    if (params?.offset !== undefined) p.set("offset", String(params.offset));
+    const qs = p.toString() ? `?${p.toString()}` : "";
+    const res = await fetch(`${API2_BASE_URL}/social/leaderboard/pnl${qs}`, {
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`,
+        },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Failed to fetch leaderboard");
+    // API may return array directly or wrapped in various keys
+    if (Array.isArray(data)) return { entries: data as GlobalLeaderboardEntry[], params_used: {} };
+    // Try to find the array in the response under various common keys
+    const maybeArr =
+        data.entries ??
+        data.leaderboard ??
+        data.data ??
+        data.traders ??
+        data.results ??
+        data.rankings ??
+        // Some APIs wrap in the endpoint name
+        data.pnl_leaderboard ??
+        // Fallback: find first array value in the response object
+        Object.values(data as Record<string, unknown>).find(Array.isArray) ??
+        [];
+    return { entries: maybeArr as GlobalLeaderboardEntry[], params_used: (data.params_used ?? {}) as Record<string, unknown> };
+}
+
+// ─── USDC Swap ────────────────────────────────────────────
+
+export async function swapUSDC(amount: number | null): Promise<unknown> {
+    const res = await fetch(`${API2_BASE_URL}/swap`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`,
+        },
+        body: JSON.stringify({ amount }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Swap failed");
+    if (data.success === false) throw new Error(data.message ?? data.error ?? "Swap failed");
+    return data;
+}
+
+// ─── Market analysis ──────────────────────────────────────
+
+export type MarketAnalysis = {
+    query: string;
+    analysis_markdown?: string;
+    news_summary?: string;
+    market_view?: string;
+    prediction?: string;
+    probability?: number;
+    risk_score?: number;
+    analysis?: string;
+    [key: string]: unknown;
+};
+
+export async function analyzeMarket(query: string): Promise<MarketAnalysis> {
+    const res = await fetch(`${API2_BASE_URL}/analyze-market`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`,
+        },
+        body: JSON.stringify({ query }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Analysis failed");
+    return data as MarketAnalysis;
+}
+
 // ─── API helper functions ─────────────────────────────────
 
 export async function refreshCache(): Promise<Record<string, string>> {

@@ -3,14 +3,14 @@
 import useSWR from "swr";
 import Link from "next/link";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
-import { proxyFetcher, followTrader, unfollowTrader } from "@/lib/api";
+import { proxyFetcher, followTrader, unfollowTrader, fetchGlobalLeaderboard, GlobalLeaderboardEntry } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
 import { CopyTradeModal } from "@/components/dashboard/CopyTradeModal";
 import {
   Loader2, Users, UserPlus, UserMinus, AlertCircle,
-  Search, ChevronDown, X, Lightbulb,
+  Search, ChevronDown, X, Lightbulb, Globe, Trophy, ExternalLink,
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -147,6 +147,79 @@ function TraderCard({ trader, isFollowing, isPending, onFollow }: {
   );
 }
 
+// ── Global trader card ──────────────────────────────────────────
+
+function formatUsd(v: number): string {
+  const abs = Math.abs(v);
+  const sign = v >= 0 ? "+" : "-";
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(1)}K`;
+  return `${sign}$${abs.toFixed(2)}`;
+}
+
+function GlobalTraderCard({ entry }: { entry: GlobalLeaderboardEntry }) {
+  const wallet = entry.proxyWallet ?? "";
+  const short = wallet.length > 8 ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : wallet;
+  const pnl = Number(entry.pnl ?? 0);
+  const vol = Number(entry.vol ?? 0);
+  const username = entry.userName ?? "";
+  // Global leaderboard users are Polymarket traders — link to Polymarket profile
+  const polymarketHref = wallet ? `https://polymarket.com/profile/${wallet}` : null;
+
+  const rankColors: Record<number, string> = {
+    1: "from-amber-400/40 to-yellow-500/20 border-amber-500/40",
+    2: "from-slate-300/30 to-slate-400/20 border-slate-400/30",
+    3: "from-orange-600/30 to-amber-700/20 border-orange-600/30",
+  };
+  const avatarClass = rankColors[entry.rank] ?? "from-blue-primary/20 to-purple-500/10 border-border";
+
+  return (
+    <div className="flex items-center gap-4 px-5 py-4 border-b border-border/30 last:border-0 hover:bg-surface/40 transition-all group">
+      <div className="relative shrink-0">
+        <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${avatarClass} border flex items-center justify-center text-sm font-bold`}>
+          {(username || "?").slice(0, 2).toUpperCase()}
+        </div>
+        <span className={`absolute -bottom-1 -left-1 w-5 h-5 rounded-full bg-surface border border-border flex items-center justify-center text-[10px] font-bold font-mono ${entry.rank <= 3 ? "text-amber-400" : "text-muted"}`}>
+          {entry.rank}
+        </span>
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <span className="text-sm font-semibold truncate">{username || "Unknown"}</span>
+        </div>
+        <div className="flex items-center gap-3 text-xs font-mono text-muted">
+          <span className="truncate">{short}</span>
+          {vol > 0 && (
+            <span>Vol <span className="text-foreground/60">{formatUsd(vol)}</span></span>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 shrink-0">
+        <div className="flex flex-col items-end gap-0.5">
+          <span className={`text-sm font-bold font-mono ${pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+            {formatUsd(pnl)}
+          </span>
+          <span className="text-[10px] font-mono text-muted/50">PNL</span>
+        </div>
+        {polymarketHref && (
+          <a
+            href={polymarketHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="View on Polymarket"
+            className="shrink-0 p-1.5 rounded-lg border border-border text-muted hover:text-blue-400 hover:border-blue-500/30 transition-all"
+            onClick={e => e.stopPropagation()}
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Filter pill ─────────────────────────────────────────────────
 
 function FilterPill({ label, active, onClick }: { label: string; active?: boolean; onClick?: () => void }) {
@@ -180,6 +253,10 @@ const TIMEFRAME_OPTIONS: { key: Timeframe; label: string }[] = [
   { key: "all", label: "All Time" },
 ];
 
+const GLOBAL_CATEGORIES = ["OVERALL", "POLITICS", "SPORTS", "CRYPTO", "CULTURE", "WEATHER"];
+const GLOBAL_PERIODS = ["DAY", "WEEK", "MONTH", "ALL"];
+const GLOBAL_ORDER = ["PNL", "VOL"];
+
 export default function TradersPage() {
   const { isAuthenticated } = useAuth();
   const [pendingFollow, setPendingFollow] = useState<Set<string>>(new Set());
@@ -187,6 +264,17 @@ export default function TradersPage() {
   const [confirmFollowUser, setConfirmFollowUser] = useState<string | null>(null);
   const [optimisticFollowed, setOptimisticFollowed] = useState<Set<string>>(new Set());
   const [optimisticUnfollowed, setOptimisticUnfollowed] = useState<Set<string>>(new Set());
+
+  // View mode: global is default
+  const [viewMode, setViewMode] = useState<"local" | "global">("global");
+
+  // Global leaderboard params
+  const [globalCategory, setGlobalCategory] = useState("OVERALL");
+  const [globalPeriod, setGlobalPeriod] = useState("DAY");
+  const [globalOrderBy, setGlobalOrderBy] = useState("PNL");
+  const [globalEntries, setGlobalEntries] = useState<GlobalLeaderboardEntry[]>([]);
+  const [globalLoading, setGlobalLoading] = useState(false);
+  const [globalError, setGlobalError] = useState<string | null>(null);
 
   // Filter state
   const [search, setSearch] = useState("");
@@ -197,6 +285,31 @@ export default function TradersPage() {
 
   const { data: feedRaw, isLoading } = useSWR<unknown>("/api/proxy/trades?limit=100", proxyFetcher, { revalidateOnFocus: false, dedupingInterval: 60000 });
   const { data: followingData, mutate: mutateFollowing } = useSWR<unknown>(isAuthenticated ? "/api/proxy/copy-trading/following" : null, proxyFetcher, { revalidateOnFocus: true });
+
+  async function loadGlobalLeaderboard(category = globalCategory, period = globalPeriod, orderBy = globalOrderBy) {
+    setGlobalLoading(true);
+    setGlobalError(null);
+    try {
+      const result = await fetchGlobalLeaderboard({ limit: 50, category, time_period: period, order_by: orderBy });
+      const entries = Array.isArray(result) ? result : (result.entries ?? []);
+      setGlobalEntries(entries);
+    } catch (err) {
+      setGlobalError(err instanceof Error ? err.message : "Failed to load leaderboard");
+    } finally {
+      setGlobalLoading(false);
+    }
+  }
+
+  // Auto-load global leaderboard on mount
+  useEffect(() => {
+    loadGlobalLeaderboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function switchToGlobal() {
+    setViewMode("global");
+    if (globalEntries.length === 0) loadGlobalLeaderboard();
+  }
 
   const rawFollowingArr = (() => {
     if (Array.isArray(followingData)) return followingData;
@@ -284,130 +397,211 @@ export default function TradersPage() {
             <div><h1 className="text-xl font-bold">Top Traders</h1><p className="text-xs text-muted mt-0.5">Top performers ranked by profit</p></div>
           </div>
 
+          {/* View toggle */}
+          <div className="flex items-center gap-1 p-1 rounded-xl border border-border bg-surface/40 mb-4 w-fit">
+            <button
+              onClick={() => setViewMode("local")}
+              className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${viewMode === "local" ? "bg-white/[0.08] text-foreground" : "text-muted hover:text-foreground"}`}
+            >
+              <Users className="w-3.5 h-3.5" /> Local Feed
+            </button>
+            <button
+              onClick={switchToGlobal}
+              className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${viewMode === "global" ? "bg-white/[0.08] text-foreground" : "text-muted hover:text-foreground"}`}
+            >
+              <Globe className="w-3.5 h-3.5" /> Global (Polymarket)
+            </button>
+          </div>
+
           {followError && <div className="flex items-center gap-2 px-3 py-2 mb-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono"><AlertCircle className="w-4 h-4 shrink-0" />{followError}</div>}
 
-          <div className="flex gap-5 items-start">
-
-            {/* ── Main column ─────────────────────────────── */}
-            <div className="flex-1 min-w-0 space-y-3">
-
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted/60 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search Traders"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="w-full h-11 pl-10 pr-4 text-sm rounded-xl bg-surface/60 border border-border/70 text-foreground placeholder:text-muted focus:outline-none focus:border-blue-primary/50 focus:ring-2 focus:ring-blue-primary/20 transition-all"
-                />
-              </div>
-
-              {/* Tip card */}
-              {!tipDismissed && (
-                <div className="relative flex items-start gap-3 px-4 py-3.5 rounded-xl border border-blue-primary/20 bg-blue-primary/5">
-                  <Lightbulb className="w-4 h-4 text-blue-primary shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground/90">Tip for smaller portfolios</p>
-                    <p className="text-xs text-muted mt-0.5 leading-relaxed">
-                      With $1 minimum trades, focus on traders with{" "}
-                      <span className="font-semibold text-foreground/80">high win rates</span> and{" "}
-                      <span className="font-semibold text-foreground/80">consistent returns</span> rather than raw PnL.{" "}
-                      More wins = more gains on your $1 positions!
-                    </p>
-                  </div>
-                  <button onClick={() => setTipDismissed(true)} className="shrink-0 text-muted hover:text-foreground transition-colors p-0.5">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-
-              {/* Filter pills */}
+          {/* ── GLOBAL LEADERBOARD VIEW ───────────────────── */}
+          {viewMode === "global" && (
+            <div className="space-y-3">
+              {/* Global filters */}
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Timeframe */}
+                {/* Category */}
                 <div className="flex items-center gap-1 p-1 rounded-xl border border-border bg-surface/40">
-                  {TIMEFRAME_OPTIONS.map(tf => (
-                    <button
-                      key={tf.key}
-                      onClick={() => setTimeframe(tf.key)}
-                      className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-                        timeframe === tf.key
-                          ? "bg-white/[0.08] text-foreground"
-                          : "text-muted hover:text-foreground"
-                      }`}
-                    >
-                      {tf.label}
+                  {GLOBAL_CATEGORIES.map(cat => (
+                    <button key={cat} onClick={() => { setGlobalCategory(cat); loadGlobalLeaderboard(cat, globalPeriod, globalOrderBy); }}
+                      className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${globalCategory === cat ? "bg-white/[0.08] text-foreground" : "text-muted hover:text-foreground"}`}>
+                      {cat}
                     </button>
                   ))}
                 </div>
-
-                {/* Topics — UI only */}
-                <FilterPill label="All Topics" />
-
-                {/* Active */}
-                <button
-                  onClick={() => setActiveOnly(p => !p)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${
-                    activeOnly
-                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
-                      : "border-border text-muted hover:text-foreground"
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${activeOnly ? "bg-emerald-400" : "bg-muted/40"}`} />
-                  Active
-                </button>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Time period */}
+                <div className="flex items-center gap-1 p-1 rounded-xl border border-border bg-surface/40">
+                  {GLOBAL_PERIODS.map(p => (
+                    <button key={p} onClick={() => { setGlobalPeriod(p); loadGlobalLeaderboard(globalCategory, p, globalOrderBy); }}
+                      className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${globalPeriod === p ? "bg-white/[0.08] text-foreground" : "text-muted hover:text-foreground"}`}>
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                {/* Order by */}
+                <div className="flex items-center gap-1 p-1 rounded-xl border border-border bg-surface/40">
+                  {GLOBAL_ORDER.map(o => (
+                    <button key={o} onClick={() => { setGlobalOrderBy(o); loadGlobalLeaderboard(globalCategory, globalPeriod, o); }}
+                      className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${globalOrderBy === o ? "bg-white/[0.08] text-foreground" : "text-muted hover:text-foreground"}`}>
+                      Sort by {o}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {/* Count */}
-              {!isLoading && filtered.length > 0 && (
-                <p className="text-xs font-mono text-muted text-center py-1">
-                  {filtered.length} trader{filtered.length !== 1 ? "s" : ""}
-                </p>
+              {globalError && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono">
+                  <AlertCircle className="w-4 h-4 shrink-0" />{globalError}
+                </div>
               )}
 
-              {/* List */}
               <div className="dashboard-card overflow-hidden">
-                {isLoading && leaderboard.length === 0 ? (
+                {globalLoading ? (
                   <div className="flex items-center justify-center py-16">
-                    <div className="flex items-center gap-2 text-muted"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm font-mono">Loading traders…</span></div>
+                    <div className="flex items-center gap-2 text-muted"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm font-mono">Loading global leaderboard…</span></div>
                   </div>
-                ) : filtered.length === 0 ? (
+                ) : globalEntries.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-muted">
-                    <Users className="w-6 h-6 mb-2 opacity-30" />
-                    <p className="text-sm font-mono">{search ? `No traders matching "${search}"` : "No trader data yet."}</p>
+                    <Trophy className="w-6 h-6 mb-2 opacity-30" />
+                    <p className="text-sm font-mono">No leaderboard data.</p>
                   </div>
-                ) : filtered.map((trader) => (
-                  <TraderCard
-                    key={trader.username}
-                    trader={trader}
-                    isFollowing={followed.has(trader.username)}
-                    isPending={pendingFollow.has(trader.username)}
-                    onFollow={() => requestFollow(trader.username)}
-                  />
+                ) : globalEntries.map(entry => (
+                  <GlobalTraderCard key={entry.proxyWallet ?? entry.rank} entry={entry} />
                 ))}
               </div>
+              {globalEntries.length > 0 && (
+                <p className="text-[10px] font-mono text-muted text-center">Sourced from Polymarket Data API • {globalEntries.length} traders</p>
+              )}
             </div>
+          )}
 
-            {/* ── Sort panel (desktop) ─────────────────────── */}
-            <div className="hidden lg:block w-[200px] shrink-0">
-              <div className="dashboard-card overflow-hidden">
-                {SORT_OPTIONS.map((opt, i) => (
+          {/* ── LOCAL FEED VIEW ──────────────────────────── */}
+          {viewMode === "local" && (
+            <div className="flex gap-5 items-start">
+
+              {/* ── Main column ─────────────────────────────── */}
+              <div className="flex-1 min-w-0 space-y-3">
+
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted/60 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search Traders"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="w-full h-11 pl-10 pr-4 text-sm rounded-xl bg-surface/60 border border-border/70 text-foreground placeholder:text-muted focus:outline-none focus:border-blue-primary/50 focus:ring-2 focus:ring-blue-primary/20 transition-all"
+                  />
+                </div>
+
+                {/* Tip card */}
+                {!tipDismissed && (
+                  <div className="relative flex items-start gap-3 px-4 py-3.5 rounded-xl border border-blue-primary/20 bg-blue-primary/5">
+                    <Lightbulb className="w-4 h-4 text-blue-primary shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground/90">Tip for smaller portfolios</p>
+                      <p className="text-xs text-muted mt-0.5 leading-relaxed">
+                        With $1 minimum trades, focus on traders with{" "}
+                        <span className="font-semibold text-foreground/80">high win rates</span> and{" "}
+                        <span className="font-semibold text-foreground/80">consistent returns</span> rather than raw PnL.{" "}
+                        More wins = more gains on your $1 positions!
+                      </p>
+                    </div>
+                    <button onClick={() => setTipDismissed(true)} className="shrink-0 text-muted hover:text-foreground transition-colors p-0.5">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Filter pills */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Timeframe */}
+                  <div className="flex items-center gap-1 p-1 rounded-xl border border-border bg-surface/40">
+                    {TIMEFRAME_OPTIONS.map(tf => (
+                      <button
+                        key={tf.key}
+                        onClick={() => setTimeframe(tf.key)}
+                        className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                          timeframe === tf.key
+                            ? "bg-white/[0.08] text-foreground"
+                            : "text-muted hover:text-foreground"
+                        }`}
+                      >
+                        {tf.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Topics — UI only */}
+                  <FilterPill label="All Topics" />
+
+                  {/* Active */}
                   <button
-                    key={opt.key}
-                    onClick={() => setSortKey(opt.key)}
-                    className={`w-full px-5 py-4 text-right text-sm transition-all ${
-                      sortKey === opt.key
-                        ? "font-bold text-foreground border-b-2 border-blue-primary"
-                        : "font-medium text-muted hover:text-foreground border-b border-border/30 last:border-0"
+                    onClick={() => setActiveOnly(p => !p)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${
+                      activeOnly
+                        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+                        : "border-border text-muted hover:text-foreground"
                     }`}
                   >
-                    {opt.label}
+                    <span className={`w-1.5 h-1.5 rounded-full ${activeOnly ? "bg-emerald-400" : "bg-muted/40"}`} />
+                    Active
                   </button>
-                ))}
-              </div>
-            </div>
+                </div>
 
-          </div>
+                {/* Count */}
+                {!isLoading && filtered.length > 0 && (
+                  <p className="text-xs font-mono text-muted text-center py-1">
+                    {filtered.length} trader{filtered.length !== 1 ? "s" : ""}
+                  </p>
+                )}
+
+                {/* List */}
+                <div className="dashboard-card overflow-hidden">
+                  {isLoading && leaderboard.length === 0 ? (
+                    <div className="flex items-center justify-center py-16">
+                      <div className="flex items-center gap-2 text-muted"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm font-mono">Loading traders…</span></div>
+                    </div>
+                  ) : filtered.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-muted">
+                      <Users className="w-6 h-6 mb-2 opacity-30" />
+                      <p className="text-sm font-mono">{search ? `No traders matching "${search}"` : "No trader data yet."}</p>
+                    </div>
+                  ) : filtered.map((trader) => (
+                    <TraderCard
+                      key={trader.username}
+                      trader={trader}
+                      isFollowing={followed.has(trader.username)}
+                      isPending={pendingFollow.has(trader.username)}
+                      onFollow={() => requestFollow(trader.username)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Sort panel (desktop) ─────────────────────── */}
+              <div className="hidden lg:block w-[200px] shrink-0">
+                <div className="dashboard-card overflow-hidden">
+                  {SORT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => setSortKey(opt.key)}
+                      className={`w-full px-5 py-4 text-right text-sm transition-all ${
+                        sortKey === opt.key
+                          ? "font-bold text-foreground border-b-2 border-blue-primary"
+                          : "font-medium text-muted hover:text-foreground border-b border-border/30 last:border-0"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          )}
         </div>
       </div>
     </DashboardChrome>

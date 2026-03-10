@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, use } from "react";
+import React, { Suspense, use, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -9,7 +9,7 @@ import { PriceChart } from "@/components/dashboard/market/PriceChart";
 import { TradePanel } from "@/components/dashboard/market/TradePanel";
 import { PositionCard } from "@/components/dashboard/market/PositionCard";
 import { MarketTabs } from "@/components/dashboard/market/MarketTabs";
-import { fetcher, formatVolume, Market, normalizeMarket, Trade } from "@/lib/api";
+import { fetcher, formatVolume, Market, normalizeMarket, Trade, analyzeMarket, MarketAnalysis } from "@/lib/api";
 import { parseMarketTitle } from "@/lib/market-title";
 import {
   ChevronLeft,
@@ -18,6 +18,9 @@ import {
   BarChart3,
   Loader2,
   TrendingUp,
+  Sparkles,
+  AlertCircle,
+  ShieldAlert,
 } from "lucide-react";
 
 function formatTime(iso: string): string {
@@ -58,6 +61,23 @@ function MarketDetailContent() {
   const conditionId = searchParams.get("conditionId") ?? searchParams.get("ticker");
   const decodedConditionId = conditionId ? decodeURIComponent(conditionId) : "";
   const imageFromParam = searchParams.get("img");
+
+  const [analysis, setAnalysis] = useState<MarketAnalysis | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  async function handleAnalyze(query: string) {
+    setAnalysisLoading(true);
+    setAnalysisError(null);
+    try {
+      const result = await analyzeMarket(query);
+      setAnalysis(result);
+    } catch (err) {
+      setAnalysisError(err instanceof Error ? err.message : "Analysis failed");
+    } finally {
+      setAnalysisLoading(false);
+    }
+  }
 
   const { data: marketRaw, isLoading: loadingMarket, mutate: mutateMarket } = useSWR<Market>(
     decodedConditionId ? `/api/proxy/markets/by-condition/${encodeURIComponent(decodedConditionId)}` : null,
@@ -295,11 +315,262 @@ function MarketDetailContent() {
                   )}
                 </div>
               </div>
+
+              {/* AI Analysis panel */}
+              <div className="dashboard-card p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-mono text-muted flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-primary" />
+                    AI Analysis
+                  </div>
+                  {!analysis && !analysisLoading && (
+                    <button
+                      onClick={() => handleAnalyze(market.title)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-all"
+                    >
+                      <Sparkles className="w-3 h-3" /> Analyze
+                    </button>
+                  )}
+                  {analysis && !analysisLoading && (
+                    <button
+                      onClick={() => { setAnalysis(null); setAnalysisError(null); }}
+                      className="text-[10px] font-mono text-muted hover:text-foreground transition-colors"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {analysisLoading && (
+                  <div className="flex items-center gap-2 py-4 justify-center text-muted">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-xs font-mono animate-pulse">Analyzing market…</span>
+                  </div>
+                )}
+
+                {analysisError && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />{analysisError}
+                  </div>
+                )}
+
+                {!analysis && !analysisLoading && !analysisError && (
+                  <p className="text-xs text-muted font-mono text-center py-2">
+                    Get AI-powered news, forecast &amp; risk score for this market.
+                  </p>
+                )}
+
+                {analysis && !analysisLoading && (
+                  <div className="space-y-3">
+                    {/* Risk score */}
+                    {analysis.risk_score !== undefined && (
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-surface/60 border border-border/50">
+                        <div className="flex items-center gap-2">
+                          <ShieldAlert className="w-3.5 h-3.5 text-muted" />
+                          <span className="text-xs font-mono text-muted">Risk Score</span>
+                        </div>
+                        <span className={`text-sm font-bold font-mono px-2 py-0.5 rounded-lg ${
+                          analysis.risk_score < 30 ? "text-emerald-400 bg-emerald-500/10" :
+                          analysis.risk_score < 70 ? "text-amber-400 bg-amber-500/10" :
+                          "text-red-400 bg-red-500/10"
+                        }`}>
+                          {analysis.risk_score}/100
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Prediction with probability */}
+                    {analysis.prediction && (
+                      <div className="p-3 rounded-lg bg-surface/60 border border-border/50 space-y-1">
+                        <p className="text-[10px] font-mono text-blue-400 uppercase tracking-wide">Prediction</p>
+                        <p className="text-xs text-foreground/90 leading-relaxed">{analysis.prediction}</p>
+                        {analysis.probability !== undefined && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <div className="flex-1 h-1.5 rounded-full bg-surface overflow-hidden">
+                              <div className="h-full rounded-full bg-blue-primary transition-all" style={{ width: `${Math.min(100, analysis.probability * 100)}%` }} />
+                            </div>
+                            <span className="text-[10px] font-mono text-blue-400">{(analysis.probability * 100).toFixed(0)}%</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* News summary */}
+                    {analysis.news_summary && (
+                      <div className="p-3 rounded-lg bg-surface/60 border border-border/50 space-y-1">
+                        <p className="text-[10px] font-mono text-muted uppercase tracking-wide">News</p>
+                        <p className="text-xs text-foreground/80 leading-relaxed">{analysis.news_summary}</p>
+                      </div>
+                    )}
+
+                    {/* Market view */}
+                    {analysis.market_view && (
+                      <div className="p-3 rounded-lg bg-surface/60 border border-border/50 space-y-1">
+                        <p className="text-[10px] font-mono text-muted uppercase tracking-wide">Market View</p>
+                        <p className="text-xs text-foreground/80 leading-relaxed">{analysis.market_view}</p>
+                      </div>
+                    )}
+
+                    {/* analysis_markdown — primary response format from API */}
+                    {(analysis.analysis_markdown ?? analysis.analysis) && (
+                      <MarkdownDisplay content={(analysis.analysis_markdown ?? analysis.analysis) as string} />
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
     </DashboardChrome>
+  );
+}
+
+function renderInline(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) =>
+    part.startsWith("**") && part.endsWith("**")
+      ? <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
+      : part
+  );
+}
+
+// Detect "Key: Value" stat lines like "Verdict: NO", "Risk score: 68/100", "Implied odds: 78%"
+function StatLine({ label, value }: { label: string; value: string }) {
+  const lv = label.toLowerCase();
+  const vv = value.trim();
+
+  if (lv.includes("verdict")) {
+    const isYes = /yes/i.test(vv);
+    const isNo = /no/i.test(vv);
+    return (
+      <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-surface border border-border/50">
+        <span className="text-[11px] font-mono text-muted uppercase tracking-wide">{label}</span>
+        <span className={`text-sm font-bold px-3 py-0.5 rounded-full ${isYes ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" : isNo ? "bg-red-500/15 text-red-400 border border-red-500/30" : "bg-surface text-foreground border border-border"}`}>
+          {vv}
+        </span>
+      </div>
+    );
+  }
+
+  if (lv.includes("risk")) {
+    const num = parseInt(vv);
+    const color = !isNaN(num) ? (num < 30 ? "text-emerald-400 bg-emerald-500/15 border-emerald-500/30" : num < 70 ? "text-amber-400 bg-amber-500/15 border-amber-500/30" : "text-red-400 bg-red-500/15 border-red-500/30") : "text-foreground bg-surface border-border";
+    return (
+      <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-surface border border-border/50">
+        <span className="text-[11px] font-mono text-muted uppercase tracking-wide">{label}</span>
+        <span className={`text-sm font-bold px-3 py-0.5 rounded-full border ${color}`}>{vv}</span>
+      </div>
+    );
+  }
+
+  if (lv.includes("odds") || lv.includes("probability") || lv.includes("chance")) {
+    const num = parseFloat(vv);
+    const pct = !isNaN(num) ? (num <= 1 ? num * 100 : num) : null;
+    return (
+      <div className="px-3 py-2 rounded-lg bg-surface border border-border/50 space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-mono text-muted uppercase tracking-wide">{label}</span>
+          <span className="text-sm font-bold font-mono text-blue-400">{vv}</span>
+        </div>
+        {pct !== null && (
+          <div className="h-1.5 rounded-full bg-surface-hover overflow-hidden">
+            <div className="h-full rounded-full bg-blue-primary/70 transition-all" style={{ width: `${Math.min(100, pct)}%` }} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-surface border border-border/50">
+      <span className="text-[11px] font-mono text-muted uppercase tracking-wide">{label}</span>
+      <span className="text-xs font-semibold text-foreground/90">{vv}</span>
+    </div>
+  );
+}
+
+function MarkdownDisplay({ content }: { content: string }) {
+  const lines = content.split("\n");
+
+  // First pass — extract all top-level Key: Value stat lines
+  const statLines: { label: string; value: string; idx: number }[] = [];
+  const statIdxSet = new Set<number>();
+
+  lines.forEach((line, i) => {
+    if (line.startsWith("#") || line.match(/^[-•*] /)) return;
+    const kv = line.match(/^([^:\n]{2,40}):\s*(.+)$/);
+    if (kv && !line.startsWith("http")) {
+      statLines.push({ label: kv[1], value: kv[2], idx: i });
+      statIdxSet.add(i);
+    }
+  });
+
+  // Second pass — render non-stat lines as body
+  const bodyElements: React.ReactNode[] = [];
+  lines.forEach((line, i) => {
+    if (statIdxSet.has(i)) return; // skip — shown in stats grid above
+
+    if (line.startsWith("## ")) {
+      bodyElements.push(
+        <p key={i} className="text-[11px] font-bold text-blue-400 uppercase tracking-widest pt-3 first:pt-0 pb-0.5 border-b border-blue-500/20">
+          {line.slice(3)}
+        </p>
+      );
+      return;
+    }
+    if (line.startsWith("### ")) {
+      bodyElements.push(
+        <p key={i} className="text-xs font-bold text-foreground/90 pt-2 first:pt-0">
+          {renderInline(line.slice(4))}
+        </p>
+      );
+      return;
+    }
+    if (line.startsWith("# ")) {
+      bodyElements.push(
+        <p key={i} className="text-sm font-bold text-foreground pt-2 first:pt-0">
+          {renderInline(line.slice(2))}
+        </p>
+      );
+      return;
+    }
+    if (line.match(/^[-•*] /)) {
+      bodyElements.push(
+        <div key={i} className="flex gap-2 items-start pl-1">
+          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-blue-primary/60 shrink-0" />
+          <p className="text-xs text-foreground/80 leading-relaxed">{renderInline(line.slice(2))}</p>
+        </div>
+      );
+      return;
+    }
+    if (line.trim() === "") {
+      bodyElements.push(<div key={i} className="h-1" />);
+      return;
+    }
+    bodyElements.push(
+      <p key={i} className="text-xs text-foreground/75 leading-relaxed">{renderInline(line)}</p>
+    );
+  });
+
+  return (
+    <div className="space-y-3">
+      {/* Stat cards — always on top */}
+      {statLines.length > 0 && (
+        <div className="grid grid-cols-1 gap-2">
+          {statLines.map(({ label, value, idx }) => (
+            <StatLine key={idx} label={label} value={value} />
+          ))}
+        </div>
+      )}
+
+      {/* Body content */}
+      {bodyElements.some(e => e !== null) && (
+        <div className="p-4 rounded-xl bg-surface/40 border border-border/40 space-y-2 max-h-80 overflow-y-auto">
+          {bodyElements}
+        </div>
+      )}
+    </div>
   );
 }
 
