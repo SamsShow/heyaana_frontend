@@ -275,6 +275,7 @@ export default function TradersPage() {
   const [globalEntries, setGlobalEntries] = useState<GlobalLeaderboardEntry[]>([]);
   const [globalLoading, setGlobalLoading] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const [globalSearch, setGlobalSearch] = useState("");
 
   // Filter state
   const [search, setSearch] = useState("");
@@ -418,9 +419,20 @@ export default function TradersPage() {
           {/* ── GLOBAL LEADERBOARD VIEW ───────────────────── */}
           {viewMode === "global" && (
             <div className="space-y-3">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted/60 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search by username or wallet address"
+                  value={globalSearch}
+                  onChange={e => setGlobalSearch(e.target.value)}
+                  className="w-full h-11 pl-10 pr-4 text-sm rounded-xl bg-surface/60 border border-border/70 text-foreground placeholder:text-muted focus:outline-none focus:border-blue-primary/50 focus:ring-2 focus:ring-blue-primary/20 transition-all"
+                />
+              </div>
+
               {/* Global filters */}
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Category */}
                 <div className="flex items-center gap-1 p-1 rounded-xl border border-border bg-surface/40">
                   {GLOBAL_CATEGORIES.map(cat => (
                     <button key={cat} onClick={() => { setGlobalCategory(cat); loadGlobalLeaderboard(cat, globalPeriod, globalOrderBy); }}
@@ -431,7 +443,6 @@ export default function TradersPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Time period */}
                 <div className="flex items-center gap-1 p-1 rounded-xl border border-border bg-surface/40">
                   {GLOBAL_PERIODS.map(p => (
                     <button key={p} onClick={() => { setGlobalPeriod(p); loadGlobalLeaderboard(globalCategory, p, globalOrderBy); }}
@@ -440,7 +451,6 @@ export default function TradersPage() {
                     </button>
                   ))}
                 </div>
-                {/* Order by */}
                 <div className="flex items-center gap-1 p-1 rounded-xl border border-border bg-surface/40">
                   {GLOBAL_ORDER.map(o => (
                     <button key={o} onClick={() => { setGlobalOrderBy(o); loadGlobalLeaderboard(globalCategory, globalPeriod, o); }}
@@ -457,23 +467,38 @@ export default function TradersPage() {
                 </div>
               )}
 
-              <div className="dashboard-card overflow-hidden">
-                {globalLoading ? (
-                  <div className="flex items-center justify-center py-16">
-                    <div className="flex items-center gap-2 text-muted"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm font-mono">Loading global leaderboard…</span></div>
-                  </div>
-                ) : globalEntries.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-muted">
-                    <Trophy className="w-6 h-6 mb-2 opacity-30" />
-                    <p className="text-sm font-mono">No leaderboard data.</p>
-                  </div>
-                ) : globalEntries.map(entry => (
-                  <GlobalTraderCard key={entry.proxyWallet ?? entry.rank} entry={entry} />
-                ))}
-              </div>
-              {globalEntries.length > 0 && (
-                <p className="text-[10px] font-mono text-muted text-center">Sourced from Polymarket Data API • {globalEntries.length} traders</p>
-              )}
+              {(() => {
+                const q = globalSearch.trim().toLowerCase();
+                const filtered = q
+                  ? globalEntries.filter(e =>
+                      (e.userName ?? "").toLowerCase().includes(q) ||
+                      (e.proxyWallet ?? "").toLowerCase().includes(q)
+                    )
+                  : globalEntries;
+                return (
+                  <>
+                    <div className="dashboard-card overflow-hidden">
+                      {globalLoading ? (
+                        <div className="flex items-center justify-center py-16">
+                          <div className="flex items-center gap-2 text-muted"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm font-mono">Loading global leaderboard…</span></div>
+                        </div>
+                      ) : filtered.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-16 text-muted">
+                          <Trophy className="w-6 h-6 mb-2 opacity-30" />
+                          <p className="text-sm font-mono">{q ? `No traders matching "${globalSearch}"` : "No leaderboard data."}</p>
+                        </div>
+                      ) : filtered.map(entry => (
+                        <GlobalTraderCard key={entry.proxyWallet ?? entry.rank} entry={entry} />
+                      ))}
+                    </div>
+                    {filtered.length > 0 && (
+                      <p className="text-[10px] font-mono text-muted text-center">
+                        Sourced from Polymarket Data API • {q ? `${filtered.length} of ${globalEntries.length}` : globalEntries.length} traders
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
 
