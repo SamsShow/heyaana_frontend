@@ -303,7 +303,8 @@ export default function ProfilePage() {
 
     for (const id of idsToTry) {
       try {
-        await closePosition(id, size);
+        const side = pos.outcome ?? pos.side ?? "Yes";
+        await closePosition(id, size, side);
         // Show beep boop syncing loader while portfolio revalidates
         setSyncingPortfolio(true);
         setSyncFrame(0);

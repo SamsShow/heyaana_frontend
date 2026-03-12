@@ -671,26 +671,16 @@ export async function unfollowTrader(leaderUsername?: string, leaderAddress?: st
     return data;
 }
 
-// ─── Close position ───────────────────────────────────────
+// ─── Close position (sells via /trade with order_side SELL) ──
 
-export async function closePosition(conditionId: string, size?: number): Promise<unknown> {
-    const res = await fetch(`${API2_BASE_URL}/position/close`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "User-Agent":
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
-        },
-        body: JSON.stringify({ condition_id: conditionId, ...(size !== undefined ? { size } : {}) }),
+export async function closePosition(conditionId: string, size?: number, side?: string): Promise<unknown> {
+    return postTrade({
+        condition_id: conditionId,
+        side: (side as "Yes" | "No") ?? "Yes",
+        amount: size ?? 0,
+        order_side: "SELL",
+        auto_prepare: true,
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Failed to close position");
-    if (data.success === false) throw new Error(data.message ?? data.error ?? "Trade failed");
-    if (typeof data.result === "string" && data.result.toUpperCase().includes("FAILED")) {
-        throw new Error(data.result.trim());
-    }
-    return data;
 }
 
 // ─── Approve trading ──────────────────────────────────────

@@ -76,7 +76,7 @@ export function PositionCard({ ticker, marketTitle }: PositionCardProps) {
 
     for (const id of idsToTry) {
       try {
-        await closePosition(id);
+        await closePosition(id, shares, side);
         setCloseMsg("Position closed.");
         mutate();
         return;
