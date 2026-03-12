@@ -568,8 +568,6 @@ export async function proxyFetcher(url: string) {
 }
 
 export async function postTrade(trade: TradeRequest) {
-    // Always approve before trading to ensure allowances are set
-    await approveTrading().catch(() => {});
     const res = await fetch(`${API2_BASE_URL}/trade`, {
         method: "POST",
         headers: {
@@ -909,8 +907,6 @@ export type LimitOrderRequest = {
 };
 
 export async function postLimitOrder(order: LimitOrderRequest): Promise<unknown> {
-    // Always approve before placing limit order to ensure allowances are set
-    await approveTrading().catch(() => {});
     const res = await fetch(`${API2_BASE_URL}/limit-order`, {
         method: "POST",
         headers: {
