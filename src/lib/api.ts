@@ -473,7 +473,8 @@ export async function gammaEventsFetcher(url: string): Promise<GammaEventSummary
                 close_time: event.endDate ?? markets[0]?.endDate ?? null,
             };
         })
-        .filter((e) => e.market_count > 0 && !!e.title);
+        .filter((e) => e.market_count > 0 && !!e.title)
+        .filter((e) => !e.close_time || new Date(e.close_time).getTime() > Date.now());
 }
 
 export async function fetchGammaCategories(url: string): Promise<GammaCategory[]> {

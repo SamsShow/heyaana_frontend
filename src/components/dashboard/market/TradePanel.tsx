@@ -85,7 +85,7 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
       <div>
         <label className="text-xs text-muted font-mono mb-1.5 block">Amount (USD)</label>
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm">$</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm pointer-events-none">$</span>
           <input
             type="number"
             min="0.01"
@@ -93,7 +93,7 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
             placeholder="0.00"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="w-full pl-7 pr-4 py-2.5 text-sm font-mono dark-input"
+            className="w-full pl-8 pr-4 py-2.5 text-sm font-mono dark-input"
           />
         </div>
         {amount && Number(amount) > 0 && (
