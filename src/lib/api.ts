@@ -621,7 +621,10 @@ export async function disableCopyTrading(): Promise<unknown> {
     return data;
 }
 
-export async function followTrader(leaderUsername: string): Promise<unknown> {
+export async function followTrader(leaderUsername: string, leaderAddress?: string): Promise<unknown> {
+    const body: Record<string, unknown> = {};
+    if (leaderAddress) body.leader_address = leaderAddress;
+    if (leaderUsername) body.leader_username = leaderUsername;
     const res = await fetch(`${API2_BASE_URL}/copy-trading/follow`, {
         method: "POST",
         headers: {
@@ -630,14 +633,17 @@ export async function followTrader(leaderUsername: string): Promise<unknown> {
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
             "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
         },
-        body: JSON.stringify({ leader_username: leaderUsername }),
+        body: JSON.stringify(body),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? "Failed to follow trader");
+    if (!res.ok) throw new Error(data.detail ?? data.error ?? "Failed to follow trader");
     return data;
 }
 
-export async function unfollowTrader(leaderUsername: string): Promise<unknown> {
+export async function unfollowTrader(leaderUsername: string, leaderAddress?: string): Promise<unknown> {
+    const body: Record<string, unknown> = {};
+    if (leaderAddress) body.leader_address = leaderAddress;
+    if (leaderUsername) body.leader_username = leaderUsername;
     const res = await fetch(`${API2_BASE_URL}/copy-trading/unfollow`, {
         method: "POST",
         headers: {
@@ -646,10 +652,10 @@ export async function unfollowTrader(leaderUsername: string): Promise<unknown> {
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
             "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
         },
-        body: JSON.stringify({ leader_username: leaderUsername }),
+        body: JSON.stringify(body),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? "Failed to unfollow trader");
+    if (!res.ok) throw new Error(data.detail ?? data.error ?? "Failed to unfollow trader");
     return data;
 }
 

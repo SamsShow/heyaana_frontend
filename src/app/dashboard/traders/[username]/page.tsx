@@ -208,8 +208,8 @@ export default function TraderProfilePage() {
     setOptimisticFollow(!wasFollowing);
     setIsPending(true);
     try {
-      if (wasFollowing) await unfollowTrader(username);
-      else await followTrader(username);
+      if (wasFollowing) await unfollowTrader(username, walletParam || undefined);
+      else await followTrader(username, walletParam || undefined);
       await mutateFollowing();
       setOptimisticFollow(null);
     } catch (err) {

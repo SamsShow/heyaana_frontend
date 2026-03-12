@@ -356,12 +356,14 @@ export default function TradersPage() {
   async function handleFollowToggle(username: string) {
     if (!isAuthenticated) { window.location.href = "/onboarding"; return; }
     setConfirmFollowUser(null); setFollowError(null);
+    const trader = leaderboard.find(t => t.username === username);
+    const wallet = trader?.wallet;
     const isCurrentlyFollowing = followed.has(username);
     if (isCurrentlyFollowing) { setOptimisticUnfollowed(p => new Set(p).add(username)); setOptimisticFollowed(p => { const s = new Set(p); s.delete(username); return s; }); }
     else { setOptimisticFollowed(p => new Set(p).add(username)); setOptimisticUnfollowed(p => { const s = new Set(p); s.delete(username); return s; }); }
     setPendingFollow(p => new Set(p).add(username));
     try {
-      if (isCurrentlyFollowing) await unfollowTrader(username); else await followTrader(username);
+      if (isCurrentlyFollowing) await unfollowTrader(username, wallet); else await followTrader(username, wallet);
       await mutateFollowing();
       setOptimisticFollowed(p => { const s = new Set(p); s.delete(username); return s; });
       setOptimisticUnfollowed(p => { const s = new Set(p); s.delete(username); return s; });
