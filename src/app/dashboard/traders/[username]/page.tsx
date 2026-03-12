@@ -208,8 +208,12 @@ export default function TraderProfilePage() {
     setOptimisticFollow(!wasFollowing);
     setIsPending(true);
     try {
-      if (wasFollowing) await unfollowTrader(username, walletParam || undefined);
-      else await followTrader(username, walletParam || undefined);
+      // For global traders, username IS the wallet address — only send leader_address
+      const isGlobal = !!walletParam;
+      const uname = isGlobal ? "" : username;
+      const addr = walletParam || undefined;
+      if (wasFollowing) await unfollowTrader(uname, addr);
+      else await followTrader(uname, addr);
       await mutateFollowing();
       setOptimisticFollow(null);
     } catch (err) {

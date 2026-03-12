@@ -621,10 +621,11 @@ export async function disableCopyTrading(): Promise<unknown> {
     return data;
 }
 
-export async function followTrader(leaderUsername: string, leaderAddress?: string): Promise<unknown> {
+export async function followTrader(leaderUsername?: string, leaderAddress?: string): Promise<unknown> {
     const body: Record<string, unknown> = {};
     if (leaderAddress) body.leader_address = leaderAddress;
     if (leaderUsername) body.leader_username = leaderUsername;
+    if (!body.leader_address && !body.leader_username) throw new Error("Must provide username or address");
     const res = await fetch(`${API2_BASE_URL}/copy-trading/follow`, {
         method: "POST",
         headers: {
@@ -640,10 +641,11 @@ export async function followTrader(leaderUsername: string, leaderAddress?: strin
     return data;
 }
 
-export async function unfollowTrader(leaderUsername: string, leaderAddress?: string): Promise<unknown> {
+export async function unfollowTrader(leaderUsername?: string, leaderAddress?: string): Promise<unknown> {
     const body: Record<string, unknown> = {};
     if (leaderAddress) body.leader_address = leaderAddress;
     if (leaderUsername) body.leader_username = leaderUsername;
+    if (!body.leader_address && !body.leader_username) throw new Error("Must provide username or address");
     const res = await fetch(`${API2_BASE_URL}/copy-trading/unfollow`, {
         method: "POST",
         headers: {
