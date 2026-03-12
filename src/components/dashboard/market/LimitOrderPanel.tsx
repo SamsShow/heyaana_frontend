@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Market, postLimitOrder } from "@/lib/api";
-import { Loader2, CheckCircle2, AlertCircle, ExternalLink, Clock } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, ExternalLink, Clock, ChevronDown } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
 
 interface LimitOrderPanelProps {
@@ -17,6 +17,7 @@ export function LimitOrderPanel({ market, conditionId, onOrderSuccess }: LimitOr
   const [orderSide, setOrderSide] = useState<"BUY" | "SELL">("BUY");
   const [price, setPrice] = useState("");
   const [size, setSize] = useState("");
+  const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string; txHash?: string } | null>(null);
 
@@ -56,11 +57,19 @@ export function LimitOrderPanel({ market, conditionId, onOrderSuccess }: LimitOr
   }
 
   return (
-    <div className="dashboard-card p-4 space-y-4">
-      <div className="section-header mb-0">
-        <Clock className="w-4 h-4 text-blue-primary" />
-        <h3 className="text-sm font-semibold">Limit Order</h3>
-      </div>
+    <div className="dashboard-card overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between p-4 hover:bg-white/[0.02] transition-all"
+      >
+        <div className="flex items-center gap-2">
+          <Clock className="w-4 h-4 text-blue-primary" />
+          <h3 className="text-sm font-semibold">Limit Order</h3>
+        </div>
+        <ChevronDown className={`w-4 h-4 text-muted transition-transform ${expanded ? "rotate-180" : ""}`} />
+      </button>
+
+      {!expanded ? null : <div className="px-4 pb-4 space-y-4">
 
       {/* Side selector (Yes/No) */}
       <div className="grid grid-cols-2 gap-2">
@@ -245,6 +254,8 @@ export function LimitOrderPanel({ market, conditionId, onOrderSuccess }: LimitOr
           </div>
         </div>
       )}
+
+      </div>}
     </div>
   );
 }
