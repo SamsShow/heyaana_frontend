@@ -18,6 +18,7 @@ import {
   Loader2,
   ArrowDownToLine,
   ArrowUpFromLine,
+  ArrowRightLeft,
   Share2,
   Send,
   Sun,
@@ -28,6 +29,7 @@ import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { MobileTopBar, MobileBottomNav } from "@/components/dashboard/Sidebar";
 import { DepositModal } from "@/components/dashboard/DepositModal";
 import { WithdrawModal } from "@/components/dashboard/WithdrawModal";
+import { TransferToSafeModal } from "@/components/dashboard/TransferToSafeModal";
 import { useAuth } from "@/lib/useAuth";
 import { proxyFetcher } from "@/lib/api";
 import { useState, useRef, useEffect } from "react";
@@ -105,7 +107,7 @@ type MenuItem =
       badge?: string;
     };
 
-function HamburgerMenu({ onLogout, onDeposit, onWithdraw }: { onLogout: () => void; onDeposit: () => void; onWithdraw: () => void }) {
+function HamburgerMenu({ onLogout, onDeposit, onWithdraw, onTransferToSafe }: { onLogout: () => void; onDeposit: () => void; onWithdraw: () => void; onTransferToSafe: () => void }) {
   const [open, setOpen] = useState(false);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -139,6 +141,7 @@ function HamburgerMenu({ onLogout, onDeposit, onWithdraw }: { onLogout: () => vo
   const items: MenuItem[] = [
     { icon: ArrowDownToLine, label: "Deposit", onClick: () => { setOpen(false); onDeposit(); } },
     { icon: ArrowUpFromLine, label: "Withdraw", onClick: () => { setOpen(false); onWithdraw(); } },
+    { icon: ArrowRightLeft, label: "Transfer to Safe", onClick: () => { setOpen(false); onTransferToSafe(); } },
     { icon: Share2, label: "Share", onClick: handleShare },
     { icon: Send, label: "Join Community", onClick: () => { window.open("https://t.me/+i9D5bDox8lNmNDk9", "_blank"); setOpen(false); } },
     { type: "divider" },
@@ -211,6 +214,7 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
   const { user, logout, isAuthenticated, hasSessionToken, isValidating, error } = useAuth();
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
+  const [showTransferToSafe, setShowTransferToSafe] = useState(false);
 
   const showSessionSync = hasSessionToken && isValidating;
   const showSessionOffline = hasSessionToken && !!error;
@@ -404,7 +408,7 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
 
             <UserBadge />
 
-            <HamburgerMenu onLogout={logout} onDeposit={() => setShowDeposit(true)} onWithdraw={() => setShowWithdraw(true)} />
+            <HamburgerMenu onLogout={logout} onDeposit={() => setShowDeposit(true)} onWithdraw={() => setShowWithdraw(true)} onTransferToSafe={() => setShowTransferToSafe(true)} />
           </div>
         </header>
 
@@ -415,6 +419,7 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
 
       {showDeposit && <DepositModal onClose={() => setShowDeposit(false)} />}
       {showWithdraw && <WithdrawModal onClose={() => setShowWithdraw(false)} />}
+      {showTransferToSafe && <TransferToSafeModal onClose={() => setShowTransferToSafe(false)} />}
     </div>
   );
 }

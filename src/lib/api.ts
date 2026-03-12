@@ -876,6 +876,25 @@ export async function withdrawFunds(amount: number | null): Promise<unknown> {
     return data;
 }
 
+// ─── Transfer to Safe ─────────────────────────────────────
+
+export async function transferToSafe(amount: number | null): Promise<unknown> {
+    const res = await fetch(`${API2_BASE_URL}/transfer_to_safe`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`,
+        },
+        body: JSON.stringify({ amount }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Transfer failed");
+    if (data.success === false) throw new Error(data.message ?? data.error ?? "Transfer failed");
+    return data;
+}
+
 // ─── Limit Order ──────────────────────────────────────────
 
 export type LimitOrderRequest = {
