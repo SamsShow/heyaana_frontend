@@ -172,7 +172,7 @@ export default function ProfilePage() {
     { revalidateOnFocus: true, refreshInterval: 3000, dedupingInterval: 0 },
   );
 
-  type FollowingEntry = { username?: string; leader_username?: string; leader_address?: string; first_name?: string; [key: string]: unknown };
+  type FollowingEntry = { config?: { leader_address?: string; leader_username?: string; display_name?: string }; [key: string]: unknown };
   const { data: hooksRaw, isLoading: followingLoading, mutate: mutateFollowing } = useSWR<unknown>(
     isAuthenticated ? "/api/proxy/copy-trading/hooks" : null,
     proxyFetcher,
@@ -700,8 +700,8 @@ export default function ProfilePage() {
               ) : (
                 <div className="space-y-2">
                   {followingList.map((f, i) => {
-                    const username = f.leader_username ?? f.username ?? "";
-                    const displayName = f.first_name ?? username;
+                    const username = f.config?.leader_address || f.config?.leader_username || "";
+                    const displayName = f.config?.display_name || f.config?.leader_username || username;
                     return (
                       <div key={username || i} className="flex items-center gap-3 p-3 inner-card">
                         <div className="avatar avatar-sm">

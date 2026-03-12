@@ -191,17 +191,18 @@ export default function TraderProfilePage() {
   );
 
   // Parse hooks — could be array, {hooks:[...]}, or single object
+  type Hook = { config?: { leader_address?: string; leader_username?: string }; [key: string]: unknown };
   const hooksArr = (() => {
     if (Array.isArray(hooksData)) return hooksData;
     const w = hooksData as { hooks?: unknown[] } | null;
     if (Array.isArray(w?.hooks)) return w!.hooks;
     if (hooksData && typeof hooksData === "object" && "hook_id" in (hooksData as Record<string, unknown>)) return [hooksData];
     return [];
-  })() as Array<{ leader_username?: string; leader_address?: string }>;
-  // Match by leader_address (wallet) for global traders, or leader_username for local
+  })() as Hook[];
+  // Leader info is inside config — top-level leader_username is the FOLLOWER
   const serverFollowed = hooksArr.some(h =>
-    (walletParam && h.leader_address === walletParam) ||
-    (!walletParam && h.leader_username === username)
+    (walletParam && h.config?.leader_address === walletParam) ||
+    (!walletParam && h.config?.leader_username === username)
   );
   const isFollowing = optimisticFollow !== null ? optimisticFollow : serverFollowed;
 

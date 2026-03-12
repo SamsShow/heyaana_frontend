@@ -95,11 +95,12 @@ export function CopyTrading() {
       }));
   })();
 
-  // Derive the set of followed identifiers (usernames + addresses) from hooks
+  // Derive the set of followed identifiers from hooks — leader info is in config
   const followed = new Set<string>();
   for (const f of followingRaw) {
-    if (f.leader_address) followed.add(f.leader_address);
-    if (f.leader_username) followed.add(f.leader_username);
+    const cfg = (f as { config?: { leader_address?: string; leader_username?: string } }).config;
+    if (cfg?.leader_address) followed.add(cfg.leader_address);
+    if (cfg?.leader_username) followed.add(cfg.leader_username);
   }
 
   async function handleToggleCopyTrading() {
@@ -268,9 +269,11 @@ export function CopyTrading() {
               <p className="text-xs mt-1">Go to the <Link href="/dashboard/traders" className="text-blue-primary hover:underline">Traders</Link> page to find someone to copy</p>
             </div>
           ) : followingRaw.map((f, i) => {
-            const username = f.leader_username ?? f.username ?? "";
+            const cfg = (f as { config?: { leader_address?: string; leader_username?: string; display_name?: string } }).config;
+            const username = cfg?.leader_address || cfg?.leader_username || "";
+            const displayName = cfg?.display_name || cfg?.leader_username || username;
             const isPending = pendingFollow.has(username);
-            const initials = username.slice(0, 2).toUpperCase();
+            const initials = (displayName || "?").slice(0, 2).toUpperCase();
             return (
               <div key={username || i} className="inner-card p-4 !border-amber-500/20 bg-amber-500/5 flex items-center gap-3">
                 <Link href={`/dashboard/traders/${username}`} className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20 flex items-center justify-center text-sm font-bold shrink-0 hover:opacity-80 transition-opacity">
