@@ -282,28 +282,47 @@ export default function ProfilePage() {
     (p) => !optimisticClosed.has(positionConditionId(p) ?? "")
   );
 
-  async function handleClose(conditionId: string, size: number) {
-    setClosingId(conditionId);
+  async function handleClose(pos: Position, size: number) {
+    const primaryId = positionConditionId(pos) ?? "";
+    setClosingId(primaryId);
     setCloseResult(null);
     // Optimistically remove the position immediately
-    setOptimisticClosed((prev) => new Set(prev).add(conditionId));
-    try {
-      await closePosition(conditionId, size);
-      // Show beep boop syncing loader while portfolio revalidates
-      setSyncingPortfolio(true);
-      setSyncFrame(0);
-      const syncInterval = setInterval(() => setSyncFrame((f) => f + 1), 300);
-      await Promise.all([mutatePortfolio(), mutateBalance()]);
-      clearInterval(syncInterval);
-      setSyncingPortfolio(false);
-      setCloseResult({ ok: true, message: "Position closed successfully." });
-    } catch (err) {
-      // Revert optimistic removal on failure
-      setOptimisticClosed((prev) => { const s = new Set(prev); s.delete(conditionId); return s; });
-      setCloseResult({ ok: false, message: err instanceof Error ? err.message : "Failed to close position" });
-    } finally {
-      setClosingId(null);
+    setOptimisticClosed((prev) => new Set(prev).add(primaryId));
+
+    // Collect all possible IDs: condition_id, conditionId, ticker, and asset from orders
+    const orderAssets = (pos.orders ?? [])
+      .map((o) => o.asset ?? o.conditionId ?? o.condition_id)
+      .filter(Boolean) as string[];
+    const candidates = [
+      pos.condition_id,
+      pos.conditionId,
+      pos.ticker,
+      ...orderAssets,
+    ].filter((v): v is string => !!v);
+    const idsToTry = [...new Set(candidates)];
+
+    for (const id of idsToTry) {
+      try {
+        await closePosition(id, size);
+        // Show beep boop syncing loader while portfolio revalidates
+        setSyncingPortfolio(true);
+        setSyncFrame(0);
+        const syncInterval = setInterval(() => setSyncFrame((f) => f + 1), 300);
+        await Promise.all([mutatePortfolio(), mutateBalance()]);
+        clearInterval(syncInterval);
+        setSyncingPortfolio(false);
+        setCloseResult({ ok: true, message: "Position closed successfully." });
+        setClosingId(null);
+        return;
+      } catch (err) {
+        if (id === idsToTry[idsToTry.length - 1]) {
+          // Revert optimistic removal on final failure
+          setOptimisticClosed((prev) => { const s = new Set(prev); s.delete(primaryId); return s; });
+          setCloseResult({ ok: false, message: err instanceof Error ? err.message : "Failed to close position" });
+        }
+      }
     }
+    setClosingId(null);
   }
 
   async function handleUnfollow(username: string) {
@@ -913,7 +932,7 @@ export default function ProfilePage() {
 
                           {condId && (
                             <button
-                              onClick={() => handleClose(condId, positionSize(pos))}
+                              onClick={() => handleClose(pos, positionSize(pos))}
                               disabled={isClosing}
                               title="Close position"
                               className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
