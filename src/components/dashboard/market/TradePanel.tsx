@@ -93,7 +93,8 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
             placeholder="0.00"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="w-full pl-8 pr-4 py-2.5 text-sm font-mono dark-input"
+            className="w-full pr-4 py-2.5 text-sm font-mono dark-input"
+            style={{ paddingLeft: "2rem" }}
           />
         </div>
         {amount && Number(amount) > 0 && (
