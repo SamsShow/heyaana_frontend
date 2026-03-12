@@ -206,7 +206,7 @@ export default function ProfilePage() {
       (balanceData as { tokens?: ApiToken[] })?.tokens ??
       (portfolio?.balance as { tokens?: ApiToken[] } | undefined)?.tokens;
 
-    if (structuredTokens && structuredTokens.length > 0) {
+    if (structuredTokens) {
       const tokens: TokenRow[] = structuredTokens
         .map((t) => {
           const amt = typeof t.balance === "number" ? t.balance : parseFloat(String(t.amount ?? "0"));
@@ -219,8 +219,8 @@ export default function ProfilePage() {
       const totalUsd =
         (balanceData as { total_usd?: number })?.total_usd ??
         (portfolio?.balance as { total_usd?: number } | undefined)?.total_usd;
-      const total = totalUsd !== undefined ? `$${totalUsd.toFixed(2)}` : "";
-      if (tokens.length > 0) return { tokens, total };
+      const total = totalUsd !== undefined ? `$${totalUsd.toFixed(2)}` : "$0.00";
+      return { tokens, total };
     }
 
     // Fall back to text parsing of on_chain_summary
@@ -585,28 +585,30 @@ export default function ProfilePage() {
               </div>
             ) : balanceParsed ? (
               <div>
-                <div>
-                  {balanceParsed.tokens.map((t) => (
-                    <div key={t.symbol} className="token-row">
-                      <div className="flex items-center gap-3">
-                        <div className="avatar avatar-sm text-blue-primary">
-                          {t.symbol.slice(0, 2)}
+                {balanceParsed.tokens.length > 0 ? (
+                  <div>
+                    {balanceParsed.tokens.map((t) => (
+                      <div key={t.symbol} className="token-row">
+                        <div className="flex items-center gap-3">
+                          <div className="avatar avatar-sm text-blue-primary">
+                            {t.symbol.slice(0, 2)}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold">{t.symbol}</p>
+                            <p className="text-[10px] font-mono text-muted">{t.amount}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold">{t.symbol}</p>
-                          <p className="text-[10px] font-mono text-muted">{t.amount}</p>
-                        </div>
+                        <p className="text-sm font-bold font-mono">{t.usd}</p>
                       </div>
-                      <p className="text-sm font-bold font-mono">{t.usd}</p>
-                    </div>
-                  ))}
-                </div>
-                {balanceParsed.total && (
-                  <div className="flex items-center justify-between px-5 py-3 border-t border-border/50 bg-surface/30">
-                    <span className="text-xs font-mono text-muted uppercase tracking-wide">Total</span>
-                    <span className="text-lg font-bold font-mono">{balanceParsed.total}</span>
+                    ))}
                   </div>
+                ) : (
+                  <p className="text-sm text-muted font-mono text-center py-4">No tokens — deposit funds to start trading</p>
                 )}
+                <div className="flex items-center justify-between px-5 py-3 border-t border-border/50 bg-surface/30">
+                  <span className="text-xs font-mono text-muted uppercase tracking-wide">Total</span>
+                  <span className="text-lg font-bold font-mono">{balanceParsed.total}</span>
+                </div>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-muted px-5 py-6 justify-center">
