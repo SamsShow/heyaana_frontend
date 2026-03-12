@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { PriceChart } from "@/components/dashboard/market/PriceChart";
 import { TradePanel } from "@/components/dashboard/market/TradePanel";
+import { LimitOrderPanel } from "@/components/dashboard/market/LimitOrderPanel";
 import { PositionCard } from "@/components/dashboard/market/PositionCard";
 import { MarketTabs } from "@/components/dashboard/market/MarketTabs";
 import { fetcher, formatVolume, Market, normalizeMarket, Trade, analyzeMarket, MarketAnalysis } from "@/lib/api";
@@ -298,6 +299,13 @@ function MarketDetailContent() {
                 conditionId={market.condition_id}
                 marketId={market.id}
                 onTradeSuccess={() => { mutateTrades(); mutateMarket(); }}
+              />
+
+              {/* Limit Order panel */}
+              <LimitOrderPanel
+                market={market}
+                conditionId={market.condition_id}
+                onOrderSuccess={() => { mutateTrades(); mutateMarket(); }}
               />
 
               {/* Market meta */}

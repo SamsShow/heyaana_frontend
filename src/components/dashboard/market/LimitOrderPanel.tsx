@@ -1,0 +1,250 @@
+"use client";
+
+import { useState } from "react";
+import { Market, postLimitOrder } from "@/lib/api";
+import { Loader2, CheckCircle2, AlertCircle, ExternalLink, Clock } from "lucide-react";
+import { useAuth } from "@/lib/useAuth";
+
+interface LimitOrderPanelProps {
+  market: Market;
+  conditionId?: string;
+  onOrderSuccess?: () => void;
+}
+
+export function LimitOrderPanel({ market, conditionId, onOrderSuccess }: LimitOrderPanelProps) {
+  const { isAuthenticated } = useAuth();
+  const [side, setSide] = useState<"Yes" | "No">("Yes");
+  const [orderSide, setOrderSide] = useState<"BUY" | "SELL">("BUY");
+  const [price, setPrice] = useState("");
+  const [size, setSize] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; message: string; txHash?: string } | null>(null);
+
+  const yesPrice = market.yes_bid ?? market.last_price ?? 50;
+  const noPrice = market.no_bid ?? (market.last_price ? 100 - market.last_price : 50);
+
+  const estimatedCost = price && size ? ((parseFloat(price) / 100) * parseFloat(size)).toFixed(2) : null;
+
+  async function handleSubmit() {
+    if (!price || !size || Number(price) <= 0 || Number(size) <= 0) return;
+    if (!conditionId) {
+      setResult({ ok: false, message: "Market condition ID not available" });
+      return;
+    }
+
+    setLoading(true);
+    setResult(null);
+    try {
+      const data = await postLimitOrder({
+        condition_id: conditionId,
+        side,
+        price: Number(price),
+        size: Number(size),
+        order_side: orderSide,
+        auto_prepare: true,
+      }) as Record<string, unknown>;
+      const txHash = (data?.tx_hash ?? data?.transaction_hash ?? data?.txHash ?? data?.order_id) as string | undefined;
+      setResult({ ok: true, message: `Limit order placed: ${orderSide} ${size} ${side} shares @ ${price}¢`, txHash });
+      setPrice("");
+      setSize("");
+      onOrderSuccess?.();
+    } catch (err) {
+      setResult({ ok: false, message: err instanceof Error ? err.message : "Limit order failed" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="dashboard-card p-4 space-y-4">
+      <div className="section-header mb-0">
+        <Clock className="w-4 h-4 text-blue-primary" />
+        <h3 className="text-sm font-semibold">Limit Order</h3>
+      </div>
+
+      {/* Side selector (Yes/No) */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={() => setSide("Yes")}
+          className={`py-3 rounded-lg text-sm font-semibold transition-all ${
+            side === "Yes"
+              ? "bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500/40"
+              : "bg-surface border border-border text-muted hover:text-foreground hover:border-emerald-500/20"
+          }`}
+        >
+          Yes {yesPrice}¢
+        </button>
+        <button
+          onClick={() => setSide("No")}
+          className={`py-3 rounded-lg text-sm font-semibold transition-all ${
+            side === "No"
+              ? "bg-red-500/20 text-red-400 border-2 border-red-500/40"
+              : "bg-surface border border-border text-muted hover:text-foreground hover:border-red-500/20"
+          }`}
+        >
+          No {noPrice}¢
+        </button>
+      </div>
+
+      {/* Order side (BUY/SELL) */}
+      <div>
+        <label className="text-xs text-muted font-mono mb-1.5 block">Order Side</label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setOrderSide("BUY")}
+            className={`py-2.5 rounded-lg text-xs font-semibold transition-all ${
+              orderSide === "BUY"
+                ? "bg-blue-primary/20 text-blue-primary border-2 border-blue-primary/40"
+                : "bg-surface border border-border text-muted hover:text-foreground"
+            }`}
+          >
+            Buy
+          </button>
+          <button
+            onClick={() => setOrderSide("SELL")}
+            className={`py-2.5 rounded-lg text-xs font-semibold transition-all ${
+              orderSide === "SELL"
+                ? "bg-amber-500/20 text-amber-400 border-2 border-amber-500/40"
+                : "bg-surface border border-border text-muted hover:text-foreground"
+            }`}
+          >
+            Sell
+          </button>
+        </div>
+      </div>
+
+      {/* Price input */}
+      <div>
+        <label className="text-xs text-muted font-mono mb-1.5 block">Price (¢)</label>
+        <div className="relative">
+          <input
+            type="number"
+            min="1"
+            max="99"
+            step="1"
+            placeholder={String(side === "Yes" ? yesPrice : noPrice)}
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            className="w-full pl-3 pr-8 py-2.5 text-sm font-mono dark-input"
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-xs font-mono">¢</span>
+        </div>
+        {/* Quick price buttons */}
+        <div className="flex gap-2 mt-1.5">
+          {[
+            { label: "-5¢", val: Math.max(1, (side === "Yes" ? yesPrice : noPrice) - 5) },
+            { label: "-2¢", val: Math.max(1, (side === "Yes" ? yesPrice : noPrice) - 2) },
+            { label: "Mkt", val: side === "Yes" ? yesPrice : noPrice },
+            { label: "+2¢", val: Math.min(99, (side === "Yes" ? yesPrice : noPrice) + 2) },
+            { label: "+5¢", val: Math.min(99, (side === "Yes" ? yesPrice : noPrice) + 5) },
+          ].map((p) => (
+            <button
+              key={p.label}
+              onClick={() => setPrice(String(p.val))}
+              className={`flex-1 py-1.5 text-[10px] font-mono rounded-lg border transition-all ${
+                price === String(p.val)
+                  ? "border-blue-primary/40 bg-blue-primary/10 text-blue-primary"
+                  : "border-border hover:bg-surface-hover text-muted hover:text-foreground"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Size input */}
+      <div>
+        <label className="text-xs text-muted font-mono mb-1.5 block">Shares</label>
+        <input
+          type="number"
+          min="0.01"
+          step="0.01"
+          placeholder="0.00"
+          value={size}
+          onChange={(e) => setSize(e.target.value)}
+          className="w-full pl-3 pr-4 py-2.5 text-sm font-mono dark-input"
+        />
+        {/* Quick size buttons */}
+        <div className="flex gap-2 mt-1.5">
+          {[5, 10, 25, 50, 100].map((v) => (
+            <button
+              key={v}
+              onClick={() => setSize(String(v))}
+              className={`flex-1 py-1.5 text-[10px] font-mono rounded-lg border transition-all ${
+                size === String(v)
+                  ? "border-blue-primary/40 bg-blue-primary/10 text-blue-primary"
+                  : "border-border hover:bg-surface-hover text-muted hover:text-foreground"
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Cost estimate */}
+      {estimatedCost && (
+        <div className="flex items-center justify-between p-3 rounded-lg bg-surface/60 border border-border/50">
+          <span className="text-xs font-mono text-muted">Est. Cost</span>
+          <span className="text-sm font-bold font-mono">${estimatedCost}</span>
+        </div>
+      )}
+
+      {/* Submit */}
+      <button
+        onClick={handleSubmit}
+        disabled={loading || !price || !size || Number(price) <= 0 || Number(size) <= 0 || !isAuthenticated}
+        className={`w-full py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+          orderSide === "BUY"
+            ? side === "Yes"
+              ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
+              : "bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20"
+            : "bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20"
+        }`}
+      >
+        {loading ? (
+          <span className="flex items-center justify-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Placing order…
+          </span>
+        ) : !isAuthenticated ? (
+          "Login to trade"
+        ) : (
+          `${orderSide} ${side} @ ${price || "—"}¢`
+        )}
+      </button>
+
+      {/* Result feedback */}
+      {result && (
+        <div
+          className={`flex items-start gap-2 p-3 rounded-lg text-xs font-mono ${
+            result.ok
+              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+              : "bg-red-500/10 text-red-400 border border-red-500/20"
+          }`}
+        >
+          {result.ok ? (
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+          ) : (
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          )}
+          <div className="flex-1 min-w-0">
+            <span>{result.message}</span>
+            {result.ok && result.txHash && (
+              <a
+                href={`https://polygonscan.com/tx/${result.txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 mt-1.5 text-emerald-400/80 hover:text-emerald-400 transition-colors truncate"
+              >
+                <ExternalLink className="w-3 h-3 shrink-0" />
+                <span className="truncate">View on Polygonscan</span>
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

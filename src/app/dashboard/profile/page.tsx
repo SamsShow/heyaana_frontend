@@ -5,9 +5,9 @@ import { useState, useEffect } from "react";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { useAuth } from "@/lib/useAuth";
-import { proxyFetcher, Portfolio, Position, closePosition, exportPrivateKey, unfollowTrader, approveTrading, swapUSDC } from "@/lib/api";
+import { proxyFetcher, Portfolio, Position, closePosition, exportPrivateKey, unfollowTrader, approveTrading, swapUSDC, withdrawFunds } from "@/lib/api";
 import Link from "next/link";
-import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2, X, AlertCircle, CheckCircle2, ExternalLink, KeyRound, ShieldAlert, Copy, Eye, EyeOff, Users, UserMinus, ShieldCheck, ArrowLeftRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2, X, AlertCircle, CheckCircle2, ExternalLink, KeyRound, ShieldAlert, Copy, Eye, EyeOff, Users, UserMinus, ShieldCheck, ArrowLeftRight, ArrowUpFromLine } from "lucide-react";
 
 function stripMarkdown(text: string): string {
   return text
@@ -68,6 +68,12 @@ export default function ProfilePage() {
   const [swapLoading, setSwapLoading] = useState(false);
   const [swapResult, setSwapResult] = useState<{ ok: boolean; message: string } | null>(null);
 
+  // Withdraw state
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawAll, setWithdrawAll] = useState(false);
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [withdrawResult, setWithdrawResult] = useState<{ ok: boolean; message: string } | null>(null);
+
   async function handleSwap() {
     setSwapLoading(true);
     setSwapResult(null);
@@ -82,6 +88,28 @@ export default function ProfilePage() {
       setSwapResult({ ok: false, message: err instanceof Error ? err.message : "Swap failed" });
     } finally {
       setSwapLoading(false);
+    }
+  }
+
+  async function handleWithdraw() {
+    setWithdrawLoading(true);
+    setWithdrawResult(null);
+    try {
+      const amount = withdrawAll ? null : withdrawAmount ? parseFloat(withdrawAmount) : null;
+      if (!withdrawAll && (!amount || amount <= 0)) {
+        setWithdrawResult({ ok: false, message: "Enter a valid amount" });
+        setWithdrawLoading(false);
+        return;
+      }
+      await withdrawFunds(amount);
+      setWithdrawResult({ ok: true, message: withdrawAll ? "Full withdrawal submitted!" : `$${parseFloat(withdrawAmount).toFixed(2)} withdrawal submitted!` });
+      setWithdrawAmount("");
+      setWithdrawAll(false);
+      await Promise.all([mutateBalance(), mutatePortfolio()]);
+    } catch (err) {
+      setWithdrawResult({ ok: false, message: err instanceof Error ? err.message : "Withdrawal failed" });
+    } finally {
+      setWithdrawLoading(false);
     }
   }
 
@@ -671,6 +699,66 @@ export default function ProfilePage() {
                     <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Swapping…</>
                   ) : (
                     <><ArrowLeftRight className="w-3.5 h-3.5" /> {swapAll ? "Swap All USDC.e" : "Swap USDC.e"}</>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Withdraw Card */}
+          {isAuthenticated && (
+            <div className="dashboard-card p-5 md:p-6 space-y-4">
+              <div className="section-header">
+                <ArrowUpFromLine className="w-4 h-4 text-blue-primary" />
+                <h3 className="text-sm font-semibold">Withdraw</h3>
+              </div>
+              <p className="text-xs text-muted leading-relaxed">
+                Transfer USDC.e from your Safe trading wallet back to your EOA.
+              </p>
+
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={withdrawAll}
+                    onChange={e => { setWithdrawAll(e.target.checked); if (e.target.checked) setWithdrawAmount(""); }}
+                    className="w-4 h-4 accent-blue-400"
+                  />
+                  <span className="text-xs font-semibold">Withdraw full balance</span>
+                </label>
+
+                {!withdrawAll && (
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm">$</span>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      placeholder="Amount (e.g. 10.00)"
+                      value={withdrawAmount}
+                      onChange={e => setWithdrawAmount(e.target.value)}
+                      className="w-full h-10 pl-7 pr-16 text-sm rounded-xl bg-surface/60 border border-border/70 text-foreground placeholder:text-muted focus:outline-none focus:border-blue-primary/50 focus:ring-2 focus:ring-blue-primary/20 transition-all font-mono"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-muted">USDC.e</span>
+                  </div>
+                )}
+
+                {withdrawResult && (
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono ${withdrawResult.ok ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}>
+                    {withdrawResult.ok ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
+                    {withdrawResult.message}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleWithdraw}
+                  disabled={withdrawLoading || (!withdrawAll && !withdrawAmount)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {withdrawLoading ? (
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Withdrawing…</>
+                  ) : (
+                    <><ArrowUpFromLine className="w-3.5 h-3.5" /> {withdrawAll ? "Withdraw All" : "Withdraw"}</>
                   )}
                 </button>
               </div>

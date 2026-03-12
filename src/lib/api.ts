@@ -856,6 +856,53 @@ export async function swapUSDC(amount: number | null): Promise<unknown> {
     return data;
 }
 
+// ─── Withdraw ─────────────────────────────────────────────
+
+export async function withdrawFunds(amount: number | null): Promise<unknown> {
+    const res = await fetch(`${API2_BASE_URL}/withdraw`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`,
+        },
+        body: JSON.stringify({ amount }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Withdrawal failed");
+    if (data.success === false) throw new Error(data.message ?? data.error ?? "Withdrawal failed");
+    return data;
+}
+
+// ─── Limit Order ──────────────────────────────────────────
+
+export type LimitOrderRequest = {
+    condition_id: string;
+    side: string;
+    price: number;
+    size: number;
+    order_side: "BUY" | "SELL";
+    auto_prepare?: boolean;
+};
+
+export async function postLimitOrder(order: LimitOrderRequest): Promise<unknown> {
+    const res = await fetch(`${API2_BASE_URL}/limit-order`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`,
+        },
+        body: JSON.stringify(order),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Limit order failed");
+    if (data.success === false) throw new Error(data.message ?? data.error ?? "Limit order failed");
+    return data;
+}
+
 // ─── Market analysis ──────────────────────────────────────
 
 export type MarketAnalysis = {
