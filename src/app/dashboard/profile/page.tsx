@@ -293,14 +293,10 @@ export default function ProfilePage() {
     try {
       const side = pos.outcome ?? pos.side ?? "Yes";
       await closePosition(condId, size, side);
-      // Show beep boop syncing loader while portfolio revalidates
-      setSyncingPortfolio(true);
-      setSyncFrame(0);
-      const syncInterval = setInterval(() => setSyncFrame((f) => f + 1), 300);
-      await Promise.all([mutatePortfolio(), mutateBalance()]);
-      clearInterval(syncInterval);
-      setSyncingPortfolio(false);
       setCloseResult({ ok: true, message: "Position closed successfully." });
+      // Revalidate in background — optimistic removal keeps it hidden
+      mutatePortfolio();
+      mutateBalance();
     } catch (err) {
       // Revert optimistic removal on failure
       setOptimisticClosed((prev) => { const s = new Set(prev); s.delete(condId); return s; });

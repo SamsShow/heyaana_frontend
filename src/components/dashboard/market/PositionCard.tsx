@@ -14,6 +14,7 @@ interface PositionCardProps {
 export function PositionCard({ ticker, marketTitle }: PositionCardProps) {
   const { isAuthenticated } = useAuth();
   const [closing, setClosing] = useState(false);
+  const [closed, setClosed] = useState(false);
   const [closeMsg, setCloseMsg] = useState<string | null>(null);
 
   const { data: portfolio, mutate } = useSWR<Portfolio>(
@@ -35,7 +36,7 @@ export function PositionCard({ ticker, marketTitle }: PositionCardProps) {
     );
   })();
 
-  if (!isAuthenticated || !position) return null;
+  if (!isAuthenticated || !position || closed) return null;
 
   const pnlCash = position.pnl_cash ?? position.pnl ?? 0;
   const pnlPct = position.pnl_percent ?? position.pnl_pct ?? 0;
@@ -52,7 +53,7 @@ export function PositionCard({ ticker, marketTitle }: PositionCardProps) {
     const id = condId ?? ticker;
     try {
       await closePosition(id, shares, side);
-      setCloseMsg("Position closed.");
+      setClosed(true);
       mutate();
     } catch (err) {
       setCloseMsg(err instanceof Error ? err.message : "Failed to close position");
