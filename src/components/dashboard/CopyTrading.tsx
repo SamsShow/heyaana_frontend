@@ -51,10 +51,20 @@ export function CopyTrading() {
   );
   const enabled = copyTradingData?.copy_trading_enabled ?? false;
 
-  // Derive followed leaders from the same response
-  const followingRaw = copyTradingData?.leaders ?? copyTradingData?.following ?? [];
-  // Keep a separate mutate alias for follow/unfollow refreshes
-  const mutateFollowing = mutateCopyTrading;
+  // Use hooks endpoint for accurate followed leaders list
+  const { data: hooksData, mutate: mutateHooks } = useSWR<unknown>(
+    isAuthenticated ? "/api/proxy/copy-trading/hooks" : null,
+    proxyFetcher,
+    { revalidateOnFocus: true },
+  );
+  const followingRaw = (() => {
+    if (Array.isArray(hooksData)) return hooksData;
+    const w = hooksData as { hooks?: unknown[] } | null;
+    if (Array.isArray(w?.hooks)) return w!.hooks;
+    if (hooksData && typeof hooksData === "object" && "hook_id" in (hooksData as Record<string, unknown>)) return [hooksData];
+    return [];
+  })() as Array<{ username?: string; leader_username?: string; leader_address?: string }>;
+  const mutateFollowing = () => Promise.all([mutateCopyTrading(), mutateHooks()]);
 
   // Load real traders from social feed
   const { data: socialFeedRaw } = useSWR<unknown>(
@@ -85,10 +95,12 @@ export function CopyTrading() {
       }));
   })();
 
-  // Derive the set of followed usernames from the unified response
-  const followed = new Set<string>(
-    followingRaw.map((f) => f.leader_username ?? f.username ?? "").filter(Boolean)
-  );
+  // Derive the set of followed identifiers (usernames + addresses) from hooks
+  const followed = new Set<string>();
+  for (const f of followingRaw) {
+    if (f.leader_address) followed.add(f.leader_address);
+    if (f.leader_username) followed.add(f.leader_username);
+  }
 
   async function handleToggleCopyTrading() {
     setTogglingEnabled(true);

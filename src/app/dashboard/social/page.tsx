@@ -33,15 +33,21 @@ export default function TradesPage() {
   const [optimisticUnfollowed, setOptimisticUnfollowed] = useState<Set<string>>(new Set());
 
   const { data: feedRaw, isLoading } = useSWR<unknown>("/api/proxy/trades?limit=50", proxyFetcher, { revalidateOnFocus: true, refreshInterval: 15000 });
-  const { data: followingData, mutate: mutateFollowing } = useSWR<unknown>(isAuthenticated ? "/api/proxy/copy-trading/following" : null, proxyFetcher, { revalidateOnFocus: true });
+  const { data: hooksData, mutate: mutateFollowing } = useSWR<unknown>(isAuthenticated ? "/api/proxy/copy-trading/hooks" : null, proxyFetcher, { revalidateOnFocus: true });
 
-  const rawFollowingArr = (() => {
-    if (Array.isArray(followingData)) return followingData;
-    const w = followingData as { following?: unknown[]; data?: unknown[] } | null;
-    return Array.isArray(w?.following) ? w!.following : Array.isArray(w?.data) ? w!.data : [];
-  })();
-  const serverFollowed = new Set<string>((rawFollowingArr as Array<{ leader_username?: string; username?: string }>).map(f => f.leader_username ?? f.username ?? "").filter(Boolean));
-  const followed = new Set<string>([...[...serverFollowed].filter(u => !optimisticUnfollowed.has(u)), ...optimisticFollowed]);
+  const hooksArr = (() => {
+    if (Array.isArray(hooksData)) return hooksData;
+    const w = hooksData as { hooks?: unknown[] } | null;
+    if (Array.isArray(w?.hooks)) return w!.hooks;
+    if (hooksData && typeof hooksData === "object" && "hook_id" in (hooksData as Record<string, unknown>)) return [hooksData];
+    return [];
+  })() as Array<{ leader_username?: string; leader_address?: string }>;
+  const serverFollowedIds = new Set<string>();
+  for (const h of hooksArr) {
+    if (h.leader_address) serverFollowedIds.add(h.leader_address);
+    if (h.leader_username) serverFollowedIds.add(h.leader_username);
+  }
+  const followed = new Set<string>([...[...serverFollowedIds].filter(u => !optimisticUnfollowed.has(u)), ...optimisticFollowed]);
 
   const feedArr: FeedTrade[] = Array.isArray(feedRaw) ? feedRaw : Array.isArray((feedRaw as { trades?: FeedTrade[] })?.trades) ? (feedRaw as { trades: FeedTrade[] }).trades : [];
 

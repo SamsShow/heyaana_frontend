@@ -279,7 +279,7 @@ export default function TradersPage() {
   const [tipDismissed, setTipDismissed] = useState(false);
 
   const { data: feedRaw, isLoading } = useSWR<unknown>("/api/proxy/trades?limit=100", proxyFetcher, { revalidateOnFocus: false, dedupingInterval: 60000 });
-  const { data: followingData, mutate: mutateFollowing } = useSWR<unknown>(isAuthenticated ? "/api/proxy/copy-trading/following" : null, proxyFetcher, { revalidateOnFocus: true });
+  const { data: hooksData, mutate: mutateFollowing } = useSWR<unknown>(isAuthenticated ? "/api/proxy/copy-trading/hooks" : null, proxyFetcher, { revalidateOnFocus: true });
 
   async function loadGlobalLeaderboard(category = globalCategory, period = globalPeriod, orderBy = globalOrderBy) {
     setGlobalLoading(true);
@@ -306,13 +306,25 @@ export default function TradersPage() {
     if (globalEntries.length === 0) loadGlobalLeaderboard();
   }
 
-  const rawFollowingArr = (() => {
-    if (Array.isArray(followingData)) return followingData;
-    const w = followingData as { following?: unknown[]; data?: unknown[] } | null;
-    return Array.isArray(w?.following) ? w!.following : Array.isArray(w?.data) ? w!.data : [];
-  })();
-  const serverFollowed = new Set<string>((rawFollowingArr as Array<{ leader_username?: string; username?: string }>).map(f => f.leader_username ?? f.username ?? "").filter(Boolean));
-  const followed = new Set<string>([...[...serverFollowed].filter(u => !optimisticUnfollowed.has(u)), ...optimisticFollowed]);
+  // Parse hooks to determine who we're following
+  const hooksArr = (() => {
+    if (Array.isArray(hooksData)) return hooksData;
+    const w = hooksData as { hooks?: unknown[] } | null;
+    if (Array.isArray(w?.hooks)) return w!.hooks;
+    if (hooksData && typeof hooksData === "object" && "hook_id" in (hooksData as Record<string, unknown>)) return [hooksData];
+    return [];
+  })() as Array<{ leader_username?: string; leader_address?: string }>;
+  // Build set with both addresses and usernames for matching
+  const serverFollowedIds = new Set<string>();
+  for (const h of hooksArr) {
+    if (h.leader_address) serverFollowedIds.add(h.leader_address);
+    if (h.leader_username) serverFollowedIds.add(h.leader_username);
+  }
+  const followed = new Set<string>([...[...serverFollowedIds].filter(u => !optimisticUnfollowed.has(u)), ...optimisticFollowed]);
+  // Check if a trader is followed by username or wallet
+  function isTraderFollowed(username: string, wallet?: string): boolean {
+    return followed.has(username) || (!!wallet && followed.has(wallet));
+  }
 
   const feedArr: FeedTrade[] = Array.isArray(feedRaw) ? feedRaw : Array.isArray((feedRaw as { trades?: FeedTrade[] })?.trades) ? (feedRaw as { trades: FeedTrade[] }).trades : [];
   const leaderboard = useMemo(() => buildLeaderboard(feedArr), [feedArr]);
@@ -349,7 +361,8 @@ export default function TradersPage() {
 
   function requestFollow(username: string) {
     if (!isAuthenticated) { window.location.href = "/onboarding"; return; }
-    if (!followed.has(username)) setConfirmFollowUser(username);
+    const trader = leaderboard.find(t => t.username === username);
+    if (!isTraderFollowed(username, trader?.wallet)) setConfirmFollowUser(username);
     else handleFollowToggle(username);
   }
 
@@ -358,7 +371,7 @@ export default function TradersPage() {
     setConfirmFollowUser(null); setFollowError(null);
     const trader = leaderboard.find(t => t.username === username);
     const wallet = trader?.wallet;
-    const isCurrentlyFollowing = followed.has(username);
+    const isCurrentlyFollowing = isTraderFollowed(username, wallet);
     if (isCurrentlyFollowing) { setOptimisticUnfollowed(p => new Set(p).add(username)); setOptimisticFollowed(p => { const s = new Set(p); s.delete(username); return s; }); }
     else { setOptimisticFollowed(p => new Set(p).add(username)); setOptimisticUnfollowed(p => { const s = new Set(p); s.delete(username); return s; }); }
     setPendingFollow(p => new Set(p).add(username));
@@ -594,7 +607,7 @@ export default function TradersPage() {
                     <TraderCard
                       key={trader.username}
                       trader={trader}
-                      isFollowing={followed.has(trader.username)}
+                      isFollowing={isTraderFollowed(trader.username, trader.wallet)}
                       isPending={pendingFollow.has(trader.username)}
                       onFollow={() => requestFollow(trader.username)}
                     />

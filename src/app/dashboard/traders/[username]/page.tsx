@@ -184,19 +184,25 @@ export default function TraderProfilePage() {
     { revalidateOnFocus: false }
   );
 
-  const { data: followingData, mutate: mutateFollowing } = useSWR<unknown>(
-    isAuthenticated ? "/api/proxy/copy-trading/following" : null,
+  const { data: hooksData, mutate: mutateFollowing } = useSWR<unknown>(
+    isAuthenticated ? "/api/proxy/copy-trading/hooks" : null,
     proxyFetcher,
     { revalidateOnFocus: true }
   );
 
-  const rawFollowingArr = (() => {
-    if (Array.isArray(followingData)) return followingData;
-    const w = followingData as { following?: unknown[]; data?: unknown[] } | null;
-    return Array.isArray(w?.following) ? w!.following : Array.isArray(w?.data) ? w!.data : [];
-  })();
-  const serverFollowed = (rawFollowingArr as Array<{ leader_username?: string; username?: string }>)
-    .some(f => (f.leader_username ?? f.username) === username);
+  // Parse hooks — could be array, {hooks:[...]}, or single object
+  const hooksArr = (() => {
+    if (Array.isArray(hooksData)) return hooksData;
+    const w = hooksData as { hooks?: unknown[] } | null;
+    if (Array.isArray(w?.hooks)) return w!.hooks;
+    if (hooksData && typeof hooksData === "object" && "hook_id" in (hooksData as Record<string, unknown>)) return [hooksData];
+    return [];
+  })() as Array<{ leader_username?: string; leader_address?: string }>;
+  // Match by leader_address (wallet) for global traders, or leader_username for local
+  const serverFollowed = hooksArr.some(h =>
+    (walletParam && h.leader_address === walletParam) ||
+    (!walletParam && h.leader_username === username)
+  );
   const isFollowing = optimisticFollow !== null ? optimisticFollow : serverFollowed;
 
   const isOwnProfile = user?.username === username;

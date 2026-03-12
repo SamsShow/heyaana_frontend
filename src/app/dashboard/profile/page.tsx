@@ -172,17 +172,17 @@ export default function ProfilePage() {
     { revalidateOnFocus: true, refreshInterval: 3000, dedupingInterval: 0 },
   );
 
-  type FollowingEntry = { username?: string; leader_username?: string; first_name?: string; [key: string]: unknown };
-  const { data: followingRaw, isLoading: followingLoading, mutate: mutateFollowing } = useSWR<unknown>(
-    isAuthenticated ? "/api/proxy/copy-trading/following" : null,
+  type FollowingEntry = { username?: string; leader_username?: string; leader_address?: string; first_name?: string; [key: string]: unknown };
+  const { data: hooksRaw, isLoading: followingLoading, mutate: mutateFollowing } = useSWR<unknown>(
+    isAuthenticated ? "/api/proxy/copy-trading/hooks" : null,
     proxyFetcher,
     { revalidateOnFocus: true },
   );
   const followingList: FollowingEntry[] = (() => {
-    if (Array.isArray(followingRaw)) return followingRaw as FollowingEntry[];
-    const w = followingRaw as { following?: unknown[]; data?: unknown[] } | null;
-    if (Array.isArray(w?.following)) return w!.following as FollowingEntry[];
-    if (Array.isArray(w?.data)) return w!.data as FollowingEntry[];
+    if (Array.isArray(hooksRaw)) return hooksRaw as FollowingEntry[];
+    const w = hooksRaw as { hooks?: unknown[] } | null;
+    if (Array.isArray(w?.hooks)) return w!.hooks as FollowingEntry[];
+    if (hooksRaw && typeof hooksRaw === "object" && "hook_id" in (hooksRaw as Record<string, unknown>)) return [hooksRaw] as FollowingEntry[];
     return [];
   })();
 
