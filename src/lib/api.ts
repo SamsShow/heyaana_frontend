@@ -676,7 +676,7 @@ export async function unfollowTrader(leaderUsername?: string, leaderAddress?: st
 export async function closePosition(conditionId: string, size?: number, side?: string): Promise<unknown> {
     return postTrade({
         condition_id: conditionId,
-        side: (side as "Yes" | "No") ?? "Yes",
+        side: ((side ?? "Yes").toUpperCase() === "NO" ? "No" : "Yes"),
         amount: size ?? 0,
         order_side: "SELL",
         auto_prepare: true,
