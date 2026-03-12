@@ -1,38 +1,114 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { QRCodeSVG } from "qrcode.react";
-import { X, Copy, Check, Info } from "lucide-react";
+import { X, Copy, Check, Info, ChevronDown, AlertTriangle, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
-import useSWR from "swr";
-import { proxyFetcher } from "@/lib/api";
+import { fetchBridgeDeposit, fetchBridgeSupportedAssets, type BridgeDepositInfo, type SupportedAsset } from "@/lib/api";
 
 interface DepositModalProps {
   onClose: () => void;
 }
 
+// Chain logo colors
+const CHAIN_COLORS: Record<string, string> = {
+  Ethereum: "bg-blue-600",
+  Polygon: "bg-purple-600",
+  Solana: "bg-gradient-to-br from-purple-500 to-green-400",
+  Arbitrum: "bg-blue-500",
+  Optimism: "bg-red-500",
+  Base: "bg-blue-700",
+  "BNB Smart Chain": "bg-yellow-500",
+  Bitcoin: "bg-orange-500",
+  Tron: "bg-red-600",
+};
+
+const CHAIN_ABBREV: Record<string, string> = {
+  Ethereum: "ETH",
+  Polygon: "POL",
+  Solana: "SOL",
+  Arbitrum: "ARB",
+  Optimism: "OP",
+  Base: "BASE",
+  "BNB Smart Chain": "BSC",
+  Bitcoin: "BTC",
+  Tron: "TRX",
+};
+
 export function DepositModal({ onClose }: DepositModalProps) {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [copied, setCopied] = useState(false);
+  const [selectedChain, setSelectedChain] = useState("Ethereum");
+  const [selectedToken, setSelectedToken] = useState("USDC");
+  const [showChainDropdown, setShowChainDropdown] = useState(false);
+  const [showTokenDropdown, setShowTokenDropdown] = useState(false);
 
-  // Always fetch — user.wallet_address may be null even when logged in
-  const { data: walletData, isLoading } = useSWR<Record<string, string>>(
-    isAuthenticated ? "/api/proxy/me/wallet/address" : null,
-    proxyFetcher,
-    { revalidateOnFocus: false }
-  );
+  const [bridgeInfo, setBridgeInfo] = useState<BridgeDepositInfo | null>(null);
+  const [bridgeLoading, setBridgeLoading] = useState(false);
+  const [bridgeError, setBridgeError] = useState<string | null>(null);
 
-  const address =
-    user?.wallet_address ??
-    walletData?.address ??
-    walletData?.wallet_address ??
-    walletData?.eth_address ??
-    "";
+  const [assets, setAssets] = useState<SupportedAsset[]>([]);
+  const [assetsLoading, setAssetsLoading] = useState(true);
+
+  // Fetch supported assets on mount
+  useEffect(() => {
+    fetchBridgeSupportedAssets()
+      .then((a) => {
+        setAssets(a);
+        if (a.length > 0) {
+          setSelectedChain(a[0].chainName);
+          setSelectedToken(a[0].tokens[0] || "USDC");
+        }
+      })
+      .catch(() => {})
+      .finally(() => setAssetsLoading(false));
+  }, []);
+
+  // Fetch bridge deposit addresses when authenticated
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    setBridgeLoading(true);
+    setBridgeError(null);
+    fetchBridgeDeposit()
+      .then(setBridgeInfo)
+      .catch((err) => setBridgeError(err instanceof Error ? err.message : "Failed to load deposit info"))
+      .finally(() => setBridgeLoading(false));
+  }, [isAuthenticated]);
+
+  // Get tokens for selected chain
+  const chainAsset = assets.find((a) => a.chainName === selectedChain);
+  const availableTokens = chainAsset?.tokens ?? [];
+
+  // When chain changes, reset token to first available
+  useEffect(() => {
+    if (availableTokens.length > 0 && !availableTokens.includes(selectedToken)) {
+      setSelectedToken(availableTokens[0]);
+    }
+  }, [selectedChain, availableTokens, selectedToken]);
+
+  // Derive deposit address from bridge info based on selected chain
+  const depositAddress = (() => {
+    if (!bridgeInfo) return "";
+    // The API may return addresses under various keys — try common patterns
+    const addrs = bridgeInfo.bridge_addresses ?? bridgeInfo;
+    const chainKey = selectedChain.toLowerCase().replace(/\s+/g, "_");
+    // Try exact chain name, lowercase, key variations
+    return (
+      (addrs as Record<string, string>)[selectedChain] ??
+      (addrs as Record<string, string>)[chainKey] ??
+      (addrs as Record<string, string>)[CHAIN_ABBREV[selectedChain]?.toLowerCase() ?? ""] ??
+      // For EVM chains, often same address
+      (addrs as Record<string, string>).evm ??
+      (addrs as Record<string, string>).ethereum ??
+      bridgeInfo.polymarket_wallet ??
+      ""
+    );
+  })();
 
   function copyAddress() {
-    if (!address) return;
-    navigator.clipboard.writeText(address).then(() => {
+    if (!depositAddress) return;
+    navigator.clipboard.writeText(depositAddress).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
@@ -42,41 +118,96 @@ export function DepositModal({ onClose }: DepositModalProps) {
     <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div
-        className="relative w-full sm:max-w-[420px] mx-4 rounded-t-2xl sm:rounded-2xl shadow-2xl border border-white/[0.08] overflow-hidden"
+        className="relative w-full sm:max-w-[420px] mx-4 rounded-t-2xl sm:rounded-2xl shadow-2xl border border-white/[0.08] overflow-hidden max-h-[90vh] overflow-y-auto"
         style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.03) 0%, #111118 30%, #0E0E15 100%)" }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4">
-          <h2 className="text-base font-bold">Deposit</h2>
+          <h2 className="text-base font-bold">Fund Your Account</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-white/[0.06] transition-all">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="px-5 pb-5 space-y-4">
-          {/* Token + Chain selectors (static) */}
+          {/* Disclaimer */}
+          <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3.5 py-3">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="text-[11px] text-amber-300/80 leading-relaxed">
+              <span className="font-semibold text-amber-400">Direct deposit to Polymarket.</span>{" "}
+              Funds are sent directly to your Polymarket wallet via the bridge. Only send supported tokens on the correct chain. Sending unsupported tokens or using the wrong chain may result in permanent loss of funds.
+            </div>
+          </div>
+
+          {/* Chain + Token selectors */}
           <div className="grid grid-cols-2 gap-3">
+            {/* Chain selector */}
             <div>
-              <p className="text-[10px] font-mono text-muted uppercase tracking-wide mb-1.5">Supported token</p>
-              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03]">
-                {/* USDC logo */}
-                <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
-                  <span className="text-[9px] font-bold text-white">$</span>
-                </div>
-                <span className="text-sm font-semibold">USDC</span>
+              <p className="text-[10px] font-mono text-muted uppercase tracking-wide mb-1.5">Chain</p>
+              <div className="relative">
+                <button
+                  onClick={() => { setShowChainDropdown(!showChainDropdown); setShowTokenDropdown(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03] hover:border-white/[0.15] transition-all"
+                >
+                  <div className={`w-5 h-5 rounded-full ${CHAIN_COLORS[selectedChain] ?? "bg-gray-500"} flex items-center justify-center shrink-0`}>
+                    <span className="text-[8px] font-bold text-white">{(CHAIN_ABBREV[selectedChain] ?? "?")[0]}</span>
+                  </div>
+                  <span className="text-sm font-semibold flex-1 text-left truncate">{selectedChain}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-muted" />
+                </button>
+                {showChainDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-1 z-10 rounded-xl border border-white/[0.08] bg-[#16161f] shadow-xl max-h-48 overflow-y-auto">
+                    {(assetsLoading ? [] : assets).map((a) => (
+                      <button
+                        key={a.chainName}
+                        onClick={() => { setSelectedChain(a.chainName); setShowChainDropdown(false); }}
+                        className={`w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-white/[0.05] transition-all ${
+                          selectedChain === a.chainName ? "bg-white/[0.05]" : ""
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded-full ${CHAIN_COLORS[a.chainName] ?? "bg-gray-500"} flex items-center justify-center shrink-0`}>
+                          <span className="text-[8px] font-bold text-white">{(CHAIN_ABBREV[a.chainName] ?? "?")[0]}</span>
+                        </div>
+                        <span className="text-sm font-medium">{a.chainName}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
+
+            {/* Token selector */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-[10px] font-mono text-muted uppercase tracking-wide">Supported chain</p>
-                <span className="text-[10px] font-mono text-muted">$15+ min</span>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03]">
-                {/* Polygon logo */}
-                <div className="w-5 h-5 rounded-full bg-purple-600 flex items-center justify-center shrink-0">
-                  <span className="text-[9px] font-bold text-white">P</span>
-                </div>
-                <span className="text-sm font-semibold">Polygon</span>
+              <p className="text-[10px] font-mono text-muted uppercase tracking-wide mb-1.5">Token</p>
+              <div className="relative">
+                <button
+                  onClick={() => { setShowTokenDropdown(!showTokenDropdown); setShowChainDropdown(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03] hover:border-white/[0.15] transition-all"
+                >
+                  <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
+                    <span className="text-[9px] font-bold text-white">$</span>
+                  </div>
+                  <span className="text-sm font-semibold flex-1 text-left">{selectedToken}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-muted" />
+                </button>
+                {showTokenDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-1 z-10 rounded-xl border border-white/[0.08] bg-[#16161f] shadow-xl max-h-48 overflow-y-auto">
+                    {availableTokens.map((token) => (
+                      <button
+                        key={token}
+                        onClick={() => { setSelectedToken(token); setShowTokenDropdown(false); }}
+                        className={`w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-white/[0.05] transition-all ${
+                          selectedToken === token ? "bg-white/[0.05]" : ""
+                        }`}
+                      >
+                        <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
+                          <span className="text-[9px] font-bold text-white">$</span>
+                        </div>
+                        <span className="text-sm font-medium">{token}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -84,9 +215,14 @@ export function DepositModal({ onClose }: DepositModalProps) {
           {/* QR Code */}
           <div className="flex justify-center">
             <div className="relative p-3 rounded-2xl bg-white shadow-lg">
-              {address ? (
+              {bridgeLoading ? (
+                <div className="w-[180px] h-[180px] flex flex-col items-center justify-center gap-2">
+                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                  <p className="text-[10px] text-gray-400 font-mono">Loading address...</p>
+                </div>
+              ) : depositAddress ? (
                 <QRCodeSVG
-                  value={address}
+                  value={depositAddress}
                   size={180}
                   bgColor="#ffffff"
                   fgColor="#000000"
@@ -95,30 +231,34 @@ export function DepositModal({ onClose }: DepositModalProps) {
                 />
               ) : (
                 <div className="w-[180px] h-[180px] flex flex-col items-center justify-center gap-2">
-                  <div className="w-6 h-6 border-2 border-gray-300 border-t-purple-500 rounded-full animate-spin" />
-                  {!isLoading && <p className="text-[10px] text-gray-400 font-mono text-center px-4">No wallet address found</p>}
+                  {bridgeError ? (
+                    <p className="text-[10px] text-red-400 font-mono text-center px-4">{bridgeError}</p>
+                  ) : (
+                    <p className="text-[10px] text-gray-400 font-mono text-center px-4">No deposit address available</p>
+                  )}
                 </div>
               )}
-              {/* Polygon badge on QR */}
-              <div className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-purple-600 border-2 border-white flex items-center justify-center">
-                <span className="text-[10px] font-bold text-white">P</span>
+              {/* Chain badge on QR */}
+              <div className={`absolute bottom-2 right-2 w-7 h-7 rounded-full ${CHAIN_COLORS[selectedChain] ?? "bg-gray-500"} border-2 border-white flex items-center justify-center`}>
+                <span className="text-[8px] font-bold text-white">{(CHAIN_ABBREV[selectedChain] ?? "?").slice(0, 2)}</span>
               </div>
             </div>
           </div>
 
-          {/* Address label */}
+          {/* Address display */}
           <div>
             <div className="flex items-center gap-1.5 mb-2">
-              <p className="text-xs font-semibold text-foreground/80">Your deposit address</p>
+              <p className="text-xs font-semibold text-foreground/80">Your {selectedChain} deposit address</p>
               <Info className="w-3 h-3 text-muted/60" />
             </div>
             <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02]">
               <span className="flex-1 text-xs font-mono text-muted/80 truncate">
-                {address || "Loading…"}
+                {depositAddress || (bridgeLoading ? "Loading..." : "—")}
               </span>
               <button
                 onClick={copyAddress}
-                className="shrink-0 text-muted hover:text-foreground transition-colors p-0.5"
+                disabled={!depositAddress}
+                className="shrink-0 text-muted hover:text-foreground transition-colors p-0.5 disabled:opacity-30"
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
               </button>
@@ -128,25 +268,23 @@ export function DepositModal({ onClose }: DepositModalProps) {
           {/* Copy address button */}
           <button
             onClick={copyAddress}
-            disabled={!address}
+            disabled={!depositAddress}
             className="w-full py-3 text-sm font-semibold rounded-xl bg-blue-primary text-white hover:bg-blue-primary/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {copied ? <><Check className="w-4 h-4" /> Copied!</> : <><Copy className="w-4 h-4" /> Copy address</>}
           </button>
 
-          {/* Price impact */}
-          <div className="flex items-center justify-center gap-1.5 text-xs font-mono text-muted">
-            <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
-              <span className="text-[8px] font-bold text-white">$</span>
-            </div>
-            Price impact: <span className="text-emerald-400 font-semibold">0.00%</span>
-          </div>
-
           {/* Note */}
-          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 space-y-2">
             <p className="text-[11px] text-foreground/60 leading-relaxed">
-              <span className="font-semibold text-foreground/80">Note:</span>{" "}
-              Send USDC directly to your wallet address. No fees. All deposits are automatically converted to USDC on Polygon for trading.
+              <span className="font-semibold text-foreground/80">How it works:</span>{" "}
+              Send <span className="text-foreground/80 font-medium">{selectedToken}</span> on{" "}
+              <span className="text-foreground/80 font-medium">{selectedChain}</span> to the address above.
+              The Polymarket bridge will automatically convert and deposit funds into your trading account.
+            </p>
+            <p className="text-[11px] text-red-400/80 leading-relaxed">
+              <span className="font-semibold text-red-400">Important:</span>{" "}
+              Only send {selectedToken} on the {selectedChain} network. Using the wrong token or chain will result in loss of funds.
             </p>
           </div>
         </div>

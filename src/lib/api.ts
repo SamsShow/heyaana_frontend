@@ -802,6 +802,41 @@ export async function fetchGlobalLeaderboard(params?: {
     return { entries: maybeArr as GlobalLeaderboardEntry[], params_used: (data.params_used ?? {}) as Record<string, unknown> };
 }
 
+// ─── Bridge ───────────────────────────────────────────────
+
+export type BridgeDepositInfo = {
+    polymarket_wallet?: string;
+    bridge_addresses?: Record<string, string>;
+    [key: string]: unknown;
+};
+
+export async function fetchBridgeDeposit(): Promise<BridgeDepositInfo> {
+    const res = await fetch(`${API2_BASE_URL}/bridge/deposit`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`,
+        },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Failed to fetch bridge deposit info");
+    return data;
+}
+
+export type SupportedAsset = { chainName: string; tokens: string[] };
+
+export async function fetchBridgeSupportedAssets(): Promise<SupportedAsset[]> {
+    const res = await fetch(`${API2_BASE_URL}/bridge/supported-assets`, {
+        headers: {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Failed to fetch supported assets");
+    return data.supportedAssets ?? [];
+}
+
 // ─── USDC Swap ────────────────────────────────────────────
 
 export async function swapUSDC(amount: number | null): Promise<unknown> {
