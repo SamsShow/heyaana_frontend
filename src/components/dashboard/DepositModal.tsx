@@ -5,13 +5,12 @@ import { createPortal } from "react-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { X, Copy, Check, Info, ChevronDown, AlertTriangle, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
-import { fetchBridgeDeposit, fetchBridgeSupportedAssets, type BridgeDepositInfo, type SupportedAsset } from "@/lib/api";
+import { fetchBridgeDeposit, type BridgeDepositInfo } from "@/lib/api";
 
 interface DepositModalProps {
   onClose: () => void;
 }
 
-// Chain logo colors
 const CHAIN_COLORS: Record<string, string> = {
   Ethereum: "bg-blue-600",
   Polygon: "bg-purple-600",
@@ -36,6 +35,21 @@ const CHAIN_ABBREV: Record<string, string> = {
   Tron: "TRX",
 };
 
+// Map chain name → bridge_addresses key
+const CHAIN_TO_ADDRESS_KEY: Record<string, string> = {
+  Ethereum: "evm",
+  Polygon: "evm",
+  Arbitrum: "evm",
+  Optimism: "evm",
+  Base: "evm",
+  "BNB Smart Chain": "evm",
+  Solana: "svm",
+  Tron: "tron",
+  Bitcoin: "btc",
+};
+
+type BridgeOption = { chainName: string; tokens: string[] };
+
 export function DepositModal({ onClose }: DepositModalProps) {
   const { isAuthenticated } = useAuth();
   const [copied, setCopied] = useState(false);
@@ -45,66 +59,49 @@ export function DepositModal({ onClose }: DepositModalProps) {
   const [showTokenDropdown, setShowTokenDropdown] = useState(false);
 
   const [bridgeInfo, setBridgeInfo] = useState<BridgeDepositInfo | null>(null);
+  const [bridgeOptions, setBridgeOptions] = useState<BridgeOption[]>([]);
   const [bridgeLoading, setBridgeLoading] = useState(false);
   const [bridgeError, setBridgeError] = useState<string | null>(null);
 
-  const [assets, setAssets] = useState<SupportedAsset[]>([]);
-  const [assetsLoading, setAssetsLoading] = useState(true);
-
-  // Fetch supported assets on mount
-  useEffect(() => {
-    fetchBridgeSupportedAssets()
-      .then((a) => {
-        setAssets(a);
-        if (a.length > 0) {
-          setSelectedChain(a[0].chainName);
-          setSelectedToken(a[0].tokens[0] || "USDC");
-        }
-      })
-      .catch(() => {})
-      .finally(() => setAssetsLoading(false));
-  }, []);
-
-  // Fetch bridge deposit addresses when authenticated
+  // Single fetch — /bridge/deposit returns addresses + bridge_options
   useEffect(() => {
     if (!isAuthenticated) return;
     setBridgeLoading(true);
     setBridgeError(null);
     fetchBridgeDeposit()
-      .then(setBridgeInfo)
+      .then((data) => {
+        setBridgeInfo(data);
+        const options = (data as { bridge_options?: BridgeOption[] }).bridge_options ?? [];
+        setBridgeOptions(options);
+        if (options.length > 0) {
+          setSelectedChain(options[0].chainName);
+          setSelectedToken(options[0].tokens[0] || "USDC");
+        }
+      })
       .catch((err) => setBridgeError(err instanceof Error ? err.message : "Failed to load deposit info"))
       .finally(() => setBridgeLoading(false));
   }, [isAuthenticated]);
 
   // Get tokens for selected chain
-  const chainAsset = assets.find((a) => a.chainName === selectedChain);
-  const availableTokens = chainAsset?.tokens ?? [];
+  const chainOption = bridgeOptions.find((a) => a.chainName === selectedChain);
+  const availableTokens = chainOption?.tokens ?? [];
 
-  // When chain changes, reset token to first available
+  // When chain changes, reset token to first available if current not supported
   useEffect(() => {
     if (availableTokens.length > 0 && !availableTokens.includes(selectedToken)) {
       setSelectedToken(availableTokens[0]);
     }
   }, [selectedChain, availableTokens, selectedToken]);
 
-  // Derive deposit address from bridge info based on selected chain
+  // Derive deposit address based on chain → address key mapping
   const depositAddress = (() => {
-    if (!bridgeInfo) return "";
-    // The API may return addresses under various keys — try common patterns
-    const addrs = bridgeInfo.bridge_addresses ?? bridgeInfo;
-    const chainKey = selectedChain.toLowerCase().replace(/\s+/g, "_");
-    // Try exact chain name, lowercase, key variations
-    return (
-      (addrs as Record<string, string>)[selectedChain] ??
-      (addrs as Record<string, string>)[chainKey] ??
-      (addrs as Record<string, string>)[CHAIN_ABBREV[selectedChain]?.toLowerCase() ?? ""] ??
-      // For EVM chains, often same address
-      (addrs as Record<string, string>).evm ??
-      (addrs as Record<string, string>).ethereum ??
-      bridgeInfo.polymarket_wallet ??
-      ""
-    );
+    if (!bridgeInfo?.bridge_addresses) return "";
+    const key = CHAIN_TO_ADDRESS_KEY[selectedChain];
+    if (!key) return "";
+    return bridgeInfo.bridge_addresses[key] ?? "";
   })();
+
+  const polymarketWallet = bridgeInfo?.polymarket_wallet ?? "";
 
   function copyAddress() {
     if (!depositAddress) return;
@@ -135,7 +132,7 @@ export function DepositModal({ onClose }: DepositModalProps) {
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <div className="text-[11px] text-amber-300/80 leading-relaxed">
               <span className="font-semibold text-amber-400">Direct deposit to Polymarket.</span>{" "}
-              Funds are sent directly to your Polymarket wallet via the bridge. Only send supported tokens on the correct chain. Sending unsupported tokens or using the wrong chain may result in permanent loss of funds.
+              Funds are sent directly to your Polymarket wallet via the bridge. Only send supported tokens on the correct chain. Wrong tokens or chains may result in permanent loss of funds.
             </div>
           </div>
 
@@ -157,7 +154,7 @@ export function DepositModal({ onClose }: DepositModalProps) {
                 </button>
                 {showChainDropdown && (
                   <div className="absolute top-full left-0 right-0 mt-1 z-10 rounded-xl border border-white/[0.08] bg-[#16161f] shadow-xl max-h-48 overflow-y-auto">
-                    {(assetsLoading ? [] : assets).map((a) => (
+                    {bridgeOptions.map((a) => (
                       <button
                         key={a.chainName}
                         onClick={() => { setSelectedChain(a.chainName); setShowChainDropdown(false); }}
@@ -273,6 +270,14 @@ export function DepositModal({ onClose }: DepositModalProps) {
           >
             {copied ? <><Check className="w-4 h-4" /> Copied!</> : <><Copy className="w-4 h-4" /> Copy address</>}
           </button>
+
+          {/* Polymarket wallet info */}
+          {polymarketWallet && (
+            <div className="flex items-center gap-2 text-[10px] font-mono text-muted/60">
+              <span>Polymarket wallet:</span>
+              <span className="truncate text-foreground/40">{polymarketWallet}</span>
+            </div>
+          )}
 
           {/* Note */}
           <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 space-y-2">

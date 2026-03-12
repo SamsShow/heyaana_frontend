@@ -806,7 +806,8 @@ export async function fetchGlobalLeaderboard(params?: {
 
 export type BridgeDepositInfo = {
     polymarket_wallet?: string;
-    bridge_addresses?: Record<string, string>;
+    bridge_addresses?: Record<string, string>; // evm, svm, tron, btc
+    bridge_options?: Array<{ chainName: string; tokens: string[] }>;
     [key: string]: unknown;
 };
 
