@@ -283,47 +283,31 @@ export default function ProfilePage() {
   );
 
   async function handleClose(pos: Position, size: number) {
-    const primaryId = positionConditionId(pos) ?? "";
-    setClosingId(primaryId);
+    const condId = positionConditionId(pos) ?? "";
+    if (!condId) return;
+    setClosingId(condId);
     setCloseResult(null);
     // Optimistically remove the position immediately
-    setOptimisticClosed((prev) => new Set(prev).add(primaryId));
+    setOptimisticClosed((prev) => new Set(prev).add(condId));
 
-    // Collect all possible IDs: condition_id, conditionId, ticker, and asset from orders
-    const orderAssets = (pos.orders ?? [])
-      .map((o) => o.asset ?? o.conditionId ?? o.condition_id)
-      .filter(Boolean) as string[];
-    const candidates = [
-      pos.condition_id,
-      pos.conditionId,
-      pos.ticker,
-      ...orderAssets,
-    ].filter((v): v is string => !!v);
-    const idsToTry = [...new Set(candidates)];
-
-    for (const id of idsToTry) {
-      try {
-        const side = pos.outcome ?? pos.side ?? "Yes";
-        await closePosition(id, size, side);
-        // Show beep boop syncing loader while portfolio revalidates
-        setSyncingPortfolio(true);
-        setSyncFrame(0);
-        const syncInterval = setInterval(() => setSyncFrame((f) => f + 1), 300);
-        await Promise.all([mutatePortfolio(), mutateBalance()]);
-        clearInterval(syncInterval);
-        setSyncingPortfolio(false);
-        setCloseResult({ ok: true, message: "Position closed successfully." });
-        setClosingId(null);
-        return;
-      } catch (err) {
-        if (id === idsToTry[idsToTry.length - 1]) {
-          // Revert optimistic removal on final failure
-          setOptimisticClosed((prev) => { const s = new Set(prev); s.delete(primaryId); return s; });
-          setCloseResult({ ok: false, message: err instanceof Error ? err.message : "Failed to close position" });
-        }
-      }
+    try {
+      const side = pos.outcome ?? pos.side ?? "Yes";
+      await closePosition(condId, size, side);
+      // Show beep boop syncing loader while portfolio revalidates
+      setSyncingPortfolio(true);
+      setSyncFrame(0);
+      const syncInterval = setInterval(() => setSyncFrame((f) => f + 1), 300);
+      await Promise.all([mutatePortfolio(), mutateBalance()]);
+      clearInterval(syncInterval);
+      setSyncingPortfolio(false);
+      setCloseResult({ ok: true, message: "Position closed successfully." });
+    } catch (err) {
+      // Revert optimistic removal on failure
+      setOptimisticClosed((prev) => { const s = new Set(prev); s.delete(condId); return s; });
+      setCloseResult({ ok: false, message: err instanceof Error ? err.message : "Failed to close position" });
+    } finally {
+      setClosingId(null);
     }
-    setClosingId(null);
   }
 
   async function handleUnfollow(username: string) {

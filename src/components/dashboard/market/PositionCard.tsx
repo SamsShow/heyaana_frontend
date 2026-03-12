@@ -45,49 +45,20 @@ export function PositionCard({ ticker, marketTitle }: PositionCardProps) {
   const isPositive = pnlCash >= 0;
 
   async function handleClose() {
-    const pos = position; // local ref for TS narrowing
-    if (!pos) return;
+    if (!condId && !ticker) return;
     setClosing(true);
     setCloseMsg(null);
 
-    // Collect all possible condition_id values to try (deduplicated)
-    // Also check orders for asset IDs (conditionId format used by Polymarket)
-    const orderAssets = (pos.orders ?? [])
-      .map((o) => o.asset ?? o.conditionId ?? o.condition_id)
-      .filter(Boolean) as string[];
-
-    const candidates = [
-      condId,
-      ticker,
-      pos.ticker,
-      pos.condition_id,
-      pos.conditionId,
-      ...orderAssets,
-    ].filter((v): v is string => !!v);
-    const idsToTry = [...new Set(candidates)];
-
-    console.log("[PositionCard] close attempt — idsToTry:", idsToTry, "position:", position);
-
-    if (idsToTry.length === 0) {
-      setCloseMsg("No condition ID available");
+    const id = condId ?? ticker;
+    try {
+      await closePosition(id, shares, side);
+      setCloseMsg("Position closed.");
+      mutate();
+    } catch (err) {
+      setCloseMsg(err instanceof Error ? err.message : "Failed to close position");
+    } finally {
       setClosing(false);
-      return;
     }
-
-    for (const id of idsToTry) {
-      try {
-        await closePosition(id, shares, side);
-        setCloseMsg("Position closed.");
-        mutate();
-        return;
-      } catch (err) {
-        // If last attempt, show the error
-        if (id === idsToTry[idsToTry.length - 1]) {
-          setCloseMsg(err instanceof Error ? err.message : "Failed to close position");
-        }
-      }
-    }
-    setClosing(false);
   }
 
   return (
