@@ -93,15 +93,19 @@ export function DepositModal({ onClose }: DepositModalProps) {
     }
   }, [selectedChain, availableTokens, selectedToken]);
 
-  // Derive deposit address based on chain → address key mapping
+  const polymarketWallet = bridgeInfo?.polymarket_wallet ?? "";
+
+  // For Polygon, show the direct Polymarket wallet address (no bridging needed).
+  // For other chains, use the bridge address.
+  const isDirectDeposit = selectedChain === "Polygon";
+
   const depositAddress = (() => {
+    if (isDirectDeposit && polymarketWallet) return polymarketWallet;
     if (!bridgeInfo?.bridge_addresses) return "";
     const key = CHAIN_TO_ADDRESS_KEY[selectedChain];
     if (!key) return "";
     return bridgeInfo.bridge_addresses[key] ?? "";
   })();
-
-  const polymarketWallet = bridgeInfo?.polymarket_wallet ?? "";
 
   function copyAddress() {
     if (!depositAddress) return;
@@ -128,11 +132,20 @@ export function DepositModal({ onClose }: DepositModalProps) {
 
         <div className="px-5 pb-5 space-y-4">
           {/* Disclaimer */}
-          <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3.5 py-3">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-            <div className="text-[11px] text-amber-300/80 leading-relaxed">
-              <span className="font-semibold text-amber-400">Direct deposit to Polymarket.</span>{" "}
-              Funds are sent directly to your Polymarket wallet via the bridge. Only send supported tokens on the correct chain. Wrong tokens or chains may result in permanent loss of funds.
+          <div className={`flex items-start gap-2.5 rounded-xl border px-3.5 py-3 ${isDirectDeposit ? "border-blue-500/20 bg-blue-500/5" : "border-amber-500/20 bg-amber-500/5"}`}>
+            <AlertTriangle className={`w-4 h-4 shrink-0 mt-0.5 ${isDirectDeposit ? "text-blue-400" : "text-amber-400"}`} />
+            <div className={`text-[11px] leading-relaxed ${isDirectDeposit ? "text-blue-300/80" : "text-amber-300/80"}`}>
+              {isDirectDeposit ? (
+                <>
+                  <span className="font-semibold text-blue-400">Direct deposit to Polymarket wallet.</span>{" "}
+                  Send USDC or USDC.e on Polygon directly to your Polymarket wallet. No bridging required.
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold text-amber-400">Cross-chain bridge deposit.</span>{" "}
+                  Funds are bridged and deposited to your Polymarket wallet automatically. Only send supported tokens on the correct chain. Wrong tokens or chains may result in permanent loss of funds.
+                </>
+              )}
             </div>
           </div>
 
@@ -245,7 +258,9 @@ export function DepositModal({ onClose }: DepositModalProps) {
           {/* Address display */}
           <div>
             <div className="flex items-center gap-1.5 mb-2">
-              <p className="text-xs font-semibold text-foreground/80">Your {selectedChain} deposit address</p>
+              <p className="text-xs font-semibold text-foreground/80">
+                {isDirectDeposit ? "Your Polymarket wallet (Polygon)" : `${selectedChain} bridge address`}
+              </p>
               <Info className="w-3 h-3 text-muted/60" />
             </div>
             <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02]">
@@ -271,8 +286,8 @@ export function DepositModal({ onClose }: DepositModalProps) {
             {copied ? <><Check className="w-4 h-4" /> Copied!</> : <><Copy className="w-4 h-4" /> Copy address</>}
           </button>
 
-          {/* Polymarket wallet info */}
-          {polymarketWallet && (
+          {/* Polymarket wallet info — show when using bridge (non-Polygon) */}
+          {!isDirectDeposit && polymarketWallet && (
             <div className="flex items-center gap-2 text-[10px] font-mono text-muted/60">
               <span>Polymarket wallet:</span>
               <span className="truncate text-foreground/40">{polymarketWallet}</span>
@@ -283,13 +298,20 @@ export function DepositModal({ onClose }: DepositModalProps) {
           <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 space-y-2">
             <p className="text-[11px] text-foreground/60 leading-relaxed">
               <span className="font-semibold text-foreground/80">How it works:</span>{" "}
-              Send <span className="text-foreground/80 font-medium">{selectedToken}</span> on{" "}
-              <span className="text-foreground/80 font-medium">{selectedChain}</span> to the address above.
-              The Polymarket bridge will automatically convert and deposit funds into your trading account.
+              {isDirectDeposit ? (
+                <>Send <span className="text-foreground/80 font-medium">USDC or USDC.e</span> on{" "}
+                <span className="text-foreground/80 font-medium">Polygon</span> directly to your Polymarket wallet above. Funds will be available for trading immediately.</>
+              ) : (
+                <>Send <span className="text-foreground/80 font-medium">{selectedToken}</span> on{" "}
+                <span className="text-foreground/80 font-medium">{selectedChain}</span> to the bridge address above.
+                The Polymarket bridge will automatically convert and deposit funds into your trading account.</>
+              )}
             </p>
             <p className="text-[11px] text-red-400/80 leading-relaxed">
               <span className="font-semibold text-red-400">Important:</span>{" "}
-              Only send {selectedToken} on the {selectedChain} network. Using the wrong token or chain will result in loss of funds.
+              {isDirectDeposit
+                ? "Only send USDC or USDC.e on the Polygon network. Sending other tokens or using the wrong network will result in loss of funds."
+                : `Only send ${selectedToken} on the ${selectedChain} network. Using the wrong token or chain will result in loss of funds.`}
             </p>
           </div>
         </div>
