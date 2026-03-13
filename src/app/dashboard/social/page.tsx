@@ -4,7 +4,7 @@ import useSWR from "swr";
 import Link from "next/link";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { CopyTrading } from "@/components/dashboard/CopyTrading";
-import { proxyFetcher, formatRelativeTime, followTrader, unfollowTrader } from "@/lib/api";
+import { proxyFetcher, formatRelativeTime, followTrader, unfollowTrader, mergeFollowingWithCache } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
 import { CopyTradeModal } from "@/components/dashboard/CopyTradeModal";
 import {
@@ -37,12 +37,16 @@ export default function TradesPage() {
 
   type Hook = { leader_address?: string; leader_username?: string; config?: { leader_address?: string; leader_username?: string }; [key: string]: unknown };
   const hooksArr = (() => {
-    if (Array.isArray(hooksData)) return hooksData;
-    const w = hooksData as { hooks?: unknown[]; following?: unknown[] } | null;
-    if (Array.isArray(w?.following)) return w!.following;
-    if (Array.isArray(w?.hooks)) return w!.hooks;
-    if (hooksData && typeof hooksData === "object" && "hook_id" in (hooksData as Record<string, unknown>)) return [hooksData];
-    return [];
+    let list: unknown[];
+    if (Array.isArray(hooksData)) list = hooksData;
+    else {
+      const w = hooksData as { hooks?: unknown[]; following?: unknown[] } | null;
+      if (Array.isArray(w?.following)) list = w!.following;
+      else if (Array.isArray(w?.hooks)) list = w!.hooks;
+      else if (hooksData && typeof hooksData === "object" && "hook_id" in (hooksData as Record<string, unknown>)) list = [hooksData];
+      else list = [];
+    }
+    return mergeFollowingWithCache(list);
   })() as Hook[];
   const serverFollowedIds = new Set<string>();
   for (const h of hooksArr) {

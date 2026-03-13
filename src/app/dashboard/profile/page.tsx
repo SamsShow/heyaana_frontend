@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { useAuth } from "@/lib/useAuth";
-import { proxyFetcher, Portfolio, Position, closePosition, exportPrivateKey, unfollowTrader, swapUSDC, withdrawFunds } from "@/lib/api";
+import { proxyFetcher, Portfolio, Position, closePosition, exportPrivateKey, unfollowTrader, swapUSDC, withdrawFunds, mergeFollowingWithCache } from "@/lib/api";
 import Link from "next/link";
 import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2, X, AlertCircle, CheckCircle2, ExternalLink, KeyRound, ShieldAlert, Copy, Eye, EyeOff, Users, UserMinus, ArrowLeftRight, ArrowUpFromLine } from "lucide-react";
 
@@ -181,12 +181,16 @@ export default function ProfilePage() {
     { revalidateOnFocus: true },
   );
   const followingList: FollowingEntry[] = (() => {
-    if (Array.isArray(hooksRaw)) return hooksRaw as FollowingEntry[];
-    const w = hooksRaw as { hooks?: unknown[]; following?: unknown[] } | null;
-    if (Array.isArray(w?.following)) return w!.following as FollowingEntry[];
-    if (Array.isArray(w?.hooks)) return w!.hooks as FollowingEntry[];
-    if (hooksRaw && typeof hooksRaw === "object" && "hook_id" in (hooksRaw as Record<string, unknown>)) return [hooksRaw] as FollowingEntry[];
-    return [];
+    let list: unknown[];
+    if (Array.isArray(hooksRaw)) list = hooksRaw;
+    else {
+      const w = hooksRaw as { hooks?: unknown[]; following?: unknown[] } | null;
+      if (Array.isArray(w?.following)) list = w!.following;
+      else if (Array.isArray(w?.hooks)) list = w!.hooks;
+      else if (hooksRaw && typeof hooksRaw === "object" && "hook_id" in (hooksRaw as Record<string, unknown>)) list = [hooksRaw];
+      else list = [];
+    }
+    return mergeFollowingWithCache(list) as FollowingEntry[];
   })();
 
   const walletAddress =

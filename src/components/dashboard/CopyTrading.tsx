@@ -9,6 +9,7 @@ import {
   unfollowTrader,
   proxyFetcher,
   formatRelativeTime,
+  mergeFollowingWithCache,
   type CopyNotification,
 } from "@/lib/api";
 import {
@@ -63,12 +64,16 @@ export function CopyTrading() {
     { revalidateOnFocus: true },
   );
   const followingRaw = (() => {
-    if (Array.isArray(followingData)) return followingData;
-    const w = followingData as { hooks?: unknown[]; following?: unknown[] } | null;
-    if (Array.isArray(w?.following)) return w!.following;
-    if (Array.isArray(w?.hooks)) return w!.hooks;
-    if (followingData && typeof followingData === "object" && "hook_id" in (followingData as Record<string, unknown>)) return [followingData];
-    return [];
+    let list: unknown[];
+    if (Array.isArray(followingData)) list = followingData;
+    else {
+      const w = followingData as { hooks?: unknown[]; following?: unknown[] } | null;
+      if (Array.isArray(w?.following)) list = w!.following;
+      else if (Array.isArray(w?.hooks)) list = w!.hooks;
+      else if (followingData && typeof followingData === "object" && "hook_id" in (followingData as Record<string, unknown>)) list = [followingData];
+      else list = [];
+    }
+    return mergeFollowingWithCache(list);
   })() as Array<{ username?: string; leader_username?: string; leader_address?: string }>;
   const mutateFollowing = () => Promise.all([mutateCopyTrading(), mutateFollowingList()]);
 

@@ -622,6 +622,68 @@ export async function disableCopyTrading(): Promise<unknown> {
     return data;
 }
 
+// ─── Local follow cache (workaround for /following endpoint lag) ──
+
+const FOLLOW_CACHE_KEY = "heyaana_follow_cache";
+
+type CachedFollow = {
+    hook_id?: number;
+    leader_username: string;
+    leader_address: string;
+    global?: boolean;
+    following?: boolean;
+};
+
+function getFollowCache(): CachedFollow[] {
+    if (typeof window === "undefined") return [];
+    try { return JSON.parse(localStorage.getItem(FOLLOW_CACHE_KEY) || "[]"); } catch { return []; }
+}
+
+function saveFollowCache(cache: CachedFollow[]) {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(FOLLOW_CACHE_KEY, JSON.stringify(cache));
+}
+
+function addToFollowCache(entry: CachedFollow) {
+    const cache = getFollowCache().filter(
+        c => !(c.leader_address === entry.leader_address && c.leader_username === entry.leader_username)
+    );
+    cache.push(entry);
+    saveFollowCache(cache);
+}
+
+function removeFromFollowCache(leaderUsername?: string, leaderAddress?: string) {
+    const cache = getFollowCache().filter(c => {
+        if (leaderAddress && c.leader_address === leaderAddress) return false;
+        if (leaderUsername && c.leader_username === leaderUsername) return false;
+        return true;
+    });
+    saveFollowCache(cache);
+}
+
+/** Merge server following list with local cache. If server has data, it takes priority. */
+export function mergeFollowingWithCache(serverList: unknown[]): unknown[] {
+    const cache = getFollowCache();
+    if (cache.length === 0) return serverList;
+    // Build set of identifiers already in server list
+    const serverIds = new Set<string>();
+    for (const item of serverList) {
+        const h = item as { leader_address?: string; leader_username?: string; config?: { leader_address?: string; leader_username?: string } };
+        const addr = h.leader_address || h.config?.leader_address;
+        const uname = h.leader_username || h.config?.leader_username;
+        if (addr) serverIds.add(addr);
+        if (uname) serverIds.add(uname);
+    }
+    // Add cached entries not yet in server list
+    const merged = [...serverList];
+    for (const c of cache) {
+        if ((c.leader_address && serverIds.has(c.leader_address)) ||
+            (c.leader_username && serverIds.has(c.leader_username))) continue;
+        merged.push(c);
+    }
+    return merged;
+}
+
 export async function followTrader(leaderUsername?: string, leaderAddress?: string): Promise<unknown> {
     const body: Record<string, unknown> = {
         leader_username: leaderUsername || "",
@@ -647,6 +709,14 @@ export async function followTrader(leaderUsername?: string, leaderAddress?: stri
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail ?? data.error ?? "Failed to follow trader");
+    // Cache the follow response locally
+    addToFollowCache({
+        hook_id: data.hook_id,
+        leader_username: data.leader_username || leaderUsername || "",
+        leader_address: data.leader_address || leaderAddress || "",
+        global: data.global,
+        following: true,
+    });
     return data;
 }
 
@@ -668,6 +738,8 @@ export async function unfollowTrader(leaderUsername?: string, leaderAddress?: st
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail ?? data.error ?? "Failed to unfollow trader");
+    // Remove from local cache
+    removeFromFollowCache(leaderUsername, leaderAddress);
     return data;
 }
 
