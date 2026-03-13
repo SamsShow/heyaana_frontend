@@ -744,9 +744,14 @@ export async function unfollowTrader(leaderUsername?: string, leaderAddress?: st
         body: JSON.stringify(body),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.detail ?? data.error ?? "Failed to unfollow trader");
-    // Remove from local cache
+    // Always clear local cache — even if backend says "not found" (already unfollowed)
     removeFromFollowCache(leaderUsername, leaderAddress);
+    if (!res.ok) {
+        const detail = data.detail ?? data.error ?? "";
+        // "Hook not found" means already unfollowed — not an error
+        if (typeof detail === "string" && detail.toLowerCase().includes("not found")) return data;
+        throw new Error(detail || "Failed to unfollow trader");
+    }
     return data;
 }
 
