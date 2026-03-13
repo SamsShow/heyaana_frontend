@@ -392,7 +392,7 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
         <MobileBottomNav />
 
         {/* Desktop header */}
-        <header className="hidden lg:flex h-[56px] border-b border-border items-center justify-between px-6 shrink-0 bg-[#0D0D14]/50 backdrop-blur-sm">
+        <header className="hidden lg:flex h-[56px] border-b border-border items-center justify-between px-6 shrink-0 bg-[#0D0D14]/50 backdrop-blur-sm relative z-30">
           <div className="flex items-center gap-3">
             <h1 className="text-[15px] font-semibold text-foreground">
               {title}
