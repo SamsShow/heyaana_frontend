@@ -285,10 +285,13 @@ export default function ProfilePage() {
     }
   }
 
-  async function handleUnfollow(username: string) {
-    setUnfollowingId(username);
+  async function handleUnfollow(identifier: string, address?: string) {
+    setUnfollowingId(identifier);
     try {
-      await unfollowTrader(username);
+      // Backend requires unfollow by address, not username
+      const addr = address || identifier;
+      const uname = address ? identifier : "";
+      await unfollowTrader(uname, addr);
       mutateFollowing();
     } catch {
       // silently revalidate to keep UI consistent
@@ -719,23 +722,25 @@ export default function ProfilePage() {
                 <div className="space-y-2">
                   {followingList.map((f, i) => {
                     const entry = f as { leader_address?: string; leader_username?: string; display_name?: string; config?: { leader_address?: string; leader_username?: string; display_name?: string } };
-                    const username = entry.leader_address || entry.config?.leader_address || entry.leader_username || entry.config?.leader_username || "";
-                    const displayName = entry.display_name || entry.config?.display_name || entry.leader_username || entry.config?.leader_username || username;
+                    const leaderAddr = entry.leader_address || entry.config?.leader_address || "";
+                    const leaderUname = entry.leader_username || entry.config?.leader_username || "";
+                    const identifier = leaderAddr || leaderUname;
+                    const displayName = entry.display_name || entry.config?.display_name || leaderUname || identifier;
                     return (
-                      <div key={username || i} className="flex items-center gap-3 p-3 inner-card">
+                      <div key={identifier || i} className="flex items-center gap-3 p-3 inner-card">
                         <div className="avatar avatar-sm">
                           {(displayName || "?").slice(0, 2).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold truncate">{displayName}</p>
-                          {username && <p className="text-[10px] font-mono text-muted">@{username}</p>}
+                          {identifier && <p className="text-[10px] font-mono text-muted">@{identifier}</p>}
                         </div>
                         <button
-                          onClick={() => handleUnfollow(username)}
-                          disabled={unfollowingId === username}
+                          onClick={() => handleUnfollow(identifier, leaderAddr)}
+                          disabled={unfollowingId === identifier}
                           className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
                         >
-                          {unfollowingId === username
+                          {unfollowingId === identifier
                             ? <Loader2 className="w-3 h-3 animate-spin" />
                             : <UserMinus className="w-3 h-3" />}
                           Unfollow

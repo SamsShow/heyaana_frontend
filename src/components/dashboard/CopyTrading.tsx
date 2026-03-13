@@ -161,10 +161,14 @@ export function CopyTrading() {
     setPendingFollow((prev) => new Set(prev).add(username));
     setStatusMsg(null);
     try {
+      // If it looks like an address (0x...), pass as leader_address
+      const isAddr = username.startsWith("0x");
+      const uname = isAddr ? "" : username;
+      const addr = isAddr ? username : undefined;
       if (followed.has(username)) {
-        await unfollowTrader(username);
+        await unfollowTrader(uname, addr);
       } else {
-        await followTrader(username);
+        await followTrader(uname, addr);
       }
       await mutateFollowing();
     } catch (err) {
