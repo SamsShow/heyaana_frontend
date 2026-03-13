@@ -724,6 +724,13 @@ export async function unfollowTrader(leaderUsername?: string, leaderAddress?: st
     const body: Record<string, unknown> = {
         leader_username: leaderUsername || "",
         leader_address: leaderAddress || "",
+        size_multiplier: 1,
+        max_usd_per_trade: 0,
+        fractional: true,
+        mode: "fractional",
+        fixed_usd_amount: 1,
+        max_loss_pct: 0,
+        slippage_pct: 0,
     };
     if (!leaderAddress && !leaderUsername) throw new Error("Must provide username or address");
     const res = await fetch(`${API2_BASE_URL}/copy-trading/unfollow`, {
