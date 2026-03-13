@@ -70,9 +70,23 @@ export default function TradesPage() {
     setPendingFollow(p => new Set(p).add(username));
     try {
       if (isCurrentlyFollowing) await unfollowTrader(username); else await followTrader(username);
-      await mutateFollowing();
-      setOptimisticFollowed(p => { const s = new Set(p); s.delete(username); return s; });
-      setOptimisticUnfollowed(p => { const s = new Set(p); s.delete(username); return s; });
+      const updated = await mutateFollowing();
+      // Only clear optimistic state if server has synced
+      const updatedArr = (() => {
+        if (Array.isArray(updated)) return updated;
+        const w = updated as { following?: unknown[]; hooks?: unknown[] } | null | undefined;
+        return w?.following ?? w?.hooks ?? [];
+      })() as Array<{ leader_address?: string; leader_username?: string; config?: { leader_address?: string; leader_username?: string } }>;
+      const serverHasUser = updatedArr.some(h => {
+        const u = h.leader_username || h.config?.leader_username;
+        const a = h.leader_address || h.config?.leader_address;
+        return u === username || a === username;
+      });
+      const wantFollowing = !isCurrentlyFollowing;
+      if (wantFollowing === serverHasUser) {
+        setOptimisticFollowed(p => { const s = new Set(p); s.delete(username); return s; });
+        setOptimisticUnfollowed(p => { const s = new Set(p); s.delete(username); return s; });
+      }
     } catch (err) {
       if (isCurrentlyFollowing) setOptimisticUnfollowed(p => { const s = new Set(p); s.delete(username); return s; }); else setOptimisticFollowed(p => { const s = new Set(p); s.delete(username); return s; });
       setFollowError(err instanceof Error ? err.message : "Failed");

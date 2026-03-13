@@ -214,7 +214,8 @@ export default function TraderProfilePage() {
     if (!isAuthenticated) { window.location.href = "/onboarding"; return; }
     setFollowError(null);
     const wasFollowing = isFollowing;
-    setOptimisticFollow(!wasFollowing);
+    const nextFollow = !wasFollowing;
+    setOptimisticFollow(nextFollow);
     setIsPending(true);
     try {
       // For global traders, username IS the wallet address — only send leader_address
@@ -223,8 +224,20 @@ export default function TraderProfilePage() {
       const addr = walletParam || undefined;
       if (wasFollowing) await unfollowTrader(uname, addr);
       else await followTrader(uname, addr);
-      await mutateFollowing();
-      setOptimisticFollow(null);
+      // Re-fetch following list; if server hasn't synced yet, keep optimistic state
+      const updated = await mutateFollowing();
+      const updatedArr = (() => {
+        if (Array.isArray(updated)) return updated;
+        const w = updated as { following?: unknown[]; hooks?: unknown[] } | null | undefined;
+        return w?.following ?? w?.hooks ?? [];
+      })() as Array<{ leader_address?: string; leader_username?: string; config?: { leader_address?: string; leader_username?: string } }>;
+      const serverConfirms = updatedArr.some(h => {
+        const a = h.leader_address || h.config?.leader_address;
+        const u = h.leader_username || h.config?.leader_username;
+        return (walletParam && a === walletParam) || (!walletParam && u === username);
+      });
+      // Only clear optimistic state if server reflects the expected state
+      if (nextFollow === serverConfirms) setOptimisticFollow(null);
     } catch (err) {
       setOptimisticFollow(null);
       setFollowError(err instanceof Error ? err.message : "Failed");
