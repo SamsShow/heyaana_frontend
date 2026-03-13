@@ -33,7 +33,7 @@ import { WithdrawModal } from "@/components/dashboard/WithdrawModal";
 import { TransferToSafeModal } from "@/components/dashboard/TransferToSafeModal";
 import { CommandPalette, useCommandPaletteShortcut } from "@/components/dashboard/CommandPalette";
 import { useAuth } from "@/lib/useAuth";
-import { proxyFetcher } from "@/lib/api";
+import { proxyFetcher, formatRelativeTime, type CopyNotification } from "@/lib/api";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 
@@ -220,8 +220,20 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showTransferToSafe, setShowTransferToSafe] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   useCommandPaletteShortcut(showCommandPalette, setShowCommandPalette);
+
+  // Close notification dropdown on outside click
+  useEffect(() => {
+    if (!showNotifications) return;
+    function handleClick(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setShowNotifications(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showNotifications]);
 
   const showSessionSync = hasSessionToken && isValidating;
   const showSessionOffline = hasSessionToken && !!error;
@@ -237,6 +249,20 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
     proxyFetcher,
     { revalidateOnFocus: true, refreshInterval: 30000 },
   );
+
+  // Notifications
+  const { data: notifRaw } = useSWR<unknown>(
+    isAuthenticated ? "/api/proxy/me/copy-trading/notifications" : null,
+    proxyFetcher,
+    { revalidateOnFocus: true, refreshInterval: 30000 },
+  );
+  const notifications: CopyNotification[] = (() => {
+    if (Array.isArray(notifRaw)) return notifRaw;
+    const w = notifRaw as { notifications?: unknown[]; items?: unknown[] } | null;
+    if (Array.isArray(w?.notifications)) return w!.notifications as CopyNotification[];
+    if (Array.isArray(w?.items)) return w!.items as CopyNotification[];
+    return [];
+  })();
 
   const totalBalance = (() => {
     const direct = balanceData?.total_usd;
@@ -406,10 +432,64 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
               </div>
             )}
 
-            <Link href="/dashboard/social?tab=copy" className="p-2 rounded-xl text-muted hover:text-foreground hover:bg-white/[0.04] transition-all relative">
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-primary" />
-            </Link>
+            <div ref={notifRef} className="relative">
+              <button
+                onClick={() => setShowNotifications(v => !v)}
+                className="p-2 rounded-xl text-muted hover:text-foreground hover:bg-white/[0.04] transition-all relative"
+              >
+                <Bell className="w-4 h-4" />
+                {notifications.length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-primary" />
+                )}
+              </button>
+
+              {showNotifications && (
+                <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto rounded-xl border border-border bg-surface shadow-2xl z-50">
+                  <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between">
+                    <span className="text-xs font-semibold">Notifications</span>
+                    {notifications.length > 0 && (
+                      <span className="text-[10px] font-mono text-muted">{notifications.length}</span>
+                    )}
+                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-muted">
+                      <Bell className="w-5 h-5 mx-auto mb-2 opacity-30" />
+                      <p className="text-xs font-mono">No notifications yet</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-border/30">
+                      {notifications.slice(0, 20).map((n, i) => {
+                        const isSuccess = n.status === "success" || n.status === "filled" || n.status === "executed";
+                        const isFailed = n.status === "failed" || n.status === "error";
+                        const rawTime = n.created_at;
+                        const timeStr = typeof rawTime === "number" ? new Date(rawTime * 1000).toISOString() : rawTime;
+                        return (
+                          <div key={n.id ?? i} className="px-4 py-3 hover:bg-white/[0.02] transition-colors">
+                            <div className="flex items-start gap-2">
+                              <span className={`mt-0.5 w-1.5 h-1.5 rounded-full shrink-0 ${isSuccess ? "bg-emerald-400" : isFailed ? "bg-red-400" : "bg-amber-400"}`} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium truncate">{n.market_title ?? n.message ?? "Copy Trade"}</p>
+                                <div className="flex items-center gap-2 mt-0.5 text-[10px] font-mono text-muted">
+                                  {n.leader_username && <span>@{n.leader_username}</span>}
+                                  {n.side && <span>{n.side}</span>}
+                                  {n.amount != null && <span>${Number(n.amount).toFixed(2)}</span>}
+                                  {n.status && (
+                                    <span className={isSuccess ? "text-emerald-400" : isFailed ? "text-red-400" : "text-amber-400"}>
+                                      {n.status}
+                                    </span>
+                                  )}
+                                </div>
+                                {timeStr && <p className="text-[10px] font-mono text-muted/60 mt-0.5">{formatRelativeTime(timeStr as string)}</p>}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div className="w-px h-5 bg-border mx-1" />
 
