@@ -12,6 +12,7 @@ import {
   Copy, AlertCircle,
 } from "lucide-react";
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 type FeedTrade = {
   user_id?: number; username?: string; first_name?: string;
@@ -25,7 +26,9 @@ type FeedTrade = {
 
 export default function TradesPage() {
   const { isAuthenticated, user } = useAuth();
-  const [tab, setTab] = useState<"feed" | "copy">("feed");
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab") === "copy" ? "copy" : "feed";
+  const [tab, setTab] = useState<"feed" | "copy">(initialTab);
   const [pendingFollow, setPendingFollow] = useState<Set<string>>(new Set());
   const [followError, setFollowError] = useState<string | null>(null);
   const [confirmFollowUser, setConfirmFollowUser] = useState<string | null>(null);

@@ -406,10 +406,10 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
               </div>
             )}
 
-            <button className="p-2 rounded-xl text-muted hover:text-foreground hover:bg-white/[0.04] transition-all relative">
+            <Link href="/dashboard/social?tab=copy" className="p-2 rounded-xl text-muted hover:text-foreground hover:bg-white/[0.04] transition-all relative">
               <Bell className="w-4 h-4" />
               <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-primary" />
-            </button>
+            </Link>
 
             <div className="w-px h-5 bg-border mx-1" />
 
