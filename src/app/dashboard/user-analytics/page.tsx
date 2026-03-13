@@ -59,22 +59,35 @@ function truncate(s: string, len: number): string {
   return s.length > len ? s.slice(0, len) + "…" : s;
 }
 
-// ─── SWR fetcher wrappers ────────────────────────────────
-
-function useWalletAddress() {
-  const { isAuthenticated } = useAuth();
-  return useSWR<{ address?: string }>(
-    isAuthenticated ? "/api/proxy/me/wallet/address" : null,
-    proxyFetcher,
-  );
-}
-
 // ─── Main Page ───────────────────────────────────────────
 
 export default function UserAnalyticsPage() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { data: walletData } = useWalletAddress();
-  const address = walletData?.address ?? (typeof walletData === "string" ? walletData : "");
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+
+  // Get the proxy wallet (Polymarket trading address) from portfolio
+  const { data: portfolio } = useSWR<{ wallet?: string }>(
+    isAuthenticated ? "/api/proxy/me/portfolio" : null,
+    proxyFetcher,
+    { revalidateOnFocus: false },
+  );
+
+  // Also try /me/wallet/address and user.wallet_address as fallbacks
+  const { data: walletData } = useSWR<Record<string, string>>(
+    isAuthenticated ? "/api/proxy/me/wallet/address" : null,
+    proxyFetcher,
+    { revalidateOnFocus: false },
+  );
+
+  // Prefer proxy wallet from portfolio (that's what Polymarket Data API indexes)
+  const address =
+    portfolio?.wallet ??
+    walletData?.address ??
+    walletData?.wallet_address ??
+    walletData?.eth_address ??
+    user?.wallet_address ??
+    "";
+
+  console.log("[UserAnalytics] address:", address, "portfolio?.wallet:", portfolio?.wallet, "walletData:", walletData);
 
   const { data: positions, isLoading: posLoading } = useSWR<PolyPositionEntry[]>(
     address ? ["poly-positions", address] : null,
