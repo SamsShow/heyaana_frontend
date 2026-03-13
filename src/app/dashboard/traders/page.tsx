@@ -307,7 +307,7 @@ export default function TradersPage() {
   }
 
   // Parse following to determine who we're following
-  type Hook = { config?: { leader_address?: string; leader_username?: string }; [key: string]: unknown };
+  type Hook = { leader_address?: string; leader_username?: string; config?: { leader_address?: string; leader_username?: string }; [key: string]: unknown };
   const hooksArr = (() => {
     if (Array.isArray(hooksData)) return hooksData;
     const w = hooksData as { hooks?: unknown[]; following?: unknown[] } | null;
@@ -316,11 +316,13 @@ export default function TradersPage() {
     if (hooksData && typeof hooksData === "object" && "hook_id" in (hooksData as Record<string, unknown>)) return [hooksData];
     return [];
   })() as Hook[];
-  // Leader info is inside config — top-level fields are the FOLLOWER's
+  // Leader info may be top-level (new API) or inside config (old hooks API)
   const serverFollowedIds = new Set<string>();
   for (const h of hooksArr) {
-    if (h.config?.leader_address) serverFollowedIds.add(h.config.leader_address);
-    if (h.config?.leader_username) serverFollowedIds.add(h.config.leader_username);
+    const addr = h.leader_address || h.config?.leader_address;
+    const uname = h.leader_username || h.config?.leader_username;
+    if (addr) serverFollowedIds.add(addr);
+    if (uname) serverFollowedIds.add(uname);
   }
   const followed = new Set<string>([...[...serverFollowedIds].filter(u => !optimisticUnfollowed.has(u)), ...optimisticFollowed]);
   // Check if a trader is followed by username or wallet

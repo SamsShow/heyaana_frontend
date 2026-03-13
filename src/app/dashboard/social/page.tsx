@@ -35,7 +35,7 @@ export default function TradesPage() {
   const { data: feedRaw, isLoading } = useSWR<unknown>("/api/proxy/trades?limit=50", proxyFetcher, { revalidateOnFocus: true, refreshInterval: 15000 });
   const { data: hooksData, mutate: mutateFollowing } = useSWR<unknown>(isAuthenticated ? "/api/proxy/copy-trading/following" : null, proxyFetcher, { revalidateOnFocus: true });
 
-  type Hook = { config?: { leader_address?: string; leader_username?: string }; [key: string]: unknown };
+  type Hook = { leader_address?: string; leader_username?: string; config?: { leader_address?: string; leader_username?: string }; [key: string]: unknown };
   const hooksArr = (() => {
     if (Array.isArray(hooksData)) return hooksData;
     const w = hooksData as { hooks?: unknown[]; following?: unknown[] } | null;
@@ -46,8 +46,10 @@ export default function TradesPage() {
   })() as Hook[];
   const serverFollowedIds = new Set<string>();
   for (const h of hooksArr) {
-    if (h.config?.leader_address) serverFollowedIds.add(h.config.leader_address);
-    if (h.config?.leader_username) serverFollowedIds.add(h.config.leader_username);
+    const addr = h.leader_address || h.config?.leader_address;
+    const uname = h.leader_username || h.config?.leader_username;
+    if (addr) serverFollowedIds.add(addr);
+    if (uname) serverFollowedIds.add(uname);
   }
   const followed = new Set<string>([...[...serverFollowedIds].filter(u => !optimisticUnfollowed.has(u)), ...optimisticFollowed]);
 

@@ -191,7 +191,7 @@ export default function TraderProfilePage() {
   );
 
   // Parse following — could be array, {following:[...]}, {hooks:[...]}, or single object
-  type Hook = { config?: { leader_address?: string; leader_username?: string }; [key: string]: unknown };
+  type Hook = { leader_address?: string; leader_username?: string; config?: { leader_address?: string; leader_username?: string }; [key: string]: unknown };
   const hooksArr = (() => {
     if (Array.isArray(hooksData)) return hooksData;
     const w = hooksData as { hooks?: unknown[]; following?: unknown[] } | null;
@@ -200,11 +200,12 @@ export default function TraderProfilePage() {
     if (hooksData && typeof hooksData === "object" && "hook_id" in (hooksData as Record<string, unknown>)) return [hooksData];
     return [];
   })() as Hook[];
-  // Leader info is inside config — top-level leader_username is the FOLLOWER
-  const serverFollowed = hooksArr.some(h =>
-    (walletParam && h.config?.leader_address === walletParam) ||
-    (!walletParam && h.config?.leader_username === username)
-  );
+  // Leader info may be top-level (new API) or inside config (old hooks API)
+  const serverFollowed = hooksArr.some(h => {
+    const addr = h.leader_address || h.config?.leader_address;
+    const uname = h.leader_username || h.config?.leader_username;
+    return (walletParam && addr === walletParam) || (!walletParam && uname === username);
+  });
   const isFollowing = optimisticFollow !== null ? optimisticFollow : serverFollowed;
 
   const isOwnProfile = user?.username === username;

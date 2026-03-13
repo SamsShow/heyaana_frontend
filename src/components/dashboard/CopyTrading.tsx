@@ -115,12 +115,14 @@ export function CopyTrading() {
       }));
   })();
 
-  // Derive the set of followed identifiers from hooks — leader info is in config
+  // Derive the set of followed identifiers — leader info may be top-level or in config
   const followed = new Set<string>();
   for (const f of followingRaw) {
-    const cfg = (f as { config?: { leader_address?: string; leader_username?: string } }).config;
-    if (cfg?.leader_address) followed.add(cfg.leader_address);
-    if (cfg?.leader_username) followed.add(cfg.leader_username);
+    const entry = f as { leader_address?: string; leader_username?: string; config?: { leader_address?: string; leader_username?: string } };
+    const addr = entry.leader_address || entry.config?.leader_address;
+    const uname = entry.leader_username || entry.config?.leader_username;
+    if (addr) followed.add(addr);
+    if (uname) followed.add(uname);
   }
 
   async function handleToggleCopyTrading() {
@@ -289,9 +291,9 @@ export function CopyTrading() {
               <p className="text-xs mt-1">Go to the <Link href="/dashboard/traders" className="text-blue-primary hover:underline">Traders</Link> page to find someone to copy</p>
             </div>
           ) : followingRaw.map((f, i) => {
-            const cfg = (f as { config?: { leader_address?: string; leader_username?: string; display_name?: string } }).config;
-            const username = cfg?.leader_address || cfg?.leader_username || "";
-            const displayName = cfg?.display_name || cfg?.leader_username || username;
+            const entry = f as { leader_address?: string; leader_username?: string; display_name?: string; config?: { leader_address?: string; leader_username?: string; display_name?: string } };
+            const username = entry.leader_address || entry.config?.leader_address || entry.leader_username || entry.config?.leader_username || "";
+            const displayName = entry.display_name || entry.config?.display_name || entry.leader_username || entry.config?.leader_username || username;
             const isPending = pendingFollow.has(username);
             const initials = (displayName || "?").slice(0, 2).toUpperCase();
             return (

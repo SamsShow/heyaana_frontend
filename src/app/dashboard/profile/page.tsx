@@ -714,8 +714,9 @@ export default function ProfilePage() {
               ) : (
                 <div className="space-y-2">
                   {followingList.map((f, i) => {
-                    const username = f.config?.leader_address || f.config?.leader_username || "";
-                    const displayName = f.config?.display_name || f.config?.leader_username || username;
+                    const entry = f as { leader_address?: string; leader_username?: string; display_name?: string; config?: { leader_address?: string; leader_username?: string; display_name?: string } };
+                    const username = entry.leader_address || entry.config?.leader_address || entry.leader_username || entry.config?.leader_username || "";
+                    const displayName = entry.display_name || entry.config?.display_name || entry.leader_username || entry.config?.leader_username || username;
                     return (
                       <div key={username || i} className="flex items-center gap-3 p-3 inner-card">
                         <div className="avatar avatar-sm">
