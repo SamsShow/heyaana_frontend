@@ -974,3 +974,117 @@ export function truncateAddress(addr: string): string {
     if (addr.length <= 10) return addr;
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
+
+// ─── Polymarket Data API (public, no auth) ────────────────
+
+const POLYMARKET_DATA_API = "https://data-api.polymarket.com";
+
+export type PolyPositionEntry = {
+    proxyWallet?: string;
+    asset?: string;
+    conditionId?: string;
+    size?: number;
+    avgPrice?: number;
+    initialValue?: number;
+    currentValue?: number;
+    cashPnl?: number;
+    percentPnl?: number;
+    realizedPnl?: number;
+    percentRealizedPnl?: number;
+    curPrice?: number;
+    title?: string;
+    slug?: string;
+    icon?: string;
+    outcome?: string;
+    outcomeIndex?: number;
+    eventSlug?: string;
+    eventTitle?: string;
+    [key: string]: unknown;
+};
+
+export type PolyTradeEntry = {
+    id?: string;
+    proxyWallet?: string;
+    side?: string;
+    asset?: string;
+    size?: number;
+    price?: number;
+    timestamp?: number;
+    transactionHash?: string;
+    conditionId?: string;
+    title?: string;
+    slug?: string;
+    icon?: string;
+    outcome?: string;
+    outcomeIndex?: number;
+    eventSlug?: string;
+    [key: string]: unknown;
+};
+
+export type PolyActivityEntry = {
+    type?: string;
+    proxyWallet?: string;
+    size?: number;
+    usdAmount?: number;
+    price?: number;
+    outcome?: string;
+    title?: string;
+    slug?: string;
+    icon?: string;
+    conditionId?: string;
+    transactionHash?: string;
+    timestamp?: number;
+    [key: string]: unknown;
+};
+
+async function polyDataFetch<T>(path: string, params: Record<string, string>): Promise<T> {
+    const url = new URL(path, POLYMARKET_DATA_API);
+    for (const [k, v] of Object.entries(params)) {
+        if (v) url.searchParams.set(k, v);
+    }
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error(`Polymarket Data API error: ${res.status}`);
+    return res.json();
+}
+
+export function fetchPolyPositions(
+    address: string,
+    params?: { sortBy?: string; sortDirection?: string; limit?: number; offset?: number; sizeThreshold?: number },
+): Promise<PolyPositionEntry[]> {
+    return polyDataFetch<PolyPositionEntry[]>("/positions", {
+        user: address,
+        sortBy: params?.sortBy ?? "",
+        sortDirection: params?.sortDirection ?? "",
+        limit: String(params?.limit ?? 100),
+        offset: String(params?.offset ?? 0),
+        sizeThreshold: String(params?.sizeThreshold ?? 0),
+    });
+}
+
+export function fetchPolyTrades(
+    address: string,
+    params?: { limit?: number; offset?: number; side?: string },
+): Promise<PolyTradeEntry[]> {
+    return polyDataFetch<PolyTradeEntry[]>("/trades", {
+        user: address,
+        limit: String(params?.limit ?? 50),
+        offset: String(params?.offset ?? 0),
+        side: params?.side ?? "",
+    });
+}
+
+export function fetchPolyActivity(
+    address: string,
+    params?: { type?: string; limit?: number; offset?: number },
+): Promise<PolyActivityEntry[]> {
+    return polyDataFetch<PolyActivityEntry[]>("/activity", {
+        user: address,
+        limit: String(params?.limit ?? 30),
+        offset: String(params?.offset ?? 0),
+        type: params?.type ?? "",
+    });
+}
+
+export function fetchPolyValue(address: string): Promise<number> {
+    return polyDataFetch<number>("/value", { user: address });
+}

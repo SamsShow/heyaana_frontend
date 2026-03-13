@@ -43,6 +43,7 @@ interface DashboardChromeProps {
 const navItems = [
   { icon: Home, label: "Dashboard", href: "/dashboard" },
   { icon: BarChart2, label: "Analytics", href: "/dashboard/analytics" },
+  { icon: BarChart2, label: "My Stats", href: "/dashboard/user-analytics" },
   { icon: Activity, label: "Markets", href: "/dashboard/markets" },
   { icon: TrendingUp, label: "Trades", href: "/dashboard/social" },
   { icon: Users, label: "Traders", href: "/dashboard/traders" },
