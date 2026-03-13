@@ -5,9 +5,9 @@ import { useState, useEffect } from "react";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { useAuth } from "@/lib/useAuth";
-import { proxyFetcher, Portfolio, Position, closePosition, exportPrivateKey, unfollowTrader, approveTrading, swapUSDC, withdrawFunds } from "@/lib/api";
+import { proxyFetcher, Portfolio, Position, closePosition, exportPrivateKey, unfollowTrader, swapUSDC, withdrawFunds } from "@/lib/api";
 import Link from "next/link";
-import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2, X, AlertCircle, CheckCircle2, ExternalLink, KeyRound, ShieldAlert, Copy, Eye, EyeOff, Users, UserMinus, ShieldCheck, ArrowLeftRight, ArrowUpFromLine } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2, X, AlertCircle, CheckCircle2, ExternalLink, KeyRound, ShieldAlert, Copy, Eye, EyeOff, Users, UserMinus, ArrowLeftRight, ArrowUpFromLine } from "lucide-react";
 
 function stripMarkdown(text: string): string {
   return text
@@ -58,9 +58,6 @@ export default function ProfilePage() {
   const [syncingPortfolio, setSyncingPortfolio] = useState(false);
   const [syncFrame, setSyncFrame] = useState(0);
   const [unfollowingId, setUnfollowingId] = useState<string | null>(null);
-  const [approveLoading, setApproveLoading] = useState(false);
-  const [approveResult, setApproveResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const [approveFrame, setApproveFrame] = useState(0);
 
   // Swap USDC state
   const [swapAmount, setSwapAmount] = useState("");
@@ -157,30 +154,7 @@ export default function ProfilePage() {
     setPkConfirmed(false);
   }
 
-  async function handleApprove() {
-    setApproveLoading(true);
-    setApproveResult(null);
-    setApproveFrame(0);
-    const interval = setInterval(() => setApproveFrame((f) => f + 1), 400);
-    try {
-      await approveTrading();
-      setApproveResult({ ok: true, message: "All 6 transactions approved! You're ready to trade." });
-      mutateStatus();
-      mutatePortfolio();
-      mutateBalance();
-    } catch (err) {
-      setApproveResult({ ok: false, message: err instanceof Error ? err.message : "Approval failed" });
-    } finally {
-      clearInterval(interval);
-      setApproveLoading(false);
-    }
-  }
 
-  const { data: statusData, isLoading: statusLoading, mutate: mutateStatus } = useSWR<{ is_copytrading?: boolean; polymarket_approved?: boolean }>(
-    isAuthenticated ? "/api/proxy/me/status" : null,
-    proxyFetcher,
-    { revalidateOnFocus: true },
-  );
 
   const { data: walletData } = useSWR<Record<string, string>>(
     isAuthenticated ? "/api/proxy/me/wallet/address" : null,
@@ -202,13 +176,14 @@ export default function ProfilePage() {
 
   type FollowingEntry = { config?: { leader_address?: string; leader_username?: string; display_name?: string }; [key: string]: unknown };
   const { data: hooksRaw, isLoading: followingLoading, mutate: mutateFollowing } = useSWR<unknown>(
-    isAuthenticated ? "/api/proxy/copy-trading/hooks" : null,
+    isAuthenticated ? "/api/proxy/copy-trading/following" : null,
     proxyFetcher,
     { revalidateOnFocus: true },
   );
   const followingList: FollowingEntry[] = (() => {
     if (Array.isArray(hooksRaw)) return hooksRaw as FollowingEntry[];
-    const w = hooksRaw as { hooks?: unknown[] } | null;
+    const w = hooksRaw as { hooks?: unknown[]; following?: unknown[] } | null;
+    if (Array.isArray(w?.following)) return w!.following as FollowingEntry[];
     if (Array.isArray(w?.hooks)) return w!.hooks as FollowingEntry[];
     if (hooksRaw && typeof hooksRaw === "object" && "hook_id" in (hooksRaw as Record<string, unknown>)) return [hooksRaw] as FollowingEntry[];
     return [];
@@ -539,64 +514,13 @@ export default function ProfilePage() {
                 </button>
               </div>
 
-              {/* Approve Trades */}
-              {(() => {
-                const isApproved = statusData?.polymarket_approved === true;
-                const BEP_BOP = ["bep", "bop", "bep bop", "bzzzt", "beep", "🤖"];
-                const frames = ["⬜⬜⬜⬜⬜⬜", "🟦⬜⬜⬜⬜⬜", "🟦🟦⬜⬜⬜⬜", "🟦🟦🟦⬜⬜⬜", "🟦🟦🟦🟦⬜⬜", "🟦🟦🟦🟦🟦⬜", "🟦🟦🟦🟦🟦🟦"];
-                const frameIdx = approveFrame % frames.length;
-                const bopIdx = approveFrame % BEP_BOP.length;
-                return (
-                  <div className="p-4 inner-card space-y-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold">Approve Trades</p>
-                          {statusLoading ? (
-                            <span className="text-[10px] font-mono text-muted px-1.5 py-0.5 rounded bg-surface border border-border animate-pulse">checking…</span>
-                          ) : isApproved ? (
-                            <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-400 px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                              <CheckCircle2 className="w-3 h-3" /> approved
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-mono text-amber-400 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">not approved</span>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted mt-0.5">Polymarket USDC + CTF allowances.</p>
-                      </div>
-                      <button
-                        onClick={handleApprove}
-                        disabled={approveLoading || isApproved}
-                        className="shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {approveLoading
-                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          : <ShieldCheck className="w-3.5 h-3.5" />}
-                        {approveLoading ? "Approving…" : isApproved ? "Approved" : "Approve"}
-                      </button>
-                    </div>
-
-                    {approveLoading && (
-                      <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2.5 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-mono text-blue-400 uppercase tracking-wide">Signing transactions</span>
-                          <span className="text-[10px] font-mono text-blue-300 animate-pulse">{BEP_BOP[bopIdx]}</span>
-                        </div>
-                        <p className="text-[11px] font-mono text-foreground/70">{frames[frameIdx]}</p>
-                      </div>
-                    )}
-
-                    {approveResult && !approveLoading && (
-                      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono ${approveResult.ok ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}>
-                        {approveResult.ok
-                          ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                          : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
-                        {approveResult.message}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+              {/* Trade Approval Disclaimer */}
+              <div className="px-4 py-3 text-[11px] text-muted/70 font-mono leading-relaxed">
+                Trade approvals are handled automatically. If you experience any issues with trade approval, please approve manually through{" "}
+                <a href="https://polymarket.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline underline-offset-2">
+                  polymarket.com
+                </a>.
+              </div>
             </div>
           )}
 

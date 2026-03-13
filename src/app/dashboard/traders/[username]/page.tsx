@@ -185,16 +185,17 @@ export default function TraderProfilePage() {
   );
 
   const { data: hooksData, mutate: mutateFollowing } = useSWR<unknown>(
-    isAuthenticated ? "/api/proxy/copy-trading/hooks" : null,
+    isAuthenticated ? "/api/proxy/copy-trading/following" : null,
     proxyFetcher,
     { revalidateOnFocus: true }
   );
 
-  // Parse hooks — could be array, {hooks:[...]}, or single object
+  // Parse following — could be array, {following:[...]}, {hooks:[...]}, or single object
   type Hook = { config?: { leader_address?: string; leader_username?: string }; [key: string]: unknown };
   const hooksArr = (() => {
     if (Array.isArray(hooksData)) return hooksData;
-    const w = hooksData as { hooks?: unknown[] } | null;
+    const w = hooksData as { hooks?: unknown[]; following?: unknown[] } | null;
+    if (Array.isArray(w?.following)) return w!.following;
     if (Array.isArray(w?.hooks)) return w!.hooks;
     if (hooksData && typeof hooksData === "object" && "hook_id" in (hooksData as Record<string, unknown>)) return [hooksData];
     return [];

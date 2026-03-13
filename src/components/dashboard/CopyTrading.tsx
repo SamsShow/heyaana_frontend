@@ -8,6 +8,8 @@ import {
   followTrader,
   unfollowTrader,
   proxyFetcher,
+  formatRelativeTime,
+  type CopyNotification,
 } from "@/lib/api";
 import {
   Loader2,
@@ -20,6 +22,9 @@ import {
   TriangleAlert,
   UserMinus,
   ExternalLink,
+  Bell,
+  ArrowUpRight,
+  ArrowDownRight,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/useAuth";
@@ -51,20 +56,35 @@ export function CopyTrading() {
   );
   const enabled = copyTradingData?.copy_trading_enabled ?? false;
 
-  // Use hooks endpoint for accurate followed leaders list
-  const { data: hooksData, mutate: mutateHooks } = useSWR<unknown>(
-    isAuthenticated ? "/api/proxy/copy-trading/hooks" : null,
+  // Use following endpoint for accurate followed leaders list
+  const { data: followingData, mutate: mutateFollowingList } = useSWR<unknown>(
+    isAuthenticated ? "/api/proxy/copy-trading/following" : null,
     proxyFetcher,
     { revalidateOnFocus: true },
   );
   const followingRaw = (() => {
-    if (Array.isArray(hooksData)) return hooksData;
-    const w = hooksData as { hooks?: unknown[] } | null;
+    if (Array.isArray(followingData)) return followingData;
+    const w = followingData as { hooks?: unknown[]; following?: unknown[] } | null;
+    if (Array.isArray(w?.following)) return w!.following;
     if (Array.isArray(w?.hooks)) return w!.hooks;
-    if (hooksData && typeof hooksData === "object" && "hook_id" in (hooksData as Record<string, unknown>)) return [hooksData];
+    if (followingData && typeof followingData === "object" && "hook_id" in (followingData as Record<string, unknown>)) return [followingData];
     return [];
   })() as Array<{ username?: string; leader_username?: string; leader_address?: string }>;
-  const mutateFollowing = () => Promise.all([mutateCopyTrading(), mutateHooks()]);
+  const mutateFollowing = () => Promise.all([mutateCopyTrading(), mutateFollowingList()]);
+
+  // Copy trading notifications
+  const { data: notificationsRaw, isLoading: notificationsLoading } = useSWR<unknown>(
+    isAuthenticated ? "/api/proxy/me/copy-trading/notifications" : null,
+    proxyFetcher,
+    { revalidateOnFocus: true, refreshInterval: 30000 },
+  );
+  const notifications: CopyNotification[] = (() => {
+    if (Array.isArray(notificationsRaw)) return notificationsRaw;
+    const w = notificationsRaw as { notifications?: unknown[]; items?: unknown[] } | null;
+    if (Array.isArray(w?.notifications)) return w!.notifications as CopyNotification[];
+    if (Array.isArray(w?.items)) return w!.items as CopyNotification[];
+    return [];
+  })();
 
   // Load real traders from social feed
   const { data: socialFeedRaw } = useSWR<unknown>(
@@ -301,6 +321,79 @@ export function CopyTrading() {
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Notifications */}
+      <div>
+        <div className="section-header">
+          <Bell className="w-4 h-4 text-blue-primary" />
+          <h3 className="text-sm font-semibold">Notifications</h3>
+          {notifications.length > 0 && (
+            <span className="text-[10px] font-mono text-muted ml-auto">{notifications.length}</span>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          {notificationsLoading ? (
+            <div className="inner-card p-6 flex items-center justify-center text-muted">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              <span className="text-xs font-mono">Loading notifications…</span>
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className="inner-card p-6 flex flex-col items-center justify-center text-center text-muted">
+              <Bell className="w-6 h-6 mb-2 opacity-30" />
+              <p className="text-sm font-medium">No notifications yet</p>
+              <p className="text-xs mt-1">Copy trade executions and alerts will appear here</p>
+            </div>
+          ) : (
+            notifications.slice(0, 20).map((notif, i) => {
+              const isBuy = (notif.side ?? "").toLowerCase() === "buy" || (notif.side ?? "").toLowerCase() === "yes";
+              const isSuccess = notif.status === "success" || notif.status === "filled" || notif.status === "executed";
+              const isFailed = notif.status === "failed" || notif.status === "error";
+              const rawTime = notif.created_at;
+              const timeStr = typeof rawTime === "number" ? new Date(rawTime * 1000).toISOString() : rawTime;
+
+              return (
+                <div
+                  key={notif.id ?? i}
+                  className={`inner-card p-4 ${isFailed ? "!border-red-500/20 bg-red-500/5" : isSuccess ? "!border-emerald-500/10" : ""}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isBuy ? "bg-emerald-500/10 border border-emerald-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
+                      {isBuy ? <ArrowUpRight className="w-4 h-4 text-emerald-400" /> : <ArrowDownRight className="w-4 h-4 text-red-400" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold truncate">
+                          {notif.market_title ?? notif.message ?? "Copy Trade"}
+                        </p>
+                        {notif.status && (
+                          <span className={`shrink-0 text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                            isSuccess ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+                            isFailed ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                            "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                          }`}>
+                            {notif.status}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-[10px] font-mono text-muted">
+                        {notif.leader_username && (
+                          <Link href={`/dashboard/traders/${notif.leader_username}`} className="hover:text-blue-primary transition-colors">
+                            <span className="flex items-center gap-0.5"><Copy className="w-2.5 h-2.5" />@{notif.leader_username}</span>
+                          </Link>
+                        )}
+                        {notif.side && <span>{notif.side}</span>}
+                        {notif.amount != null && <span>${Number(notif.amount).toFixed(2)}</span>}
+                        {timeStr && <span>{formatRelativeTime(timeStr as string)}</span>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 

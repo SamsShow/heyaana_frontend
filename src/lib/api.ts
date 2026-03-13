@@ -671,6 +671,35 @@ export async function unfollowTrader(leaderUsername?: string, leaderAddress?: st
     return data;
 }
 
+// ─── Copy trading notifications ──────────────────────────
+
+export type CopyNotification = {
+    id?: string;
+    type?: string;
+    leader_username?: string;
+    leader_address?: string;
+    market_title?: string;
+    side?: string;
+    amount?: number;
+    status?: string;
+    message?: string;
+    created_at?: string | number;
+    [key: string]: unknown;
+};
+
+export async function getCopyTradingNotifications(): Promise<CopyNotification[]> {
+    const res = await fetch(`${API2_BASE_URL}/me/copy-trading/notifications`, {
+        headers: {
+            "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+        }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail ?? data.error ?? "Failed to fetch notifications");
+    return Array.isArray(data) ? data : data.notifications ?? data.items ?? [];
+}
+
 // ─── Close position (sells via /trade with order_side SELL) ──
 
 export async function closePosition(conditionId: string, size?: number, side?: string): Promise<unknown> {

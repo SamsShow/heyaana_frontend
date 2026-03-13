@@ -279,7 +279,7 @@ export default function TradersPage() {
   const [tipDismissed, setTipDismissed] = useState(false);
 
   const { data: feedRaw, isLoading } = useSWR<unknown>("/api/proxy/trades?limit=100", proxyFetcher, { revalidateOnFocus: false, dedupingInterval: 60000 });
-  const { data: hooksData, mutate: mutateFollowing } = useSWR<unknown>(isAuthenticated ? "/api/proxy/copy-trading/hooks" : null, proxyFetcher, { revalidateOnFocus: true });
+  const { data: hooksData, mutate: mutateFollowing } = useSWR<unknown>(isAuthenticated ? "/api/proxy/copy-trading/following" : null, proxyFetcher, { revalidateOnFocus: true });
 
   async function loadGlobalLeaderboard(category = globalCategory, period = globalPeriod, orderBy = globalOrderBy) {
     setGlobalLoading(true);
@@ -306,11 +306,12 @@ export default function TradersPage() {
     if (globalEntries.length === 0) loadGlobalLeaderboard();
   }
 
-  // Parse hooks to determine who we're following
+  // Parse following to determine who we're following
   type Hook = { config?: { leader_address?: string; leader_username?: string }; [key: string]: unknown };
   const hooksArr = (() => {
     if (Array.isArray(hooksData)) return hooksData;
-    const w = hooksData as { hooks?: unknown[] } | null;
+    const w = hooksData as { hooks?: unknown[]; following?: unknown[] } | null;
+    if (Array.isArray(w?.following)) return w!.following;
     if (Array.isArray(w?.hooks)) return w!.hooks;
     if (hooksData && typeof hooksData === "object" && "hook_id" in (hooksData as Record<string, unknown>)) return [hooksData];
     return [];
