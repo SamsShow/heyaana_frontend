@@ -24,12 +24,14 @@ import {
   Sun,
   AlignJustify,
   X,
+  Star,
 } from "lucide-react";
 import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { MobileTopBar, MobileBottomNav } from "@/components/dashboard/Sidebar";
 import { DepositModal } from "@/components/dashboard/DepositModal";
 import { WithdrawModal } from "@/components/dashboard/WithdrawModal";
 import { TransferToSafeModal } from "@/components/dashboard/TransferToSafeModal";
+import { CommandPalette, useCommandPaletteShortcut } from "@/components/dashboard/CommandPalette";
 import { useAuth } from "@/lib/useAuth";
 import { proxyFetcher } from "@/lib/api";
 import { useState, useRef, useEffect } from "react";
@@ -45,6 +47,7 @@ const navItems = [
   { icon: BarChart2, label: "Analytics", href: "/dashboard/analytics" },
   { icon: BarChart2, label: "My Stats", href: "/dashboard/user-analytics" },
   { icon: Activity, label: "Markets", href: "/dashboard/markets" },
+  { icon: Star, label: "Watchlist", href: "/dashboard/watchlist" },
   { icon: TrendingUp, label: "Trades", href: "/dashboard/social" },
   { icon: Users, label: "Traders", href: "/dashboard/traders" },
   { icon: Gift, label: "Referral", href: "/dashboard/referral" },
@@ -216,6 +219,9 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showTransferToSafe, setShowTransferToSafe] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+
+  useCommandPaletteShortcut(showCommandPalette, setShowCommandPalette);
 
   const showSessionSync = hasSessionToken && isValidating;
   const showSessionOffline = hasSessionToken && !!error;
@@ -272,7 +278,7 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
           <div className="text-[10px] font-medium text-muted uppercase tracking-widest mb-3 px-3">
             Trading
           </div>
-          {navItems.slice(0, 4).map((item) => {
+          {navItems.slice(0, 5).map((item) => {
             const active = isItemActive(pathname, item.href);
             return (
               <Link
@@ -300,7 +306,7 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
           <div className="text-[10px] font-medium text-muted uppercase tracking-widest mb-3 px-3 pt-6">
             Account
           </div>
-          {navItems.slice(4).map((item) => {
+          {navItems.slice(5).map((item) => {
             const active = isItemActive(pathname, item.href);
             return (
               <Link
@@ -421,6 +427,14 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
       {showDeposit && <DepositModal onClose={() => setShowDeposit(false)} />}
       {showWithdraw && <WithdrawModal onClose={() => setShowWithdraw(false)} />}
       {showTransferToSafe && <TransferToSafeModal onClose={() => setShowTransferToSafe(false)} />}
+      {showCommandPalette && (
+        <CommandPalette
+          onClose={() => setShowCommandPalette(false)}
+          onDeposit={() => setShowDeposit(true)}
+          onWithdraw={() => setShowWithdraw(true)}
+          onTransferToSafe={() => setShowTransferToSafe(true)}
+        />
+      )}
     </div>
   );
 }

@@ -35,6 +35,7 @@ import {
   Percent,
   ExternalLink,
   Filter,
+  Download,
 } from "lucide-react";
 
 // ─── Helpers ─────────────────────────────────────────────
@@ -57,6 +58,26 @@ function fmtTime(ts: number | undefined): string {
 
 function truncate(s: string, len: number): string {
   return s.length > len ? s.slice(0, len) + "…" : s;
+}
+
+function exportTradesCsv(trades: PolyTradeEntry[]) {
+  const header = "Time,Market,Side,Size,Price";
+  const rows = trades.map((t) => {
+    const time = t.timestamp ? new Date(t.timestamp * 1000).toISOString() : "";
+    const market = `"${(t.title ?? "Unknown").replace(/"/g, '""')}"`;
+    const side = t.side ?? "";
+    const size = (t.size ?? 0).toFixed(2);
+    const price = ((t.price ?? 0) * 100).toFixed(1) + "¢";
+    return `${time},${market},${side},${size},${price}`;
+  });
+  const csv = [header, ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "trades.csv";
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ─── Main Page ───────────────────────────────────────────
@@ -176,14 +197,24 @@ export default function UserAnalyticsPage() {
         <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-4 md:py-6 space-y-6">
 
           {/* Header */}
-          <div className="section-header">
-            <BarChart3 className="w-5 h-5 text-blue-primary" />
-            <div>
-              <h2 className="text-xl font-semibold">Your Trading Analytics</h2>
-              <p className="text-xs text-muted mt-0.5">
-                Powered by Polymarket on-chain data
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="section-header">
+              <BarChart3 className="w-5 h-5 text-blue-primary" />
+              <div>
+                <h2 className="text-xl font-semibold">Your Trading Analytics</h2>
+                <p className="text-xs text-muted mt-0.5">
+                  Powered by Polymarket on-chain data
+                </p>
+              </div>
             </div>
+            <button
+              onClick={() => trades && trades.length > 0 && exportTradesCsv(trades)}
+              disabled={!trades || trades.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export CSV
+            </button>
           </div>
 
           {/* ─── Summary Cards ───────────────────────── */}

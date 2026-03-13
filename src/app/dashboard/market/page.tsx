@@ -8,6 +8,7 @@ import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { PriceChart } from "@/components/dashboard/market/PriceChart";
 import { TradePanel } from "@/components/dashboard/market/TradePanel";
 import { LimitOrderPanel } from "@/components/dashboard/market/LimitOrderPanel";
+import { PositionCalculator } from "@/components/dashboard/market/PositionCalculator";
 import { PositionCard } from "@/components/dashboard/market/PositionCard";
 import { MarketTabs } from "@/components/dashboard/market/MarketTabs";
 import { fetcher, formatVolume, Market, normalizeMarket, Trade, analyzeMarket, MarketAnalysis } from "@/lib/api";
@@ -22,7 +23,9 @@ import {
   Sparkles,
   AlertCircle,
   ShieldAlert,
+  Star,
 } from "lucide-react";
+import { useWatchlist } from "@/lib/useWatchlist";
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -62,6 +65,8 @@ function MarketDetailContent() {
   const conditionId = searchParams.get("conditionId") ?? searchParams.get("ticker");
   const decodedConditionId = conditionId ? decodeURIComponent(conditionId) : "";
   const imageFromParam = searchParams.get("img");
+
+  const { isWatched, toggleWatch } = useWatchlist();
 
   const [analysis, setAnalysis] = useState<MarketAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -174,9 +179,34 @@ function MarketDetailContent() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h1 className="text-xl md:text-2xl font-semibold leading-tight">
-                      {parsedTitle.displayTitle}
-                    </h1>
+                    <div className="flex items-start gap-2">
+                      <h1 className="text-xl md:text-2xl font-semibold leading-tight flex-1">
+                        {parsedTitle.displayTitle}
+                      </h1>
+                      {market.condition_id && (
+                        <button
+                          onClick={() =>
+                            toggleWatch({
+                              conditionId: market.condition_id!,
+                              title: market.title,
+                              image: marketImage ?? undefined,
+                              slug: decodedConditionId,
+                            })
+                          }
+                          className="shrink-0 p-1.5 rounded-lg hover:bg-white/[0.06] transition-all"
+                          aria-label={isWatched(market.condition_id) ? "Remove from watchlist" : "Add to watchlist"}
+                          title={isWatched(market.condition_id) ? "Remove from watchlist" : "Add to watchlist"}
+                        >
+                          <Star
+                            className={`w-5 h-5 transition-colors ${
+                              isWatched(market.condition_id)
+                                ? "fill-amber-400 text-amber-400"
+                                : "text-muted hover:text-amber-400/60"
+                            }`}
+                          />
+                        </button>
+                      )}
+                    </div>
                     {parsedTitle.subtitle && (
                       <p className="text-sm text-muted mt-1 leading-relaxed">
                         {parsedTitle.subtitle}
@@ -307,6 +337,9 @@ function MarketDetailContent() {
                 conditionId={market.condition_id}
                 onOrderSuccess={() => { mutateTrades(); mutateMarket(); }}
               />
+
+              {/* Position Calculator */}
+              <PositionCalculator yesPrice={yesPrice} noPrice={noPrice} />
 
               {/* Market meta */}
               <div className="dashboard-card p-4 space-y-3">
