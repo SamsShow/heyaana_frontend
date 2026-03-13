@@ -1,7 +1,7 @@
 "use client";
 
 import { Trade, formatRelativeTime } from "@/lib/api";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ArrowUpRight, ArrowDownRight, ExternalLink } from "lucide-react";
 
 interface ActivityFeedProps {
@@ -10,6 +10,8 @@ interface ActivityFeedProps {
 }
 
 type FilterSide = "all" | "yes" | "no";
+
+const WHALE_THRESHOLD_USD = 500;
 
 // Normalise a trade to a consistent shape regardless of which API returned it
 function normalizeTrade(t: Trade) {
@@ -26,33 +28,61 @@ function normalizeTrade(t: Trade) {
   const rawTime = t.timestamp
     ? new Date(t.timestamp * 1000).toISOString()
     : t.created_time;
-  return { isYes, size, price: priceInCents, total: (size * priceInCents) / 100, hash, truncatedHash, traderName, rawTime, side };
+  const total = (size * priceInCents) / 100;
+  const isWhale = total > WHALE_THRESHOLD_USD;
+  return { isYes, size, price: priceInCents, total, hash, truncatedHash, traderName, rawTime, side, isWhale };
 }
 
 export function ActivityFeed({ trades, isLoading }: ActivityFeedProps) {
   const [filter, setFilter] = useState<FilterSide>("all");
+  const [whaleOnly, setWhaleOnly] = useState(false);
 
   const safeTrades = Array.isArray(trades) ? trades : [];
+
+  const hasWhales = useMemo(
+    () => safeTrades.some((t) => normalizeTrade(t).isWhale),
+    [safeTrades],
+  );
+
   const filteredTrades = safeTrades.filter((t) => {
-    if (filter === "all") return true;
-    const side = (t.outcome ?? t.taker_side ?? t.side ?? "").toLowerCase();
-    if (filter === "yes") return side === "yes" || side === "buy";
-    if (filter === "no") return side === "no" || side === "sell";
+    const norm = normalizeTrade(t);
+    if (filter !== "all") {
+      const side = (t.outcome ?? t.taker_side ?? t.side ?? "").toLowerCase();
+      if (filter === "yes" && side !== "yes" && side !== "buy") return false;
+      if (filter === "no" && side !== "no" && side !== "sell") return false;
+    }
+    if (whaleOnly && !norm.isWhale) return false;
     return true;
   });
 
   return (
     <div>
-      <div className="pill-tabs mb-4">
-        {(["all", "yes", "no"] as FilterSide[]).map((f) => (
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div className="pill-tabs">
+          {(["all", "yes", "no"] as FilterSide[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`pill-tab capitalize ${filter === f ? "active" : ""}`}
+            >
+              {f === "all" ? "All" : f === "yes" ? "Yes / Buy" : "No / Sell"}
+            </button>
+          ))}
+        </div>
+
+        {hasWhales && (
           <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`pill-tab capitalize ${filter === f ? "active" : ""}`}
+            onClick={() => setWhaleOnly((v) => !v)}
+            className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+              whaleOnly
+                ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
+                : "bg-surface/60 border-border/50 text-muted hover:text-foreground hover:border-border"
+            }`}
           >
-            {f === "all" ? "All" : f === "yes" ? "Yes / Buy" : "No / Sell"}
+            <span>🐋</span>
+            Whales Only
           </button>
-        ))}
+        )}
       </div>
 
       {/* Trade list */}
@@ -76,14 +106,16 @@ export function ActivityFeed({ trades, isLoading }: ActivityFeedProps) {
 }
 
 function TradeRow({ trade }: { trade: Trade }) {
-  const { isYes, size, price, total, traderName, rawTime, truncatedHash } = normalizeTrade(trade);
+  const { isYes, size, price, total, traderName, rawTime, truncatedHash, isWhale } = normalizeTrade(trade);
   const txHash = trade.transactionHash ?? trade.trade_id;
   const polymarketUrl = txHash
     ? `https://polygonscan.com/tx/${txHash}`
     : null;
 
   return (
-    <div className="flex items-center gap-3 py-3 px-1 border-b border-border/50 last:border-0 hover:bg-surface/50 transition-colors rounded-lg">
+    <div className={`flex items-center gap-3 py-3 px-1 border-b border-border/50 last:border-0 hover:bg-surface/50 transition-colors rounded-lg ${
+      isWhale ? "bg-amber-500/5 border-l-2 border-amber-500/30" : ""
+    }`}>
       {/* Icon */}
       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
         isYes ? "bg-emerald-500/20" : "bg-red-500/20"
@@ -101,6 +133,11 @@ function TradeRow({ trade }: { trade: Trade }) {
           <span className={`font-semibold ${isYes ? "text-emerald-400" : "text-red-400"}`}>
             {size.toFixed(2)} {isYes ? "Yes" : "No"}
           </span>
+          {isWhale && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-semibold">
+              🐋 Whale Trade
+            </span>
+          )}
         </div>
         <div className="text-[10px] font-mono text-muted mt-0.5">
           at {price.toFixed(1)}¢ • ${total.toFixed(2)}

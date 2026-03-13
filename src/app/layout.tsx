@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/theme";
 import { Providers } from "@/components/providers/Providers";
+import { ToastProvider } from "@/components/dashboard/Toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,7 +46,9 @@ export default function RootLayout({
       >
         <Providers>
           <ThemeProvider>
-            {children}
+            <ToastProvider>
+              {children}
+            </ToastProvider>
           </ThemeProvider>
         </Providers>
         <Analytics />

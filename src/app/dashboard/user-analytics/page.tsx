@@ -22,6 +22,9 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  PieChart,
+  Pie,
+  Legend,
 } from "recharts";
 import {
   Wallet,
@@ -36,6 +39,7 @@ import {
   ExternalLink,
   Filter,
   Download,
+  PieChart as PieChartIcon,
 } from "lucide-react";
 
 // ─── Helpers ─────────────────────────────────────────────
@@ -157,6 +161,27 @@ export default function UserAnalyticsPage() {
       }));
   }, [positions]);
 
+  // ─── Pie chart data (exposure by event) ─────────────
+
+  const PIE_COLORS = [
+    "#3b82f6", "#10b981", "#8b5cf6", "#f59e0b",
+    "#06b6d4", "#ec4899", "#6366f1", "#14b8a6",
+    "#f97316", "#a855f7",
+  ];
+
+  const exposureData = useMemo(() => {
+    if (!positions) return [];
+    const grouped = new Map<string, number>();
+    for (const p of positions) {
+      const key = p.eventTitle ?? p.eventSlug ?? truncate(p.title ?? "Unknown", 30);
+      grouped.set(key, (grouped.get(key) ?? 0) + (p.currentValue ?? 0));
+    }
+    return Array.from(grouped.entries())
+      .filter(([, value]) => value > 0)
+      .map(([name, value]) => ({ name: truncate(name, 28), value: Math.round(value * 100) / 100 }))
+      .sort((a, b) => b.value - a.value);
+  }, [positions]);
+
   // ─── Activity filter ────────────────────────────────
 
   const [actFilter, setActFilter] = useState<string>("ALL");
@@ -245,6 +270,58 @@ export default function UserAnalyticsPage() {
               valueClass={stats ? (stats.winRate >= 50 ? "text-emerald-400" : "text-amber-400") : ""}
               loading={posLoading}
             />
+          </div>
+
+          {/* ─── Portfolio Exposure Pie Chart ──────────── */}
+          <div className="dashboard-card p-4 md:p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <PieChartIcon className="w-4 h-4 text-blue-primary" />
+              <h3 className="text-sm font-semibold">Portfolio Exposure</h3>
+            </div>
+            {posLoading ? (
+              <div className="h-[300px] flex items-center justify-center">
+                <Loader2 className="w-5 h-5 animate-spin text-muted" />
+              </div>
+            ) : exposureData.length === 0 ? (
+              <div className="h-[300px] flex items-center justify-center text-muted text-sm">
+                No position data
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={exposureData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    innerRadius={50}
+                    paddingAngle={2}
+                    stroke="none"
+                  >
+                    {exposureData.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(v) => [fmtUsd(v as number), "Value"]}
+                    contentStyle={{
+                      background: "#16161f",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 12,
+                      fontSize: 12,
+                    }}
+                    labelStyle={{ color: "#aaa" }}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: 10, fontFamily: "var(--font-geist-mono)" }}
+                    iconType="circle"
+                    iconSize={8}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </div>
 
           {/* ─── PnL Chart ───────────────────────────── */}

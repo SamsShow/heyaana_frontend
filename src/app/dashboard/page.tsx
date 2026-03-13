@@ -7,9 +7,152 @@ import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { MarketFeedNav, type ViewMode } from "@/components/dashboard/MarketFeedNav";
 import { MarketFeed } from "@/components/dashboard/MarketFeed";
 import { StatsSidebar, StatsMobileStrip } from "@/components/dashboard/StatsSidebar";
-import { proxyFetcher } from "@/lib/api";
+import { proxyFetcher, type Portfolio, type GammaEventSummary, gammaEventsFetcher } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
-import { ShieldAlert, X } from "lucide-react";
+import { ShieldAlert, X, Wallet, TrendingUp, Zap } from "lucide-react";
+
+/* ── Types for widget data ─────────────────────────────────── */
+
+type Trade = {
+  market?: string;
+  title?: string;
+  side?: string;
+  amount?: number;
+  size?: number;
+  price?: number;
+  [key: string]: unknown;
+};
+
+/* ── Skeleton widget card ──────────────────────────────────── */
+
+function WidgetSkeleton() {
+  return (
+    <div className="dashboard-card p-3 min-w-[200px] max-w-[280px] shrink-0 animate-pulse">
+      <div className="h-3 w-16 bg-white/10 rounded mb-3" />
+      <div className="h-5 w-24 bg-white/10 rounded mb-2" />
+      <div className="h-3 w-20 bg-white/[0.06] rounded" />
+    </div>
+  );
+}
+
+/* ── Format helpers ────────────────────────────────────────── */
+
+function fmtUsd(v: number): string {
+  if (Math.abs(v) >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(v) >= 1_000) return `$${(v / 1_000).toFixed(1)}K`;
+  return `$${v.toFixed(2)}`;
+}
+
+function fmtVol(v: number): string {
+  if (v >= 1_000_000_000) return `$${(v / 1_000_000_000).toFixed(1)}B`;
+  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `$${(v / 1_000).toFixed(1)}K`;
+  return `$${v.toFixed(0)}`;
+}
+
+/* ── Dashboard Home Widgets strip ──────────────────────────── */
+
+function DashboardWidgets() {
+  const { data: portfolio, isLoading: portfolioLoading } = useSWR<Portfolio>(
+    "/api/proxy/me/portfolio",
+    proxyFetcher,
+    { revalidateOnFocus: false },
+  );
+
+  const { data: trades, isLoading: tradesLoading } = useSWR<Trade[]>(
+    "/api/proxy/data/trades?limit=3",
+    proxyFetcher,
+    { revalidateOnFocus: false },
+  );
+
+  const { data: trendingEvents, isLoading: trendingLoading } = useSWR<GammaEventSummary[]>(
+    "/api/gamma?active=true&closed=false&limit=1&order=volume&ascending=false",
+    gammaEventsFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 300000 },
+  );
+
+  const portfolioValue = portfolio?.totals?.portfolio_value ?? portfolio?.portfolio_value ?? 0;
+  const totalPnl = portfolio?.totals?.total_pnl ?? portfolio?.total_pnl ?? 0;
+  const positionCount = portfolio?.positions?.length ?? 0;
+  const topEvent = trendingEvents?.[0] ?? null;
+
+  return (
+    <div className="flex gap-3 overflow-x-auto pb-2 px-3 pt-3 scrollbar-none">
+      {/* Widget 1: Quick Portfolio Summary */}
+      {portfolioLoading ? (
+        <WidgetSkeleton />
+      ) : (
+        <div className="dashboard-card p-3 min-w-[200px] max-w-[280px] shrink-0">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Wallet className="w-3.5 h-3.5 text-blue-primary" />
+            <span className="text-[11px] font-semibold text-muted uppercase tracking-wide">Portfolio</span>
+          </div>
+          <p className="text-lg font-bold leading-tight">{fmtUsd(portfolioValue)}</p>
+          <div className="flex items-center gap-3 mt-1.5">
+            <span className={`text-xs font-semibold ${totalPnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+              {totalPnl >= 0 ? "+" : ""}{fmtUsd(totalPnl)} PnL
+            </span>
+            <span className="text-[11px] text-muted/60">{positionCount} position{positionCount !== 1 ? "s" : ""}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Widget 2: Recent Trades */}
+      {tradesLoading ? (
+        <WidgetSkeleton />
+      ) : (
+        <div className="dashboard-card p-3 min-w-[200px] max-w-[280px] shrink-0">
+          <div className="flex items-center gap-1.5 mb-2">
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-[11px] font-semibold text-muted uppercase tracking-wide">Recent Trades</span>
+          </div>
+          {trades && trades.length > 0 ? (
+            <div className="space-y-1.5">
+              {trades.slice(0, 3).map((t, i) => {
+                const label = t.title ?? t.market ?? "Trade";
+                const side = (t.side ?? "").toUpperCase();
+                const amt = t.amount ?? t.size ?? 0;
+                return (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <span className={`font-bold shrink-0 ${side === "BUY" ? "text-emerald-400" : "text-red-400"}`}>
+                      {side || "---"}
+                    </span>
+                    <span className="truncate text-foreground/80 flex-1 min-w-0">{label.length > 28 ? label.slice(0, 28) + "..." : label}</span>
+                    <span className="font-mono text-muted/70 shrink-0">{fmtUsd(amt)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-xs text-muted/50">No recent trades</p>
+          )}
+        </div>
+      )}
+
+      {/* Widget 3: Top Mover / Quick Trade */}
+      {trendingLoading ? (
+        <WidgetSkeleton />
+      ) : topEvent ? (
+        <div className="dashboard-card p-3 min-w-[200px] max-w-[280px] shrink-0">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-[11px] font-semibold text-muted uppercase tracking-wide">Top Market</span>
+          </div>
+          <p className="text-sm font-semibold leading-snug truncate">{topEvent.title}</p>
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-[11px] font-mono text-emerald-400">{fmtVol(topEvent.volume)} vol</span>
+            <Link
+              href={`/dashboard/markets/event?slug=${encodeURIComponent(topEvent.slug)}&title=${encodeURIComponent(topEvent.title)}${topEvent.image ? `&img=${encodeURIComponent(topEvent.image)}` : ""}`}
+              className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-blue-primary/10 border border-blue-primary/30 text-blue-primary hover:bg-blue-primary/20 transition-all"
+            >
+              Trade
+            </Link>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const [warnDismissed, setWarnDismissed] = useState(false);
@@ -60,6 +203,9 @@ export default function DashboardPage() {
 
         {/* Mobile stats strip */}
         <StatsMobileStrip />
+
+        {/* Dashboard home widgets — authenticated only */}
+        {isAuthenticated && <DashboardWidgets />}
 
         {/* Category nav */}
         <MarketFeedNav

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, use, useState } from "react";
+import React, { Suspense, use, useState, useCallback, useEffect } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -24,6 +24,8 @@ import {
   AlertCircle,
   ShieldAlert,
   Star,
+  Share2,
+  Check,
 } from "lucide-react";
 import { useWatchlist } from "@/lib/useWatchlist";
 
@@ -71,6 +73,32 @@ function MarketDetailContent() {
   const [analysis, setAnalysis] = useState<MarketAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = useCallback(async () => {
+    const url = window.location.href;
+    const title = "Check out this market on Aana";
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title, url });
+        return;
+      } catch {
+        // User cancelled or share failed, fall through to clipboard
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+    } catch {
+      // clipboard not available
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
 
   async function handleAnalyze(query: string) {
     setAnalysisLoading(true);
@@ -183,29 +211,48 @@ function MarketDetailContent() {
                       <h1 className="text-xl md:text-2xl font-semibold leading-tight flex-1">
                         {parsedTitle.displayTitle}
                       </h1>
-                      {market.condition_id && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        {market.condition_id && (
+                          <button
+                            onClick={() =>
+                              toggleWatch({
+                                conditionId: market.condition_id!,
+                                title: market.title,
+                                image: marketImage ?? undefined,
+                                slug: decodedConditionId,
+                              })
+                            }
+                            className="shrink-0 p-1.5 rounded-lg hover:bg-white/[0.06] transition-all"
+                            aria-label={isWatched(market.condition_id) ? "Remove from watchlist" : "Add to watchlist"}
+                            title={isWatched(market.condition_id) ? "Remove from watchlist" : "Add to watchlist"}
+                          >
+                            <Star
+                              className={`w-5 h-5 transition-colors ${
+                                isWatched(market.condition_id)
+                                  ? "fill-amber-400 text-amber-400"
+                                  : "text-muted hover:text-amber-400/60"
+                              }`}
+                            />
+                          </button>
+                        )}
                         <button
-                          onClick={() =>
-                            toggleWatch({
-                              conditionId: market.condition_id!,
-                              title: market.title,
-                              image: marketImage ?? undefined,
-                              slug: decodedConditionId,
-                            })
-                          }
-                          className="shrink-0 p-1.5 rounded-lg hover:bg-white/[0.06] transition-all"
-                          aria-label={isWatched(market.condition_id) ? "Remove from watchlist" : "Add to watchlist"}
-                          title={isWatched(market.condition_id) ? "Remove from watchlist" : "Add to watchlist"}
+                          onClick={handleShare}
+                          className="shrink-0 p-1.5 rounded-lg hover:bg-white/[0.06] transition-all relative"
+                          aria-label="Share market"
+                          title="Share market"
                         >
-                          <Star
-                            className={`w-5 h-5 transition-colors ${
-                              isWatched(market.condition_id)
-                                ? "fill-amber-400 text-amber-400"
-                                : "text-muted hover:text-amber-400/60"
-                            }`}
-                          />
+                          {copied ? (
+                            <Check className="w-5 h-5 text-emerald-400 transition-colors" />
+                          ) : (
+                            <Share2 className="w-5 h-5 text-muted hover:text-foreground transition-colors" />
+                          )}
+                          {copied && (
+                            <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] font-mono text-emerald-400 whitespace-nowrap bg-surface border border-border/50 px-2 py-0.5 rounded-md">
+                              Link copied!
+                            </span>
+                          )}
                         </button>
-                      )}
+                      </div>
                     </div>
                     {parsedTitle.subtitle && (
                       <p className="text-sm text-muted mt-1 leading-relaxed">
