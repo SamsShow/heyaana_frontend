@@ -300,9 +300,9 @@ export function CopyTrading() {
               <p className="text-xs mt-1">Go to the <Link href="/dashboard/traders" className="text-blue-primary hover:underline">Traders</Link> page to find someone to copy</p>
             </div>
           ) : followingRaw.map((f, i) => {
-            const entry = f as { leader_address?: string; leader_username?: string; display_name?: string; config?: { leader_address?: string; leader_username?: string; display_name?: string } };
+            const entry = f as { leader_address?: string; leader_username?: string; display_name?: string; polymarket_username?: string; config?: { leader_address?: string; leader_username?: string; display_name?: string; polymarket_username?: string } };
             const username = entry.leader_address || entry.config?.leader_address || entry.leader_username || entry.config?.leader_username || "";
-            const displayName = entry.display_name || entry.config?.display_name || entry.leader_username || entry.config?.leader_username || username;
+            const displayName = entry.polymarket_username || entry.config?.polymarket_username || entry.display_name || entry.config?.display_name || entry.leader_username || entry.config?.leader_username || username;
             const isPending = pendingFollow.has(username);
             const initials = (displayName || "?").slice(0, 2).toUpperCase();
             return (
@@ -312,7 +312,7 @@ export function CopyTrading() {
                 </Link>
                 <div className="flex-1 min-w-0">
                   <Link href={`/dashboard/traders/${username}`} className="text-sm font-semibold hover:text-blue-primary transition-colors">
-                    @{username}
+                    @{displayName}
                   </Link>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
