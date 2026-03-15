@@ -3,8 +3,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-
-const TG_BOT_URL = "https://t.me/heyanna_ai_bot";
+import { env } from "@/lib/env";
 
 interface MobileTradingModalProps {
   isOpen: boolean;
@@ -52,7 +51,7 @@ export function MobileTradingModal({ isOpen, onClose, onProceed }: MobileTrading
           </p>
 
           <a
-            href={TG_BOT_URL}
+            href={env.TG_BOT_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 w-full px-6 py-3.5 rounded-lg bg-[#26A5E4]/15 border border-[#26A5E4]/30 text-[#26A5E4] font-medium text-sm hover:bg-[#26A5E4]/25 transition-colors"

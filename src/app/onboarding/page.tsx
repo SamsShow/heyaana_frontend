@@ -9,6 +9,7 @@ import { ChevronRight, ArrowLeft, Send, Sparkles, Wand2, Shield, Zap, Globe, Loc
 import { useTelegramWidget } from "@/lib/useTelegramWidget";
 import { TOKEN_STORAGE_KEY } from "@/lib/auth-api";
 import { useAuth } from "@/lib/useAuth";
+import { env } from "@/lib/env";
 
 const STEPS = [
   { id: 0, title: "Invite", subtitle: "Enter access code" },
@@ -85,7 +86,7 @@ function OnboardingPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoading, hasSessionToken, isAuthenticated, loginManual, login, loginWidget } = useAuth({ probeOnboarding: true });
-  const TELEGRAM_BOT_USERNAME = (process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "heyanna_ai_bot").replace(/^@/, "");
+  const TELEGRAM_BOT_USERNAME = env.TELEGRAM_BOT_USERNAME;
   const userOnboardingKey = getUserOnboardingKey(user);
 
   const next = () => setStep((s) => Math.min(s + 1, 5));

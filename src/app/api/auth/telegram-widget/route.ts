@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { env } from "@/lib/env";
 
-const API2_BASE_URL = "https://api2.heyanna.trade";
+const API2_BASE_URL = env.API_URL;
 
 /**
  * Proxy the Telegram Login Widget auth call to api2.

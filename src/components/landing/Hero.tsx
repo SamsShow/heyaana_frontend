@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MobileTradingModal } from "@/components/shared/MobileTradingModal";
 
-const TG_BOT_URL = "https://t.me/heyanna_ai_bot";
+import { env } from "@/lib/env";
 
 export function Hero() {
   const router = useRouter();
@@ -163,7 +163,7 @@ export function Hero() {
             </svg>
           </a>
           <a
-            href={TG_BOT_URL}
+            href={env.TG_BOT_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center gap-2 px-10 py-4 rounded-sm bg-[#26A5E4]/15 border border-[#26A5E4]/30 text-[#26A5E4] font-medium hover:bg-[#26A5E4]/25 transition-all text-sm uppercase tracking-widest"
