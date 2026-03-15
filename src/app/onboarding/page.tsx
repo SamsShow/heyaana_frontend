@@ -80,7 +80,6 @@ function OnboardingPageContent() {
   const [bootstrapped, setBootstrapped] = useState(false);
   const [showDevLogin, setShowDevLogin] = useState(false);
   const telegramRef = useRef<HTMLDivElement>(null);
-  const widgetRenderedRef = useRef(false);
   const draftHydratedRef = useRef(false);
 
   const router = useRouter();
@@ -259,7 +258,7 @@ function OnboardingPageContent() {
     };
   }, [step, login, router, handlePostLogin]);
 
-  const { renderWidget } = useTelegramWidget({
+  const { scriptLoaded, renderWidget } = useTelegramWidget({
     botUsername: TELEGRAM_BOT_USERNAME,
     onAuth: (user) => {
       setLoginLoading(true);
@@ -283,23 +282,18 @@ function OnboardingPageContent() {
     cornerRadius: 12,
   });
 
-  const telegramCallbackRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      telegramRef.current = el;
-      if (el && !widgetRenderedRef.current) {
-        widgetRenderedRef.current = true;
-        renderWidget(el);
-      }
-    },
-    [renderWidget],
-  );
+  // Assign the ref — rendering is handled by the effect below
+  const telegramCallbackRef = useCallback((el: HTMLDivElement | null) => {
+    telegramRef.current = el;
+  }, []);
 
-  // Reset rendered flag when leaving step 0 so widget re-renders on return
+  // Render (or re-render) the widget whenever the script finishes loading or
+  // the user returns to step 0. renderWidget is recreated when scriptLoaded
+  // changes, so this effect naturally fires once the script is ready.
   useEffect(() => {
-    if (step !== 0) {
-      widgetRenderedRef.current = false;
-    }
-  }, [step]);
+    if (step !== 0 || !telegramRef.current) return;
+    renderWidget(telegramRef.current);
+  }, [step, renderWidget, scriptLoaded]);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
