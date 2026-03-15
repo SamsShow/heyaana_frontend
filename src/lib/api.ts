@@ -768,6 +768,13 @@ export type CopyNotification = {
     status?: string;
     message?: string;
     created_at?: string | number;
+    executed_at?: string | number;
+    signal_at?: string | number;
+    market_end_at?: string | number;
+    asset?: string;
+    direction?: string;
+    timeframe?: string;
+    confidence_pct?: number | null;
     [key: string]: unknown;
 };
 

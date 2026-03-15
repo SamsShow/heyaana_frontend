@@ -461,25 +461,38 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
                       {notifications.slice(0, 20).map((n, i) => {
                         const isSuccess = n.status === "success" || n.status === "filled" || n.status === "executed";
                         const isFailed = n.status === "failed" || n.status === "error";
-                        const rawTime = n.created_at;
-                        const timeStr = typeof rawTime === "number" ? new Date(rawTime * 1000).toISOString() : rawTime;
+                        const isSignal = n.status === "signal";
+                        // Pick best available timestamp: signal_at > executed_at > created_at
+                        const rawTime = n.signal_at ?? n.executed_at ?? n.created_at;
+                        const timeStr = typeof rawTime === "number"
+                          ? new Date(rawTime * 1000).toISOString()
+                          : (rawTime as string | undefined);
                         return (
                           <div key={n.id ?? i} className="px-4 py-3 hover:bg-white/[0.02] transition-colors">
                             <div className="flex items-start gap-2">
-                              <span className={`mt-0.5 w-1.5 h-1.5 rounded-full shrink-0 ${isSuccess ? "bg-emerald-400" : isFailed ? "bg-red-400" : "bg-amber-400"}`} />
+                              <span className={`mt-0.5 w-1.5 h-1.5 rounded-full shrink-0 ${isSuccess ? "bg-emerald-400" : isFailed ? "bg-red-400" : isSignal ? "bg-blue-primary" : "bg-amber-400"}`} />
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-medium truncate">{n.market_title ?? n.message ?? "Copy Trade"}</p>
-                                <div className="flex items-center gap-2 mt-0.5 text-[10px] font-mono text-muted">
+                                <div className="flex items-center gap-2 mt-0.5 text-[10px] font-mono text-muted flex-wrap">
                                   {n.leader_username && <span>@{n.leader_username}</span>}
+                                  {n.asset && n.direction && (
+                                    <span className={n.direction === "UP" ? "text-emerald-400" : "text-red-400"}>
+                                      {n.asset} {n.direction === "UP" ? "▲" : "▼"}
+                                    </span>
+                                  )}
                                   {n.side && <span>{n.side}</span>}
                                   {n.amount != null && <span>${Number(n.amount).toFixed(2)}</span>}
                                   {n.status && (
-                                    <span className={isSuccess ? "text-emerald-400" : isFailed ? "text-red-400" : "text-amber-400"}>
+                                    <span className={isSuccess ? "text-emerald-400" : isFailed ? "text-red-400" : isSignal ? "text-blue-primary" : "text-amber-400"}>
                                       {n.status}
                                     </span>
                                   )}
                                 </div>
-                                {timeStr && <p className="text-[10px] font-mono text-muted/60 mt-0.5">{formatRelativeTime(timeStr as string)}</p>}
+                                {timeStr && (
+                                  <p className="text-[10px] font-mono text-muted/60 mt-0.5">
+                                    {formatRelativeTime(timeStr)}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           </div>
