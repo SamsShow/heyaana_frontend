@@ -168,27 +168,18 @@ export default function ProfilePage() {
     { revalidateOnFocus: true, refreshInterval: 3000, dedupingInterval: 0 },
   );
 
-  // Resolve wallet address from auth user first (available immediately), then walletData
+  const { data: portfolio, isLoading: portfolioLoading, isValidating: portfolioValidating, mutate: mutatePortfolio } = useSWR<Portfolio>(
+    isAuthenticated ? "/api/proxy/me/portfolio" : null,
+    proxyFetcher,
+    { revalidateOnFocus: true, refreshInterval: 3000, dedupingInterval: 0 },
+  );
+
   const walletAddress =
     user?.wallet_address ??
     walletData?.address ??
     walletData?.wallet_address ??
     walletData?.eth_address ??
     null;
-
-  // Use address-based portfolio endpoint when wallet is known — it returns the same
-  // structured JSON as /me/portfolio but with richer balance/token data
-  const portfolioKey = isAuthenticated
-    ? walletAddress
-      ? `/api/proxy/users/${walletAddress}/portfolio`
-      : `/api/proxy/me/portfolio`
-    : null;
-
-  const { data: portfolio, isLoading: portfolioLoading, isValidating: portfolioValidating, mutate: mutatePortfolio } = useSWR<Portfolio>(
-    portfolioKey,
-    proxyFetcher,
-    { revalidateOnFocus: true, refreshInterval: 3000, dedupingInterval: 0 },
-  );
 
   type FollowingEntry = { config?: { leader_address?: string; leader_username?: string; display_name?: string }; [key: string]: unknown };
   const { data: hooksRaw, isLoading: followingLoading, mutate: mutateFollowing } = useSWR<unknown>(
