@@ -124,6 +124,26 @@ export async function fetchMe() {
   return res.json();
 }
 
+/** Check whether the authenticated user has completed onboarding */
+export async function checkOnboardStatus(): Promise<boolean> {
+  const res = await api2Fetch("/me/onboarded");
+  if (!res.ok) return false;
+  const data = await res.json().catch(() => ({}));
+  return data.onboarded === true;
+}
+
+/** Submit an invite code for an already-authenticated user to complete onboarding */
+export async function onboardMe(inviteCode: string): Promise<void> {
+  const res = await api2Fetch("/me/onboard", undefined, {
+    method: "POST",
+    body: JSON.stringify({ invite_code: inviteCode }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail ?? body.error ?? "Onboarding failed");
+  }
+}
+
 // ─── Types ────────────────────────────────────────────────
 
 export type UserProfile = {
