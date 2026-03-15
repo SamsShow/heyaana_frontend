@@ -231,7 +231,7 @@ export function PriceChart({ trades, conditionId, isLoading }: PriceChartProps) 
                 fontFamily: "var(--font-mono)",
               }}
               formatter={(value: number | undefined) => [`${value ?? 0}¢`, "Price"]}
-              labelFormatter={(ms: number) => formatTickLabel(ms, range)}
+              labelFormatter={(ms: unknown) => formatTickLabel(ms as number, range)}
             />
             <Area
               type="monotone"
