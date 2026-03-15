@@ -4,7 +4,7 @@ import useSWR from "swr";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
-import { proxyFetcher, followTrader, unfollowTrader, mergeFollowingWithCache } from "@/lib/api";
+import { proxyFetcher, followTrader, unfollowTrader, mergeFollowingWithCache, fetchGlobalLeaderboard } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
 import { CopyTradeModal } from "@/components/dashboard/CopyTradeModal";
 import { WatchAlertModal } from "@/components/dashboard/WatchAlertModal";
@@ -144,6 +144,7 @@ function StatCell({ label, value, accent }: { label: string; value: string; acce
 // ── Page ───────────────────────────────────────────────────────
 
 const TIMEFRAMES = ["1D", "1W", "1M", "ALL"] as const;
+const TF_TO_PERIOD: Record<string, string> = { "1D": "DAY", "1W": "WEEK", "1M": "MONTH", "ALL": "ALL" };
 
 export default function TraderProfilePage() {
   const params = useParams<{ username: string }>();
@@ -182,6 +183,16 @@ export default function TraderProfilePage() {
     portfolioKey,
     proxyFetcher,
     { revalidateOnFocus: false }
+  );
+
+  // For global traders: fetch PnL from leaderboard filtered by timeframe
+  const { data: tfLeaderboard, isLoading: tfLoading } = useSWR(
+    walletParam ? `leaderboard-pnl-${activeTf}` : null,
+    () => fetchGlobalLeaderboard({ limit: 100, time_period: TF_TO_PERIOD[activeTf] }),
+    { revalidateOnFocus: false }
+  );
+  const tfEntry = tfLeaderboard?.entries.find(
+    e => e.proxyWallet?.toLowerCase() === walletParam.toLowerCase()
   );
 
   const { data: hooksData, mutate: mutateFollowing } = useSWR<unknown>(
@@ -258,11 +269,34 @@ export default function TraderProfilePage() {
   }
 
   const portfolioVal = portfolio?.totals?.portfolio_value ?? portfolio?.portfolio_value;
-  const totalPnl = portfolio?.totals?.total_pnl ?? portfolio?.total_pnl ?? (Number.isFinite(globalPnl) ? globalPnl : undefined);
+  // Global traders: use leaderboard PnL (correct sign, timeframe-aware).
+  // Heyaana traders: use portfolio API.
+  const totalPnl = walletParam
+    ? (tfEntry?.pnl ?? (Number.isFinite(globalPnl) ? globalPnl : undefined))
+    : (portfolio?.totals?.total_pnl ?? portfolio?.total_pnl ?? (Number.isFinite(globalPnl) ? globalPnl : undefined));
   const wallet = portfolio?.wallet;
   const positions = portfolio?.positions ?? [];
   const posValue = positions.reduce((acc, p) => acc + (p.current_value ?? 0), 0);
   const displayName = portfolio?.first_name ?? (nameParam || username);
+
+  // "If you copied with $100" — proportional return based on PnL / portfolio value
+  const copiedReturn = (() => {
+    if (totalPnl !== undefined && Number.isFinite(totalPnl) && portfolioVal && portfolioVal > 0) {
+      return (totalPnl / portfolioVal) * 100;
+    }
+    if (Number.isFinite(roiParam)) return roiParam;
+    return null;
+  })();
+
+  // Win rate: leaderboard param → calculated from positions
+  const copiedWinRate = (() => {
+    if (Number.isFinite(winRateParam) && winRateParam > 0) return winRateParam;
+    if (positions.length > 0) {
+      const wins = positions.filter(p => (p.pnl_cash ?? p.pnl ?? 0) > 0).length;
+      return (wins / positions.length) * 100;
+    }
+    return null;
+  })();
   const initials = displayName.slice(0, 2).toUpperCase();
 
   return (
@@ -361,13 +395,14 @@ export default function TraderProfilePage() {
                       Profit / Loss
                     </p>
                     <p className={`text-2xl font-bold font-mono ${
+                      tfLoading ? "text-muted animate-pulse" :
                       totalPnl !== undefined && Number.isFinite(totalPnl)
                         ? totalPnl >= 0 ? "text-emerald-400" : "text-red-400"
                         : "text-foreground"
                     }`}>
-                      {fmtPnl(totalPnl)}
+                      {tfLoading ? "···" : fmtPnl(totalPnl)}
                     </p>
-                    <p className="text-[10px] font-mono text-muted mt-0.5">All time</p>
+                    <p className="text-[10px] font-mono text-muted mt-0.5">{activeTf === "ALL" ? "All time" : `Past ${activeTf}`}</p>
                   </div>
 
                   {/* IF YOU COPIED card */}
@@ -375,13 +410,18 @@ export default function TraderProfilePage() {
                     <p className="text-[9px] font-mono text-amber-400/80 uppercase tracking-widest mb-2">If you copied with $100</p>
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-muted font-mono">Return</p>
-                      <p className="text-xs font-mono text-muted">—</p>
+                      <p className={`text-xs font-mono ${copiedReturn !== null ? (copiedReturn >= 0 ? "text-emerald-400" : "text-red-400") : "text-muted"}`}>
+                        {copiedReturn !== null
+                          ? `${copiedReturn >= 0 ? "+" : ""}$${Math.abs(copiedReturn).toFixed(2)}`
+                          : "—"}
+                      </p>
                     </div>
                     <div className="flex items-center justify-between mt-1">
                       <p className="text-xs text-muted font-mono">Win Rate</p>
-                      <p className="text-xs font-mono text-muted">—</p>
+                      <p className={`text-xs font-mono ${copiedWinRate !== null ? "text-foreground" : "text-muted"}`}>
+                        {copiedWinRate !== null ? `${copiedWinRate.toFixed(1)}%` : "—"}
+                      </p>
                     </div>
-                    <p className="text-[9px] font-mono text-muted/40 mt-2">Coming soon</p>
                   </div>
                 </div>
 
