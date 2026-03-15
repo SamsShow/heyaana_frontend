@@ -27,13 +27,6 @@ const RANGE_MS: Record<TimeRange, number> = {
   ALL: Infinity,
 };
 
-const RANGE_INTERVAL: Record<TimeRange, string> = {
-  "1D": "1h",
-  "1W": "6h",
-  "2W": "1d",
-  ALL: "1w",
-};
-
 type PriceHistoryPoint = {
   t?: number;
   timestamp?: number;
@@ -44,55 +37,114 @@ type PriceHistoryPoint = {
   [key: string]: unknown;
 };
 
+function getPointPrice(pt: PriceHistoryPoint): number {
+  return (pt.p ?? pt.price ?? pt.yes_price ?? 0) as number;
+}
+
+function getPointMs(pt: PriceHistoryPoint): number {
+  const ts = (pt.t ?? pt.timestamp ?? pt.time ?? 0) as number;
+  return ts < 1e12 ? ts * 1000 : ts;
+}
+
+function formatTickLabel(ms: number, range: TimeRange): string {
+  const d = new Date(ms);
+  if (range === "1D") {
+    return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  }
+  if (range === "ALL") {
+    return d.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+  }
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function buildTicks(data: { time: number }[], n = 5): number[] {
+  if (data.length < 2) return data.map((d) => d.time);
+  const min = data[0].time;
+  const max = data[data.length - 1].time;
+  return Array.from({ length: n }, (_, i) => Math.round(min + ((max - min) * i) / (n - 1)));
+}
+
 export function PriceChart({ trades, conditionId, isLoading }: PriceChartProps) {
   const [range, setRange] = useState<TimeRange>("1W");
 
-  // Fetch from price history API if conditionId is provided
+  // Always fetch with interval=max (the only interval the backend reliably respects).
+  // Client-side filtering below trims the data to the selected time range.
+  // fidelity=1440 → one data point per day, keeping response size small.
   const { data: priceHistory, isLoading: historyLoading } = useSWR<unknown>(
     conditionId
-      ? `/api/proxy/price/${encodeURIComponent(conditionId)}/history?interval=${RANGE_INTERVAL[range]}`
+      ? `/api/proxy/price/${encodeURIComponent(conditionId)}/history?interval=max&fidelity=1440`
       : null,
     proxyFetcher,
     { revalidateOnFocus: false },
   );
 
   const chartData = useMemo(() => {
-    // Prefer price history API data — response shape:
-    // { history: { Yes: [{ t: unixSec, p: 0-1 }, ...], No: [...] } }
+    // Supported API response shapes:
+    //   { history: { Yes: [{t, p}], No: [{t, p}] } }
+    //   { history: [{t, p}, ...] }
+    //   [{t, p}, ...]
     if (priceHistory && typeof priceHistory === "object") {
-      type HistoryResp = { history?: { Yes?: PriceHistoryPoint[]; No?: PriceHistoryPoint[] } };
+      type HistoryResp = {
+        history?: { Yes?: PriceHistoryPoint[]; No?: PriceHistoryPoint[] } | PriceHistoryPoint[];
+      };
       const resp = priceHistory as HistoryResp;
-      const historyArray: PriceHistoryPoint[] =
-        resp.history?.Yes ??
-        resp.history?.No ??
+
+      let rawArray: PriceHistoryPoint[] =
+        (resp.history as { Yes?: PriceHistoryPoint[] } | undefined)?.Yes ??
+        (resp.history as { No?: PriceHistoryPoint[] } | undefined)?.No ??
+        (Array.isArray(resp.history) ? (resp.history as PriceHistoryPoint[]) : null) ??
         (Array.isArray(priceHistory) ? (priceHistory as PriceHistoryPoint[]) : []);
 
-      if (historyArray.length > 0) {
-        return historyArray.map((pt) => {
-          const ts = (pt.t ?? pt.timestamp ?? pt.time ?? 0) as number;
-          const rawPrice = (pt.p ?? pt.price ?? pt.yes_price ?? 0) as number;
-          // API returns 0-1 range; convert to percentage for display
+      if (rawArray.length > 0) {
+        // Sort ascending by timestamp
+        rawArray = [...rawArray].sort((a, b) => getPointMs(a) - getPointMs(b));
+
+        // ── Client-side time range filter ──────────────────────────────────
+        // Since the backend always returns full history, slice to the
+        // selected window (1D = last 24h, 1W = last 7d, 2W = last 14d, ALL = everything).
+        if (range !== "ALL") {
+          const cutoffMs = Date.now() - RANGE_MS[range];
+          rawArray = rawArray.filter((pt) => getPointMs(pt) >= cutoffMs);
+        }
+
+        // ── Detect interleaved Yes + No prices ────────────────────────────
+        // In a binary market Yes+No≈1, so interleaved data swings ~100¢ on every step.
+        // If the average consecutive normalised diff is > 0.4 it's almost certainly
+        // two series mixed together — keep every other element (the higher-valued side).
+        if (rawArray.length > 4) {
+          let sumDiff = 0;
+          for (let i = 1; i < rawArray.length; i++) {
+            const p1 = getPointPrice(rawArray[i - 1]);
+            const p2 = getPointPrice(rawArray[i]);
+            const n1 = p1 > 1 ? p1 / 100 : p1;
+            const n2 = p2 > 1 ? p2 / 100 : p2;
+            sumDiff += Math.abs(n2 - n1);
+          }
+          const avgDiff = sumDiff / (rawArray.length - 1);
+          if (avgDiff > 0.4) {
+            const p0 = getPointPrice(rawArray[0]);
+            const p1 = getPointPrice(rawArray[1]);
+            const n0 = p0 > 1 ? p0 / 100 : p0;
+            const n1b = p1 > 1 ? p1 / 100 : p1;
+            const keepEven = n0 >= n1b;
+            rawArray = rawArray.filter((_, i) => (keepEven ? i % 2 === 0 : i % 2 === 1));
+          }
+        }
+
+        return rawArray.map((pt) => {
+          const ms = getPointMs(pt);
+          const rawPrice = getPointPrice(pt);
           const price = rawPrice <= 1 ? rawPrice * 100 : rawPrice;
-          const ms = ts < 1e12 ? ts * 1000 : ts;
-          return {
-            time: ms,
-            price: Math.round(price * 10) / 10,
-            label: new Date(ms).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-            }),
-          };
+          return { time: ms, price: Math.round(price * 10) / 10 };
         });
       }
     }
 
-    // Fallback: derive from trade data using real API field names
+    // Fallback: derive chart from trade data
     if (!Array.isArray(trades) || trades.length === 0) return [];
 
-    const now = Date.now();
-    const cutoff = now - RANGE_MS[range];
-
-    const filtered = trades
+    const cutoff = range === "ALL" ? 0 : Date.now() - RANGE_MS[range];
+    return trades
       .filter((t) => {
         const ms = t.timestamp ? t.timestamp * 1000 : t.created_time ? new Date(t.created_time).getTime() : 0;
         return ms >= cutoff;
@@ -101,19 +153,16 @@ export function PriceChart({ trades, conditionId, isLoading }: PriceChartProps) 
         const msA = a.timestamp ? a.timestamp * 1000 : a.created_time ? new Date(a.created_time).getTime() : 0;
         const msB = b.timestamp ? b.timestamp * 1000 : b.created_time ? new Date(b.created_time).getTime() : 0;
         return msA - msB;
+      })
+      .map((t) => {
+        const ms = t.timestamp ? t.timestamp * 1000 : t.created_time ? new Date(t.created_time).getTime() : 0;
+        const rawPrice = t.price ?? t.yes_price ?? 0;
+        const price = rawPrice <= 1 ? rawPrice * 100 : rawPrice;
+        return { time: ms, price: Math.round(price * 10) / 10 };
       });
-
-    return filtered.map((t) => {
-      const ms = t.timestamp ? t.timestamp * 1000 : t.created_time ? new Date(t.created_time).getTime() : 0;
-      const rawPrice = t.price ?? t.yes_price ?? 0;
-      const price = rawPrice <= 1 ? rawPrice * 100 : rawPrice;
-      return {
-        time: ms,
-        price: Math.round(price * 10) / 10,
-        label: new Date(ms).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-      };
-    });
   }, [trades, range, priceHistory]);
+
+  const xAxisTicks = useMemo(() => buildTicks(chartData), [chartData]);
 
   const latestPrice = chartData.length > 0 ? chartData[chartData.length - 1].price : null;
   const firstPrice = chartData.length > 0 ? chartData[0].price : null;
@@ -156,11 +205,15 @@ export function PriceChart({ trades, conditionId, isLoading }: PriceChartProps) 
               </linearGradient>
             </defs>
             <XAxis
-              dataKey="label"
+              dataKey="time"
+              type="number"
+              scale="time"
+              domain={["dataMin", "dataMax"]}
+              ticks={xAxisTicks}
               tick={{ fontSize: 11, fill: "var(--muted)" }}
               axisLine={{ stroke: "var(--border-color)" }}
               tickLine={false}
-              interval="preserveStartEnd"
+              tickFormatter={(ms: number) => formatTickLabel(ms, range)}
             />
             <YAxis
               domain={["auto", "auto"]}
@@ -178,7 +231,7 @@ export function PriceChart({ trades, conditionId, isLoading }: PriceChartProps) 
                 fontFamily: "var(--font-mono)",
               }}
               formatter={(value: number | undefined) => [`${value ?? 0}¢`, "Price"]}
-              labelFormatter={(label: React.ReactNode) => String(label)}
+              labelFormatter={(ms: number) => formatTickLabel(ms, range)}
             />
             <Area
               type="monotone"
@@ -193,7 +246,6 @@ export function PriceChart({ trades, conditionId, isLoading }: PriceChartProps) 
         </ResponsiveContainer>
       </div>
 
-      {/* Latest price badge */}
       {latestPrice !== null && (
         <div className="flex justify-end">
           <span
