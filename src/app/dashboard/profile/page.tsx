@@ -587,6 +587,13 @@ export default function ProfilePage() {
               <p className="text-xs text-muted leading-relaxed">
                 Convert native USDC.e to bridged USDC on Polygon for trading on Polymarket.
               </p>
+              <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2.5">
+                <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
+                <p className="text-[11px] leading-relaxed text-red-300/90">
+                  <span className="font-bold text-red-400">EOA wallet only.</span>{" "}
+                  This swap only works for your regular (EOA) wallet. It does <span className="font-bold text-red-400">not</span> work for Safe (multisig) wallets.
+                </p>
+              </div>
 
               <div className="space-y-3">
                 <label className="flex items-center gap-2 cursor-pointer select-none">

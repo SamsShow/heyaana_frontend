@@ -138,7 +138,9 @@ export function DepositModal({ onClose }: DepositModalProps) {
               {isDirectDeposit ? (
                 <>
                   <span className="font-semibold text-blue-400">Direct deposit to Polymarket wallet.</span>{" "}
-                  Send USDC or USDC.e on Polygon directly to your Polymarket wallet. No bridging required.
+                  Send{" "}
+                  <span className="font-bold text-red-400">USDC.e</span>
+                  {" "}(not USDC) on Polygon directly to your Polymarket wallet. No bridging required.
                 </>
               ) : (
                 <>
