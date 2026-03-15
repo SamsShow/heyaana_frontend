@@ -5,7 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, ArrowLeft, Send, Sparkles, Wand2, Shield, Zap, Globe, Lock, Coins, TrendingUp, Users, Info, HelpCircle, Mail, MessageSquare, Twitter, Github, Globe2, Wallet, LogIn, ChevronDown, Check, Copy, LogOut, MessageCircle, ArrowRight, Bot, Flame, Loader2, Ticket } from "lucide-react";
+import { ChevronRight, ArrowLeft, Send, Sparkles, Wand2, Shield, Zap, Globe, Lock, Coins, TrendingUp, Users, Info, HelpCircle, Mail, MessageSquare, Twitter, Github, Globe2, Wallet, LogIn, ChevronDown, Check, Copy, LogOut, MessageCircle, ArrowRight, Bot, Flame, Loader2, Ticket, UserPlus, UserMinus } from "lucide-react";
+import { fetchGlobalLeaderboard, followTrader, unfollowTrader, type GlobalLeaderboardEntry } from "@/lib/api";
 import { useTelegramWidget } from "@/lib/useTelegramWidget";
 import { TOKEN_STORAGE_KEY, checkOnboardStatus, onboardMe } from "@/lib/auth-api";
 import { useAuth } from "@/lib/useAuth";
@@ -76,6 +77,11 @@ function OnboardingPageContent() {
   const [inviteLoading, setInviteLoading] = useState(false);
   // null = not yet checked, true = onboarded, false = needs invite code
   const [onboardStatus, setOnboardStatus] = useState<boolean | null>(null);
+  const [traders, setTraders] = useState<GlobalLeaderboardEntry[]>([]);
+  const [tradersLoading, setTradersLoading] = useState(false);
+  const [tradersError, setTradersError] = useState<string | null>(null);
+  const [followedWallets, setFollowedWallets] = useState<Set<string>>(new Set());
+  const [pendingWallets, setPendingWallets] = useState<Set<string>>(new Set());
   const [currentHostname, setCurrentHostname] = useState<string | null>(null);
   const [bootstrapped, setBootstrapped] = useState(false);
   const [showDevLogin, setShowDevLogin] = useState(false);
@@ -182,6 +188,36 @@ function OnboardingPageContent() {
   }, [bootstrapped, isAuthenticated, userOnboardingKey, step, selectedMarkets, riskLevel, maxExposure, selectedTraders]);
 
   const showVerifyingGate = hasSessionToken && isLoading && !isAuthenticated;
+
+  // Fetch top traders when user reaches step 4
+  useEffect(() => {
+    if (step !== 4 || traders.length > 0) return;
+    setTradersLoading(true);
+    setTradersError(null);
+    fetchGlobalLeaderboard({ limit: 10 })
+      .then((res) => setTraders(res.entries))
+      .catch(() => setTradersError("Failed to load traders. Please continue anyway."))
+      .finally(() => setTradersLoading(false));
+  }, [step, traders.length]);
+
+  const handleFollowTrader = async (entry: GlobalLeaderboardEntry) => {
+    const key = entry.proxyWallet ?? entry.userName ?? "";
+    if (!key) return;
+    setPendingWallets((prev) => new Set(prev).add(key));
+    try {
+      if (followedWallets.has(key)) {
+        await unfollowTrader(entry.userName, entry.proxyWallet);
+        setFollowedWallets((prev) => { const s = new Set(prev); s.delete(key); return s; });
+      } else {
+        await followTrader(entry.userName, entry.proxyWallet);
+        setFollowedWallets((prev) => new Set(prev).add(key));
+      }
+    } catch {
+      // Follow errors are non-fatal in onboarding — user can set up copy-trading from dashboard
+    } finally {
+      setPendingWallets((prev) => { const s = new Set(prev); s.delete(key); return s; });
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -646,11 +682,101 @@ function OnboardingPageContent() {
                   <p className="text-muted">Select top-performing traders to automatically mirror</p>
                 </div>
 
-                <div className="max-w-md mx-auto p-8 dashboard-card flex flex-col items-center justify-center text-center text-muted">
-                  <Users className="w-12 h-12 mb-4 opacity-30" />
-                  <p className="text-sm font-medium">Coming soon</p>
-                  <p className="text-xs mt-1">Top traders will appear here when available</p>
+                <div className="max-w-xl mx-auto dashboard-card overflow-hidden">
+                  {tradersLoading && (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-6 h-6 animate-spin text-muted" />
+                    </div>
+                  )}
+
+                  {tradersError && (
+                    <div className="py-8 text-center">
+                      <p className="text-sm text-red-400 font-mono">{tradersError}</p>
+                    </div>
+                  )}
+
+                  {!tradersLoading && !tradersError && traders.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-12 text-muted">
+                      <Users className="w-10 h-10 mb-3 opacity-30" />
+                      <p className="text-sm">No traders available right now</p>
+                    </div>
+                  )}
+
+                  {traders.map((entry) => {
+                    const key = entry.proxyWallet ?? entry.userName ?? "";
+                    const wallet = entry.proxyWallet ?? "";
+                    const short = wallet.length > 8 ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : wallet;
+                    const pnl = Number(entry.pnl ?? 0);
+                    const vol = Number(entry.vol ?? 0);
+                    const username = entry.userName ?? "Unknown";
+                    const isFollowed = followedWallets.has(key);
+                    const isPending = pendingWallets.has(key);
+
+                    const rankColors: Record<number, string> = {
+                      1: "from-amber-400/40 to-yellow-500/20 border-amber-500/40",
+                      2: "from-slate-300/30 to-slate-400/20 border-slate-400/30",
+                      3: "from-orange-600/30 to-amber-700/20 border-orange-600/30",
+                    };
+                    const avatarClass = rankColors[entry.rank] ?? "from-blue-primary/20 to-purple-500/10 border-border";
+
+                    return (
+                      <div
+                        key={key || entry.rank}
+                        className="flex items-center gap-4 px-5 py-4 border-b border-border/30 last:border-0"
+                      >
+                        <div className="relative shrink-0">
+                          <div className={`w-11 h-11 rounded-full bg-linear-to-br ${avatarClass} border flex items-center justify-center text-sm font-bold`}>
+                            {username.slice(0, 2).toUpperCase()}
+                          </div>
+                          <span className={`absolute -bottom-1 -left-1 w-5 h-5 rounded-full bg-surface border border-border flex items-center justify-center text-[10px] font-bold font-mono ${entry.rank <= 3 ? "text-amber-400" : "text-muted"}`}>
+                            {entry.rank}
+                          </span>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold truncate mb-0.5">{username}</div>
+                          <div className="flex items-center gap-3 text-xs font-mono text-muted">
+                            {short && <span className="truncate">{short}</span>}
+                            {vol > 0 && (
+                              <span className="hidden sm:inline">
+                                Vol <span className="text-foreground/60">
+                                  {vol >= 1_000_000 ? `$${(vol / 1_000_000).toFixed(1)}M` : vol >= 1_000 ? `$${(vol / 1_000).toFixed(1)}K` : `$${vol.toFixed(0)}`}
+                                </span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-0.5 shrink-0 mr-2">
+                          <span className={`text-sm font-bold font-mono ${pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                            {pnl >= 0 ? "+" : "-"}${Math.abs(pnl) >= 1_000 ? `${(Math.abs(pnl) / 1_000).toFixed(1)}K` : Math.abs(pnl).toFixed(0)}
+                          </span>
+                          <span className="text-[10px] font-mono text-muted/50">PNL</span>
+                        </div>
+
+                        <button
+                          onClick={() => handleFollowTrader(entry)}
+                          disabled={isPending}
+                          className={`shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all disabled:opacity-50 ${
+                            isFollowed
+                              ? "border-red-500/30 text-red-400 hover:bg-red-500/10"
+                              : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                          }`}
+                        >
+                          {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> :
+                            isFollowed ? <><UserMinus className="w-3 h-3" /> Stop</> :
+                            <><UserPlus className="w-3 h-3" /> Copy</>}
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
+
+                {followedWallets.size > 0 && (
+                  <p className="text-center text-xs text-emerald-400 font-mono">
+                    {followedWallets.size} trader{followedWallets.size !== 1 ? "s" : ""} selected for copy trading
+                  </p>
+                )}
               </div>
             )}
 
@@ -681,7 +807,7 @@ function OnboardingPageContent() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted">Copied Traders</span>
-                    <span className="font-mono text-blue-primary">{selectedTraders.length}</span>
+                    <span className="font-mono text-blue-primary">{followedWallets.size}</span>
                   </div>
                 </div>
 
