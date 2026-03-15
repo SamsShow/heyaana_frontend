@@ -53,8 +53,14 @@ function fmtVol(v: number): string {
 /* ── Dashboard Home Widgets strip ──────────────────────────── */
 
 function DashboardWidgets() {
+  const { user, isAuthenticated } = useAuth();
+  const portfolioKey = isAuthenticated
+    ? user?.wallet_address
+      ? `/api/proxy/users/${user.wallet_address}/portfolio`
+      : "/api/proxy/me/portfolio"
+    : null;
   const { data: portfolio, isLoading: portfolioLoading } = useSWR<Portfolio>(
-    "/api/proxy/me/portfolio",
+    portfolioKey,
     proxyFetcher,
     { revalidateOnFocus: false },
   );
@@ -159,7 +165,7 @@ export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("events");
   const [tagId, setTagId] = useState<number | null>(null);
 
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   const { data: statusData } = useSWR<{ polymarket_approved?: boolean }>(
     isAuthenticated ? "/api/proxy/me/status" : null,

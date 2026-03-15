@@ -245,7 +245,11 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
   );
 
   const { data: portfolioData } = useSWR<Record<string, unknown>>(
-    isAuthenticated ? "/api/proxy/me/portfolio" : null,
+    isAuthenticated
+      ? user?.wallet_address
+        ? `/api/proxy/users/${user.wallet_address}/portfolio`
+        : "/api/proxy/me/portfolio"
+      : null,
     proxyFetcher,
     { revalidateOnFocus: true, refreshInterval: 30000 },
   );

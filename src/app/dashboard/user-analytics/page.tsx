@@ -91,7 +91,11 @@ export default function UserAnalyticsPage() {
 
   // Get the proxy wallet (Polymarket trading address) from portfolio
   const { data: portfolio } = useSWR<{ wallet?: string }>(
-    isAuthenticated ? "/api/proxy/me/portfolio" : null,
+    isAuthenticated
+      ? user?.wallet_address
+        ? `/api/proxy/users/${user.wallet_address}/portfolio`
+        : "/api/proxy/me/portfolio"
+      : null,
     proxyFetcher,
     { revalidateOnFocus: false },
   );

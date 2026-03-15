@@ -174,19 +174,30 @@ export default function TraderProfilePage() {
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [showWatchModal, setShowWatchModal] = useState(false);
 
-  // Use wallet address for new endpoint, fall back to username
-  const portfolioKey = walletParam
-    ? `/api/proxy/users/${encodeURIComponent(walletParam)}/portfolio`
-    : `/api/proxy/users/${username}/portfolio`;
+  // For local users (no walletParam): first fetch by username to resolve their wallet address.
+  // The backend /users/{address}/portfolio endpoint requires an address, not a username.
+  const { data: localUserInfo, isLoading: walletResolving } = useSWR<{ wallet?: string }>(
+    !walletParam ? `/api/proxy/users/${username}/portfolio` : null,
+    proxyFetcher,
+    { revalidateOnFocus: false }
+  );
 
-  const { data: portfolio, isLoading, error } = useSWR<UserPortfolio>(
+  // Resolve wallet: URL param (global traders) → username lookup response (local users)
+  const resolvedWallet = walletParam || (localUserInfo?.wallet as string | undefined);
+
+  // Main portfolio fetch — always address-based once wallet is known
+  const portfolioKey = resolvedWallet
+    ? `/api/proxy/users/${encodeURIComponent(resolvedWallet)}/portfolio`
+    : null;
+
+  const { data: portfolio, isLoading: portfolioLoading, error } = useSWR<UserPortfolio>(
     portfolioKey,
     proxyFetcher,
     { revalidateOnFocus: false }
   );
 
-  // Derive wallet: from URL param (global trader) or from portfolio response (local trader)
-  const effectiveWallet = walletParam || (portfolio?.wallet as string | undefined) || "";
+  const isLoading = portfolioLoading || walletResolving;
+  const effectiveWallet = resolvedWallet || "";
 
   // Fetch open positions from Polymarket Data API using the wallet address
   const { data: polyPositions, isLoading: positionsLoading } = useSWR(

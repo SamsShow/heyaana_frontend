@@ -12,13 +12,17 @@ interface PositionCardProps {
 }
 
 export function PositionCard({ ticker, marketTitle }: PositionCardProps) {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [closing, setClosing] = useState(false);
   const [closed, setClosed] = useState(false);
   const [closeMsg, setCloseMsg] = useState<string | null>(null);
 
   const { data: portfolio, mutate } = useSWR<Portfolio>(
-    isAuthenticated ? "/api/proxy/me/portfolio" : null,
+    isAuthenticated
+      ? user?.wallet_address
+        ? `/api/proxy/users/${user.wallet_address}/portfolio`
+        : "/api/proxy/me/portfolio"
+      : null,
     proxyFetcher,
     { revalidateOnFocus: true, refreshInterval: 30000 },
   );
