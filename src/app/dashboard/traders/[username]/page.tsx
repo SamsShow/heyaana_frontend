@@ -4,7 +4,7 @@ import useSWR from "swr";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
-import { proxyFetcher, followTrader, unfollowTrader, mergeFollowingWithCache, fetchGlobalLeaderboard } from "@/lib/api";
+import { proxyFetcher, followTrader, unfollowTrader, mergeFollowingWithCache, fetchGlobalLeaderboard, fetchPolyPositions } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
 import { CopyTradeModal } from "@/components/dashboard/CopyTradeModal";
 import { WatchAlertModal } from "@/components/dashboard/WatchAlertModal";
@@ -185,6 +185,16 @@ export default function TraderProfilePage() {
     { revalidateOnFocus: false }
   );
 
+  // Derive wallet: from URL param (global trader) or from portfolio response (local trader)
+  const effectiveWallet = walletParam || (portfolio?.wallet as string | undefined) || "";
+
+  // Fetch open positions from Polymarket Data API using the wallet address
+  const { data: polyPositions, isLoading: positionsLoading } = useSWR(
+    effectiveWallet ? `poly-positions-${effectiveWallet}` : null,
+    () => fetchPolyPositions(effectiveWallet, { limit: 100 }),
+    { revalidateOnFocus: false }
+  );
+
   // For global traders: fetch PnL from leaderboard filtered by timeframe
   const { data: tfLeaderboard, isLoading: tfLoading } = useSWR(
     walletParam ? `leaderboard-pnl-${activeTf}` : null,
@@ -275,7 +285,24 @@ export default function TraderProfilePage() {
     ? (tfEntry?.pnl ?? (Number.isFinite(globalPnl) ? globalPnl : undefined))
     : (portfolio?.totals?.total_pnl ?? portfolio?.total_pnl ?? (Number.isFinite(globalPnl) ? globalPnl : undefined));
   const wallet = portfolio?.wallet;
-  const positions = portfolio?.positions ?? [];
+  // Map Polymarket position fields to our Position type
+  const polyMapped: Position[] = (polyPositions ?? []).map(p => ({
+    title: p.title ?? p.eventTitle,
+    outcome: p.outcome,
+    size: p.size,
+    current_value: p.currentValue,
+    pnl_cash: p.cashPnl,
+    pnl: p.cashPnl,
+    pnl_percent: p.percentPnl,
+    pnl_pct: p.percentPnl,
+    condition_id: p.conditionId,
+    conditionId: p.conditionId,
+  }));
+
+  // Prefer portfolio API positions; fall back to Polymarket Data API
+  const positions: Position[] = (portfolio?.positions?.length ?? 0) > 0
+    ? portfolio!.positions!
+    : polyMapped;
   const posValue = positions.reduce((acc, p) => acc + (p.current_value ?? 0), 0);
   const displayName = portfolio?.first_name ?? (nameParam || username);
 
@@ -520,7 +547,12 @@ export default function TraderProfilePage() {
                   {/* Positions tab */}
                   {activeTab === "positions" && (
                     <>
-                      {positions.length === 0 ? (
+                      {(isLoading || positionsLoading) ? (
+                        <div className="flex flex-col items-center justify-center py-16 text-muted">
+                          <Loader2 className="w-5 h-5 mb-2 animate-spin opacity-40" />
+                          <p className="text-xs font-mono opacity-40">Loading positions…</p>
+                        </div>
+                      ) : positions.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 text-muted">
                           <BarChart2 className="w-6 h-6 mb-2 opacity-30" />
                           <p className="text-sm font-mono">No open positions</p>

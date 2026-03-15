@@ -789,7 +789,7 @@ export async function getCopyTradingNotifications(): Promise<CopyNotification[]>
 export async function closePosition(conditionId: string, size?: number, side?: string): Promise<unknown> {
     return postTrade({
         condition_id: conditionId,
-        side: ((side ?? "Yes").toUpperCase() === "NO" ? "No" : "Yes"),
+        side: side ?? "Yes",
         amount: size ?? 0,
         order_side: "SELL",
         auto_prepare: true,
