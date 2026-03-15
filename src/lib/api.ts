@@ -526,7 +526,7 @@ export function buildGammaUrl(params: {
 
 export type TradeRequest = {
     condition_id: string;
-    side: "Yes" | "No";
+    side: string;
     amount: number;
     order_side?: "BUY" | "SELL";
     auto_prepare?: boolean;
