@@ -168,8 +168,24 @@ export default function ProfilePage() {
     { revalidateOnFocus: true, refreshInterval: 3000, dedupingInterval: 0 },
   );
 
+  // Resolve wallet address from auth user first (available immediately), then walletData
+  const walletAddress =
+    user?.wallet_address ??
+    walletData?.address ??
+    walletData?.wallet_address ??
+    walletData?.eth_address ??
+    null;
+
+  // Use address-based portfolio endpoint when wallet is known — it returns the same
+  // structured JSON as /me/portfolio but with richer balance/token data
+  const portfolioKey = isAuthenticated
+    ? walletAddress
+      ? `/api/proxy/users/${walletAddress}/portfolio`
+      : `/api/proxy/me/portfolio`
+    : null;
+
   const { data: portfolio, isLoading: portfolioLoading, isValidating: portfolioValidating, mutate: mutatePortfolio } = useSWR<Portfolio>(
-    isAuthenticated ? "/api/proxy/me/portfolio" : null,
+    portfolioKey,
     proxyFetcher,
     { revalidateOnFocus: true, refreshInterval: 3000, dedupingInterval: 0 },
   );
@@ -192,13 +208,6 @@ export default function ProfilePage() {
     }
     return mergeFollowingWithCache(list) as FollowingEntry[];
   })();
-
-  const walletAddress =
-    user?.wallet_address ??
-    walletData?.address ??
-    walletData?.wallet_address ??
-    walletData?.eth_address ??
-    null;
 
   // PnL from nested totals or top-level
   const portfolioValue = portfolio?.totals?.portfolio_value ?? portfolio?.portfolio_value;
