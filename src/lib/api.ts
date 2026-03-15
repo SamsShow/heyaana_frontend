@@ -957,6 +957,12 @@ export async function swapUSDC(amount: number | null): Promise<unknown> {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? data.detail ?? "Swap failed");
     if (data.success === false) throw new Error(data.message ?? data.error ?? "Swap failed");
+    if (typeof data.result === "string") {
+        const r = data.result.trim();
+        if (r.toUpperCase().includes("FAILED") || /^no\s/i.test(r) || r.toLowerCase().includes("not found")) {
+            throw new Error(r);
+        }
+    }
     return data;
 }
 
@@ -995,6 +1001,12 @@ export async function transferToSafe(amount: number | null): Promise<unknown> {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? data.detail ?? "Transfer failed");
     if (data.success === false) throw new Error(data.message ?? data.error ?? "Transfer failed");
+    if (typeof data.result === "string") {
+        const r = data.result.trim();
+        if (r.toUpperCase().includes("FAILED") || /^no\s/i.test(r) || r.toLowerCase().includes("not found")) {
+            throw new Error(r);
+        }
+    }
     return data;
 }
 

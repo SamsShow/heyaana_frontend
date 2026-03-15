@@ -5,15 +5,16 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, ArrowLeft, Send, Sparkles, Wand2, Shield, Zap, Globe, Lock, Coins, TrendingUp, Users, Info, HelpCircle, Mail, MessageSquare, Twitter, Github, Globe2, Wallet, LogIn, ChevronDown, Check, Copy, LogOut, MessageCircle, ArrowRight, Bot, Flame, Loader2, Ticket } from "lucide-react";
+import { ChevronRight, ArrowLeft, Send, Sparkles, Wand2, Shield, Zap, Globe, Lock, Coins, TrendingUp, Users, Info, HelpCircle, Mail, MessageSquare, Twitter, Github, Globe2, Wallet, LogIn, ChevronDown, Check, Copy, LogOut, MessageCircle, ArrowRight, Bot, Flame, Loader2, Ticket, UserPlus, UserMinus } from "lucide-react";
+import { fetchGlobalLeaderboard, followTrader, unfollowTrader, type GlobalLeaderboardEntry } from "@/lib/api";
 import { useTelegramWidget } from "@/lib/useTelegramWidget";
-import { TOKEN_STORAGE_KEY } from "@/lib/auth-api";
+import { TOKEN_STORAGE_KEY, checkOnboardStatus, onboardMe } from "@/lib/auth-api";
 import { useAuth } from "@/lib/useAuth";
 import { env } from "@/lib/env";
 
 const STEPS = [
-  { id: 0, title: "Invite", subtitle: "Enter access code" },
-  { id: 1, title: "Connect", subtitle: "Link your account" },
+  { id: 0, title: "Connect", subtitle: "Link your account" },
+  { id: 1, title: "Invite", subtitle: "Enter access code" },
   { id: 2, title: "Markets", subtitle: "Choose preferences" },
   { id: 3, title: "Risk", subtitle: "Set tolerance" },
   { id: 4, title: "Traders", subtitle: "Pick to copy" },
@@ -21,7 +22,6 @@ const STEPS = [
 ];
 
 const ONBOARDING_COMPLETE_MAP_KEY = "heyanna_onboarding_complete_users";
-const INVITE_CODE_PENDING_KEY = "heyanna_invite_code_pending";
 const ONBOARDING_DRAFT_PREFIX = "heyanna_onboarding_draft_";
 
 type OnboardingDraft = {
@@ -75,12 +75,17 @@ function OnboardingPageContent() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
-  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+  // null = not yet checked, true = onboarded, false = needs invite code
+  const [onboardStatus, setOnboardStatus] = useState<boolean | null>(null);
+  const [traders, setTraders] = useState<GlobalLeaderboardEntry[]>([]);
+  const [tradersLoading, setTradersLoading] = useState(false);
+  const [tradersError, setTradersError] = useState<string | null>(null);
+  const [followedWallets, setFollowedWallets] = useState<Set<string>>(new Set());
+  const [pendingWallets, setPendingWallets] = useState<Set<string>>(new Set());
   const [currentHostname, setCurrentHostname] = useState<string | null>(null);
   const [bootstrapped, setBootstrapped] = useState(false);
   const [showDevLogin, setShowDevLogin] = useState(false);
   const telegramRef = useRef<HTMLDivElement>(null);
-  const widgetRenderedRef = useRef(false);
   const draftHydratedRef = useRef(false);
 
   const router = useRouter();
@@ -91,50 +96,49 @@ function OnboardingPageContent() {
 
   const next = () => setStep((s) => Math.min(s + 1, 5));
   const prev = () => setStep((s) => Math.max(s - 1, 0));
+
   const handleContinue = useCallback(() => {
     if (step === 0) {
-      // Must use the invite code submit button — don't let generic Continue bypass it
-      setInviteError("Please enter an invite code first");
-      return;
-    }
-    if (step === 1) {
       const hasToken = typeof window !== "undefined" && !!localStorage.getItem(TOKEN_STORAGE_KEY);
       if (!isAuthenticated && !hasToken) {
         setLoginError("Please sign in with Telegram before continuing.");
         return;
       }
     }
+    if (step === 1) {
+      setInviteError("Please enter an invite code first");
+      return;
+    }
     next();
   }, [step, isAuthenticated]);
 
-  // Check if authenticated user has invite access (permanent).
-  useEffect(() => {
-    if (!isAuthenticated || !hasSessionToken) return;
-    const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : null;
-    if (!token) return;
-    fetch("/api/invite/has-access", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((d) => setHasAccess(d.hasAccess === true))
-      .catch(() => setHasAccess(false));
-  }, [isAuthenticated, hasSessionToken]);
+  /**
+   * After a successful login, check the backend onboard status and advance
+   * past the invite step when the user is already onboarded.
+   */
+  const handlePostLogin = useCallback(async () => {
+    try {
+      const onboarded = await checkOnboardStatus();
+      setOnboardStatus(onboarded);
+      if (onboarded) {
+        setStep((prev) => (prev < 2 ? 2 : prev));
+      } else {
+        setStep(1);
+      }
+    } catch {
+      // If the status check fails, fall through to the invite step
+      setOnboardStatus(false);
+      setStep(1);
+    }
+  }, []);
 
   // Returning users who already finished onboarding should go straight to dashboard.
   useEffect(() => {
     if (!isAuthenticated || !userOnboardingKey) return;
     if (isOnboardingComplete(userOnboardingKey)) {
       router.replace("/dashboard");
-      return;
     }
-
-    // Logged-in with invite access: skip invite + connect, go to step 2.
-    if (hasAccess === true) {
-      setStep((prev) => (prev < 2 ? 2 : prev));
-      return;
-    }
-    // Logged-in without access: need to enter invite code at step 0.
-  }, [isAuthenticated, userOnboardingKey, hasAccess, router]);
+  }, [isAuthenticated, userOnboardingKey, router]);
 
   // Restore draft once per logged-in user.
   useEffect(() => {
@@ -185,6 +189,36 @@ function OnboardingPageContent() {
 
   const showVerifyingGate = hasSessionToken && isLoading && !isAuthenticated;
 
+  // Fetch top traders when user reaches step 4
+  useEffect(() => {
+    if (step !== 4 || traders.length > 0) return;
+    setTradersLoading(true);
+    setTradersError(null);
+    fetchGlobalLeaderboard({ limit: 10 })
+      .then((res) => setTraders(res.entries))
+      .catch(() => setTradersError("Failed to load traders. Please continue anyway."))
+      .finally(() => setTradersLoading(false));
+  }, [step, traders.length]);
+
+  const handleFollowTrader = async (entry: GlobalLeaderboardEntry) => {
+    const key = entry.proxyWallet ?? entry.userName ?? "";
+    if (!key) return;
+    setPendingWallets((prev) => new Set(prev).add(key));
+    try {
+      if (followedWallets.has(key)) {
+        await unfollowTrader(entry.userName, entry.proxyWallet);
+        setFollowedWallets((prev) => { const s = new Set(prev); s.delete(key); return s; });
+      } else {
+        await followTrader(entry.userName, entry.proxyWallet);
+        setFollowedWallets((prev) => new Set(prev).add(key));
+      }
+    } catch {
+      // Follow errors are non-fatal in onboarding — user can set up copy-trading from dashboard
+    } finally {
+      setPendingWallets((prev) => { const s = new Set(prev); s.delete(key); return s; });
+    }
+  };
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       setCurrentHostname(window.location.hostname);
@@ -200,7 +234,6 @@ function OnboardingPageContent() {
   useEffect(() => {
     const tgError = searchParams.get("tg_error");
     if (!tgError) return;
-    // Don't show tg_error if user already has a token (e.g. logged in via redirect)
     if (typeof window !== "undefined" && localStorage.getItem(TOKEN_STORAGE_KEY)) return;
     const detail = searchParams.get("tg_detail");
     const readable =
@@ -218,7 +251,7 @@ function OnboardingPageContent() {
 
   // If opened inside Telegram Mini App, prefer secure initData auth.
   useEffect(() => {
-    if (step !== 1) return;
+    if (step !== 0) return;
     if (typeof window === "undefined") return;
     const telegram = (
       window as Window & {
@@ -243,7 +276,7 @@ function OnboardingPageContent() {
               router.replace(url.pathname + url.search);
             }
           }
-          next();
+          await handlePostLogin();
         }
       } catch (err) {
         if (!cancelled) {
@@ -259,47 +292,15 @@ function OnboardingPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [step, login, router]);
+  }, [step, login, router, handlePostLogin]);
 
-  const redeemPendingInviteCode = useCallback(async (): Promise<boolean> => {
-    if (typeof window === "undefined") return true;
-    const code = sessionStorage.getItem(INVITE_CODE_PENDING_KEY);
-    if (!code) return true; // No pending code — nothing to redeem
-    const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-    if (!token) return true;
-    try {
-      const res = await fetch("/api/invite/redeem", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ code }),
-      });
-      const data = await res.json();
-      sessionStorage.removeItem(INVITE_CODE_PENDING_KEY);
-      if (!res.ok || !data.success) {
-        setLoginError(data.error ?? "Invite code already used");
-        return false;
-      }
-      return true;
-    } catch {
-      setLoginError("Failed to redeem invite code");
-      return false;
-    }
-  }, []);
-
-  // Use the onAuth callback for the JSON response flow
-  const { renderWidget } = useTelegramWidget({
+  const { scriptLoaded, renderWidget } = useTelegramWidget({
     botUsername: TELEGRAM_BOT_USERNAME,
     onAuth: (user) => {
       setLoginLoading(true);
       setLoginError(null);
       loginWidget(user)
         .then(async () => {
-          const ok = await redeemPendingInviteCode();
-          if (!ok) return;
-          // Clear tg_error from URL so it doesn't re-trigger the error effect
           if (typeof window !== "undefined") {
             const url = new URL(window.location.href);
             if (url.searchParams.has("tg_error") || url.searchParams.has("tg_detail")) {
@@ -308,7 +309,7 @@ function OnboardingPageContent() {
               router.replace(url.pathname + url.search);
             }
           }
-          next();
+          await handlePostLogin();
         })
         .catch((err) => setLoginError(err instanceof Error ? err.message : "Login failed"))
         .finally(() => setLoginLoading(false));
@@ -317,26 +318,18 @@ function OnboardingPageContent() {
     cornerRadius: 12,
   });
 
-  // Use a callback ref to render the widget when the container mounts.
-  // This fixes the AnimatePresence timing issue — useEffect fires before
-  // the new step's DOM is mounted (mode="wait" animates exit first).
-  const telegramCallbackRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      telegramRef.current = el;
-      if (el && !widgetRenderedRef.current) {
-        widgetRenderedRef.current = true;
-        renderWidget(el);
-      }
-    },
-    [renderWidget],
-  );
+  // Assign the ref — rendering is handled by the effect below
+  const telegramCallbackRef = useCallback((el: HTMLDivElement | null) => {
+    telegramRef.current = el;
+  }, []);
 
-  // Reset rendered flag when leaving step 1 so widget re-renders on return
+  // Render (or re-render) the widget whenever the script finishes loading or
+  // the user returns to step 0. renderWidget is recreated when scriptLoaded
+  // changes, so this effect naturally fires once the script is ready.
   useEffect(() => {
-    if (step !== 1) {
-      widgetRenderedRef.current = false;
-    }
-  }, [step]);
+    if (step !== 0 || !telegramRef.current) return;
+    renderWidget(telegramRef.current);
+  }, [step, renderWidget, scriptLoaded]);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -407,116 +400,8 @@ function OnboardingPageContent() {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3 }}
           >
-            {/* Step 0: Invite Code */}
+            {/* Step 0: Connect (TG Login) */}
             {step === 0 && (
-              <div className="space-y-6">
-                <div className="text-center mb-8">
-                  <h2 className="text-3xl font-bold mb-2">Enter Invite Code</h2>
-                  <p className="text-muted">You need an invite code to access HeyAnna</p>
-                </div>
-
-                <div className="space-y-4 max-w-md mx-auto">
-                  <div className="w-full p-5 dashboard-card">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                        <Ticket className="w-6 h-6 text-blue-400" />
-                      </div>
-                      <div className="text-left">
-                        <div className="font-semibold">Invite Code</div>
-                        <div className="text-xs text-muted">Enter your unique access code</div>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        id="invite-code-input"
-                        placeholder="E.G. ABC12345"
-                        className="flex-1 px-3 py-2 text-sm font-mono dark-input uppercase"
-                        maxLength={16}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            (document.getElementById("invite-code-submit") as HTMLButtonElement)?.click();
-                          }
-                        }}
-                      />
-                      <button
-                        id="invite-code-submit"
-                        onClick={async () => {
-                          const input = document.getElementById("invite-code-input") as HTMLInputElement;
-                          const code = input?.value?.trim();
-                          if (!code) {
-                            setInviteError("Please enter an invite code");
-                            return;
-                          }
-                          setInviteLoading(true);
-                          setInviteError(null);
-                          try {
-                            // Validate: read-only check that the code exists and is unused
-                            const res = await fetch("/api/invite/validate", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ code }),
-                            });
-                            const data = await res.json();
-                            if (!res.ok || !data.valid) {
-                              setInviteError(data.error ?? "Invalid invite code");
-                              return;
-                            }
-                            const codeUpper = code.toUpperCase();
-                            // If already authenticated, redeem immediately
-                            if (isAuthenticated) {
-                              const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : null;
-                              if (token) {
-                                const redeemRes = await fetch("/api/invite/redeem", {
-                                  method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                    Authorization: `Bearer ${token}`,
-                                  },
-                                  body: JSON.stringify({ code: codeUpper }),
-                                });
-                                const redeemData = await redeemRes.json();
-                                if (!redeemRes.ok || !redeemData.success) {
-                                  setInviteError(redeemData.error ?? "Invite code already used");
-                                  return;
-                                }
-                                setHasAccess(true);
-                                setStep(2);
-                                return;
-                              }
-                            }
-                            // Not authenticated: store code for redemption after TG login
-                            if (typeof window !== "undefined") {
-                              sessionStorage.setItem(INVITE_CODE_PENDING_KEY, codeUpper);
-                            }
-                            next();
-                          } catch {
-                            setInviteError("Failed to validate invite code");
-                          } finally {
-                            setInviteLoading(false);
-                          }
-                        }}
-                        disabled={inviteLoading}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-primary text-white text-sm font-medium hover:bg-blue-dark transition-all disabled:opacity-50"
-                      >
-                        {inviteLoading ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        )}
-                        Continue
-                      </button>
-                    </div>
-                    {inviteError && (
-                      <p className="mt-2 text-xs text-red-400 font-mono">{inviteError}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 1: Connect */}
-            {step === 1 && (
               <div className="space-y-6">
                 <div className="text-center mb-8">
                   <h2 className="text-3xl font-bold mb-2">Connect Your Account</h2>
@@ -578,10 +463,7 @@ function OnboardingPageContent() {
                               setLoginLoading(true);
                               setLoginError(null);
                               loginManual(Number(val))
-                                .then(async () => {
-                                  const ok = await redeemPendingInviteCode();
-                                  if (ok) next();
-                                })
+                                .then(() => handlePostLogin())
                                 .catch((err) => setLoginError(err instanceof Error ? err.message : "Dev login failed"))
                                 .finally(() => setLoginLoading(false));
                             }
@@ -618,6 +500,78 @@ function OnboardingPageContent() {
                     </div>
                     <span className="text-[10px] font-mono text-muted border border-border rounded px-2 py-0.5">SOON</span>
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 1: Invite Code */}
+            {step === 1 && (
+              <div className="space-y-6">
+                <div className="text-center mb-8">
+                  <h2 className="text-3xl font-bold mb-2">Enter Invite Code</h2>
+                  <p className="text-muted">You need an invite code to access HeyAnna</p>
+                </div>
+
+                <div className="space-y-4 max-w-md mx-auto">
+                  <div className="w-full p-5 dashboard-card">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                        <Ticket className="w-6 h-6 text-blue-400" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-semibold">Invite Code</div>
+                        <div className="text-xs text-muted">Enter your unique access code</div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        id="invite-code-input"
+                        placeholder="E.G. ABC12345"
+                        className="flex-1 px-3 py-2 text-sm font-mono dark-input uppercase"
+                        maxLength={16}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            (document.getElementById("invite-code-submit") as HTMLButtonElement)?.click();
+                          }
+                        }}
+                      />
+                      <button
+                        id="invite-code-submit"
+                        onClick={async () => {
+                          const input = document.getElementById("invite-code-input") as HTMLInputElement;
+                          const code = input?.value?.trim().toUpperCase();
+                          if (!code) {
+                            setInviteError("Please enter an invite code");
+                            return;
+                          }
+                          setInviteLoading(true);
+                          setInviteError(null);
+                          try {
+                            await onboardMe(code);
+                            setOnboardStatus(true);
+                            next();
+                          } catch (err) {
+                            setInviteError(err instanceof Error ? err.message : "Invalid invite code");
+                          } finally {
+                            setInviteLoading(false);
+                          }
+                        }}
+                        disabled={inviteLoading}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-primary text-white text-sm font-medium hover:bg-blue-dark transition-all disabled:opacity-50"
+                      >
+                        {inviteLoading ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        )}
+                        Continue
+                      </button>
+                    </div>
+                    {inviteError && (
+                      <p className="mt-2 text-xs text-red-400 font-mono">{inviteError}</p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -728,11 +682,101 @@ function OnboardingPageContent() {
                   <p className="text-muted">Select top-performing traders to automatically mirror</p>
                 </div>
 
-                <div className="max-w-md mx-auto p-8 dashboard-card flex flex-col items-center justify-center text-center text-muted">
-                  <Users className="w-12 h-12 mb-4 opacity-30" />
-                  <p className="text-sm font-medium">Coming soon</p>
-                  <p className="text-xs mt-1">Top traders will appear here when available</p>
+                <div className="max-w-xl mx-auto dashboard-card overflow-hidden">
+                  {tradersLoading && (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-6 h-6 animate-spin text-muted" />
+                    </div>
+                  )}
+
+                  {tradersError && (
+                    <div className="py-8 text-center">
+                      <p className="text-sm text-red-400 font-mono">{tradersError}</p>
+                    </div>
+                  )}
+
+                  {!tradersLoading && !tradersError && traders.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-12 text-muted">
+                      <Users className="w-10 h-10 mb-3 opacity-30" />
+                      <p className="text-sm">No traders available right now</p>
+                    </div>
+                  )}
+
+                  {traders.map((entry) => {
+                    const key = entry.proxyWallet ?? entry.userName ?? "";
+                    const wallet = entry.proxyWallet ?? "";
+                    const short = wallet.length > 8 ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : wallet;
+                    const pnl = Number(entry.pnl ?? 0);
+                    const vol = Number(entry.vol ?? 0);
+                    const username = entry.userName ?? "Unknown";
+                    const isFollowed = followedWallets.has(key);
+                    const isPending = pendingWallets.has(key);
+
+                    const rankColors: Record<number, string> = {
+                      1: "from-amber-400/40 to-yellow-500/20 border-amber-500/40",
+                      2: "from-slate-300/30 to-slate-400/20 border-slate-400/30",
+                      3: "from-orange-600/30 to-amber-700/20 border-orange-600/30",
+                    };
+                    const avatarClass = rankColors[entry.rank] ?? "from-blue-primary/20 to-purple-500/10 border-border";
+
+                    return (
+                      <div
+                        key={key || entry.rank}
+                        className="flex items-center gap-4 px-5 py-4 border-b border-border/30 last:border-0"
+                      >
+                        <div className="relative shrink-0">
+                          <div className={`w-11 h-11 rounded-full bg-linear-to-br ${avatarClass} border flex items-center justify-center text-sm font-bold`}>
+                            {username.slice(0, 2).toUpperCase()}
+                          </div>
+                          <span className={`absolute -bottom-1 -left-1 w-5 h-5 rounded-full bg-surface border border-border flex items-center justify-center text-[10px] font-bold font-mono ${entry.rank <= 3 ? "text-amber-400" : "text-muted"}`}>
+                            {entry.rank}
+                          </span>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold truncate mb-0.5">{username}</div>
+                          <div className="flex items-center gap-3 text-xs font-mono text-muted">
+                            {short && <span className="truncate">{short}</span>}
+                            {vol > 0 && (
+                              <span className="hidden sm:inline">
+                                Vol <span className="text-foreground/60">
+                                  {vol >= 1_000_000 ? `$${(vol / 1_000_000).toFixed(1)}M` : vol >= 1_000 ? `$${(vol / 1_000).toFixed(1)}K` : `$${vol.toFixed(0)}`}
+                                </span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-0.5 shrink-0 mr-2">
+                          <span className={`text-sm font-bold font-mono ${pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                            {pnl >= 0 ? "+" : "-"}${Math.abs(pnl) >= 1_000 ? `${(Math.abs(pnl) / 1_000).toFixed(1)}K` : Math.abs(pnl).toFixed(0)}
+                          </span>
+                          <span className="text-[10px] font-mono text-muted/50">PNL</span>
+                        </div>
+
+                        <button
+                          onClick={() => handleFollowTrader(entry)}
+                          disabled={isPending}
+                          className={`shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all disabled:opacity-50 ${
+                            isFollowed
+                              ? "border-red-500/30 text-red-400 hover:bg-red-500/10"
+                              : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                          }`}
+                        >
+                          {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> :
+                            isFollowed ? <><UserMinus className="w-3 h-3" /> Stop</> :
+                            <><UserPlus className="w-3 h-3" /> Copy</>}
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
+
+                {followedWallets.size > 0 && (
+                  <p className="text-center text-xs text-emerald-400 font-mono">
+                    {followedWallets.size} trader{followedWallets.size !== 1 ? "s" : ""} selected for copy trading
+                  </p>
+                )}
               </div>
             )}
 
@@ -763,19 +807,18 @@ function OnboardingPageContent() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted">Copied Traders</span>
-                    <span className="font-mono text-blue-primary">{selectedTraders.length}</span>
+                    <span className="font-mono text-blue-primary">{followedWallets.size}</span>
                   </div>
                 </div>
 
                 <Link
                   href="/dashboard"
                   onClick={(e) => {
-                    // Check token directly — hasSessionToken is stale (set only on mount, before login)
                     const hasToken = typeof window !== "undefined" && !!localStorage.getItem(TOKEN_STORAGE_KEY);
                     if (!isAuthenticated && !hasToken) {
                       e.preventDefault();
                       setLoginError("Please sign in with Telegram before launching dashboard.");
-                      setStep(1);
+                      setStep(0);
                       return;
                     }
                     markOnboardingComplete(userOnboardingKey);
