@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/useAuth";
 import { CopyTradeModal } from "@/components/dashboard/CopyTradeModal";
 import {
   Loader2, Users, UserPlus, UserMinus, AlertCircle,
-  Search, ChevronDown, X, Lightbulb, Globe, Trophy,
+  Search, ChevronDown, X, Lightbulb, Globe, Trophy, ExternalLink,
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 
@@ -285,7 +285,7 @@ export default function TradersPage() {
     setGlobalLoading(true);
     setGlobalError(null);
     try {
-      const result = await fetchGlobalLeaderboard({ limit: 50, category, time_period: period, order_by: orderBy });
+      const result = await fetchGlobalLeaderboard({ limit: 200, category, time_period: period, order_by: orderBy });
       const entries = Array.isArray(result) ? result : (result.entries ?? []);
       setGlobalEntries(entries);
     } catch (err) {
@@ -492,12 +492,28 @@ export default function TradersPage() {
                       (e.proxyWallet ?? "").toLowerCase().includes(q)
                     )
                   : globalEntries;
+                // If search looks like a wallet address (0x...) and isn't in leaderboard
+                const isAddressSearch = q.startsWith("0x") && q.length >= 10;
+                const addressHref = isAddressSearch && filtered.length === 0
+                  ? `/dashboard/traders/${encodeURIComponent(globalSearch.trim())}?wallet=${encodeURIComponent(globalSearch.trim())}`
+                  : null;
                 return (
                   <>
                     <div className="dashboard-card overflow-hidden">
                       {globalLoading ? (
                         <div className="flex items-center justify-center py-16">
                           <div className="flex items-center gap-2 text-muted"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm font-mono">Loading global leaderboard…</span></div>
+                        </div>
+                      ) : addressHref ? (
+                        <div className="flex flex-col items-center justify-center py-12 gap-4">
+                          <p className="text-xs font-mono text-muted">Address not in top leaderboard — view directly:</p>
+                          <Link
+                            href={addressHref}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-blue-primary/30 bg-blue-primary/10 text-blue-primary text-sm font-semibold hover:bg-blue-primary/20 transition-all"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            {globalSearch.trim().slice(0, 10)}…{globalSearch.trim().slice(-6)}
+                          </Link>
                         </div>
                       ) : filtered.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 text-muted">
