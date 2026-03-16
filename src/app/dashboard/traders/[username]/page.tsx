@@ -209,7 +209,7 @@ export default function TraderProfilePage() {
   // For global traders: fetch PnL from leaderboard filtered by timeframe
   const { data: tfLeaderboard, isLoading: tfLoading } = useSWR(
     walletParam ? `leaderboard-pnl-${activeTf}` : null,
-    () => fetchGlobalLeaderboard({ limit: 100, time_period: TF_TO_PERIOD[activeTf] }),
+    () => fetchGlobalLeaderboard({ limit: 200, time_period: TF_TO_PERIOD[activeTf] }),
     { revalidateOnFocus: false }
   );
   const tfEntry = tfLeaderboard?.entries.find(
@@ -290,11 +290,12 @@ export default function TraderProfilePage() {
   }
 
   const portfolioVal = portfolio?.totals?.portfolio_value ?? portfolio?.portfolio_value;
-  // Global traders: use leaderboard PnL (correct sign, timeframe-aware).
-  // Heyaana traders: use portfolio API.
-  const totalPnl = walletParam
-    ? (tfEntry?.pnl ?? (Number.isFinite(globalPnl) ? globalPnl : undefined))
-    : (portfolio?.totals?.total_pnl ?? portfolio?.total_pnl ?? (Number.isFinite(globalPnl) ? globalPnl : undefined));
+  const portfolioPnl = portfolio?.totals?.total_pnl ?? portfolio?.total_pnl;
+  // Prefer leaderboard PnL (timeframe-aware) → URL param → portfolio API fallback
+  const totalPnl = (tfEntry?.pnl !== undefined && Number.isFinite(tfEntry.pnl))
+    ? tfEntry.pnl
+    : (Number.isFinite(globalPnl) ? globalPnl : undefined)
+    ?? (portfolioPnl !== undefined && Number.isFinite(portfolioPnl) ? portfolioPnl : undefined);
   const wallet = portfolio?.wallet;
   // Map Polymarket position fields to our Position type
   const polyMapped: Position[] = (polyPositions ?? []).map(p => ({
