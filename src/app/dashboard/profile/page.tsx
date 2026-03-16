@@ -5,9 +5,9 @@ import { useState, useEffect } from "react";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { useAuth } from "@/lib/useAuth";
-import { proxyFetcher, Portfolio, Position, closePosition, exportPrivateKey, unfollowTrader, swapUSDC, withdrawFunds, mergeFollowingWithCache } from "@/lib/api";
+import { proxyFetcher, Portfolio, Position, closePosition, exportPrivateKey, unfollowTrader, swapUSDC, withdrawFunds, mergeFollowingWithCache, fetchOrders, cancelOrder, type LimitOrder } from "@/lib/api";
 import Link from "next/link";
-import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2, X, AlertCircle, CheckCircle2, ExternalLink, KeyRound, ShieldAlert, Copy, Eye, EyeOff, Users, UserMinus, ArrowLeftRight, ArrowUpFromLine } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2, X, AlertCircle, CheckCircle2, ExternalLink, KeyRound, ShieldAlert, Copy, Eye, EyeOff, Users, UserMinus, ArrowLeftRight, ArrowUpFromLine, Clock } from "lucide-react";
 
 function stripMarkdown(text: string): string {
   return text
@@ -55,6 +55,9 @@ export default function ProfilePage() {
   const [closingId, setClosingId] = useState<string | null>(null);
   const [closeResult, setCloseResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [optimisticClosed, setOptimisticClosed] = useState<Set<string>>(new Set());
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancelResult, setCancelResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [optimisticCancelledOrders, setOptimisticCancelledOrders] = useState<Set<string>>(new Set());
   const [syncingPortfolio, setSyncingPortfolio] = useState(false);
   const [syncFrame, setSyncFrame] = useState(0);
   const [unfollowingId, setUnfollowingId] = useState<string | null>(null);
@@ -174,6 +177,15 @@ export default function ProfilePage() {
     { revalidateOnFocus: true, refreshInterval: 3000, dedupingInterval: 0 },
   );
 
+  const { data: ordersRaw, isLoading: ordersLoading, mutate: mutateOrders } = useSWR<LimitOrder[]>(
+    isAuthenticated ? "/me/orders" : null,
+    fetchOrders,
+    { revalidateOnFocus: true, refreshInterval: 15000 },
+  );
+  const orders: LimitOrder[] = (ordersRaw ?? []).filter(
+    o => !optimisticCancelledOrders.has((o.order_id ?? o.id) as string)
+  );
+
   const walletAddress =
     user?.wallet_address ??
     walletData?.address ??
@@ -282,6 +294,24 @@ export default function ProfilePage() {
       setCloseResult({ ok: false, message: err instanceof Error ? err.message : "Failed to close position" });
     } finally {
       setClosingId(null);
+    }
+  }
+
+  async function handleCancelOrder(order: LimitOrder) {
+    const id = (order.order_id ?? order.id) as string | undefined;
+    if (!id) return;
+    setCancellingId(id);
+    setCancelResult(null);
+    setOptimisticCancelledOrders(prev => new Set(prev).add(id));
+    try {
+      await cancelOrder(id);
+      setCancelResult({ ok: true, message: "Order cancelled." });
+      mutateOrders();
+    } catch (err) {
+      setOptimisticCancelledOrders(prev => { const s = new Set(prev); s.delete(id); return s; });
+      setCancelResult({ ok: false, message: err instanceof Error ? err.message : "Failed to cancel order" });
+    } finally {
+      setCancellingId(null);
     }
   }
 
@@ -884,6 +914,98 @@ export default function ProfilePage() {
               <p className="text-sm text-muted font-mono py-4 text-center">No open positions.</p>
             )}
           </div>
+
+          {/* Limit Orders Card */}
+          {isAuthenticated && (
+            <div className="lg:col-span-2 dashboard-card p-5 md:p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="section-header mb-0">
+                  <Clock className="w-4 h-4 text-amber-400" />
+                  <h3 className="text-sm font-semibold">Limit Orders</h3>
+                </div>
+                <span className="text-xs font-mono px-2 py-1 rounded-lg bg-surface border border-border text-muted">
+                  {orders.length}
+                </span>
+              </div>
+
+              {cancelResult && (
+                <div className={`flex items-center gap-2 p-3 rounded-lg text-xs font-mono ${cancelResult.ok ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}>
+                  {cancelResult.ok ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                  {cancelResult.message}
+                </div>
+              )}
+
+              {ordersLoading ? (
+                <div className="flex items-center justify-center gap-2 text-muted py-8">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-xs font-mono">Loading orders…</span>
+                </div>
+              ) : orders.length === 0 ? (
+                <p className="text-sm text-muted font-mono py-4 text-center">No open limit orders.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {orders.map((order, i) => {
+                    const id = (order.order_id ?? order.id) as string | undefined;
+                    const isCancelling = cancellingId === id;
+                    const isBuy = order.order_side?.toUpperCase() === "BUY";
+                    const filled = order.filled_size ?? 0;
+                    const total = order.original_size ?? order.size ?? 0;
+                    const fillPct = total > 0 ? (filled / total) * 100 : 0;
+                    const outcome = order.side ?? "—";
+                    const isYesLike = outcome.toLowerCase().startsWith("y") || outcome.toLowerCase() === "over" || outcome.toLowerCase() === "home";
+
+                    return (
+                      <div key={id ?? i} className="p-4 inner-card">
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isBuy ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"}`}>
+                                {order.order_side ?? "—"}
+                              </span>
+                              <span className={`text-[10px] font-semibold ${isYesLike ? "text-emerald-400" : "text-red-400"}`}>
+                                {outcome}
+                              </span>
+                            </div>
+                            <p className="text-sm font-semibold truncate">
+                              {order.market_title ?? order.title ?? order.condition_id ?? `Order #${i + 1}`}
+                            </p>
+                          </div>
+                          {id && (
+                            <button
+                              onClick={() => handleCancelOrder(order)}
+                              disabled={isCancelling}
+                              title="Cancel order"
+                              className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50 shrink-0"
+                            >
+                              {isCancelling ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex gap-4 text-[10px] font-mono text-muted flex-wrap">
+                          {order.price != null && <span>Price: {order.price}¢</span>}
+                          {order.size != null && <span>Size: {order.size}</span>}
+                          {filled > 0 && <span className="text-emerald-400/80">Filled: {filled.toFixed(2)}</span>}
+                          {order.status && (
+                            <span className={order.status === "open" ? "text-amber-400" : order.status === "filled" ? "text-emerald-400" : "text-muted"}>
+                              {order.status}
+                            </span>
+                          )}
+                        </div>
+
+                        {total > 0 && fillPct > 0 && (
+                          <div className="mt-2 h-1 rounded-full bg-surface overflow-hidden">
+                            <div className="h-full bg-emerald-500/60 rounded-full transition-all" style={{ width: `${fillPct}%` }} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </DashboardChrome>

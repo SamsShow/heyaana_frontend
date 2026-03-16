@@ -791,6 +791,53 @@ export async function getCopyTradingNotifications(): Promise<CopyNotification[]>
     return Array.isArray(data) ? data : data.notifications ?? data.items ?? [];
 }
 
+// ─── Limit orders ─────────────────────────────────────────
+
+export type LimitOrder = {
+    id?: string;
+    order_id?: string;
+    condition_id?: string;
+    market_title?: string;
+    title?: string;
+    side?: string;
+    order_side?: string;
+    price?: number;
+    size?: number;
+    original_size?: number;
+    filled_size?: number;
+    status?: string;
+    created_at?: string | number;
+    [key: string]: unknown;
+};
+
+export async function fetchOrders(): Promise<LimitOrder[]> {
+    const res = await fetch(`${API2_BASE_URL}/me/orders`, {
+        headers: {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+        }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail ?? data.error ?? "Failed to fetch orders");
+    return Array.isArray(data) ? data : data.orders ?? data.items ?? [];
+}
+
+export async function cancelOrder(orderId: string): Promise<unknown> {
+    const res = await fetch(`${API2_BASE_URL}/cancel-order`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`
+        },
+        body: JSON.stringify({ order_id: orderId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail ?? data.error ?? data.message ?? "Failed to cancel order");
+    if (data.success === false) throw new Error(data.message ?? data.error ?? "Cancel failed");
+    return data;
+}
+
 // ─── Close position (sells via /trade with order_side SELL) ──
 
 export async function closePosition(conditionId: string, size?: number, side?: string): Promise<unknown> {
