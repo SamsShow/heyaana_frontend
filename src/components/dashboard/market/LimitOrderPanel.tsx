@@ -39,7 +39,7 @@ export function LimitOrderPanel({ market, conditionId, onOrderSuccess }: LimitOr
       const data = await postLimitOrder({
         condition_id: conditionId,
         side,
-        price: Number(price),
+        price: Number(price) / 100, // send as dollars (0–1) to API
         size: Number(size),
         order_side: orderSide,
         auto_prepare: true,
