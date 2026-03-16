@@ -16,9 +16,14 @@ interface TradePanelProps {
 export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: TradePanelProps) {
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
-  const yesLabel = market.yes_sub_title ?? "Yes";
-  const noLabel = market.no_sub_title ?? "No";
+  const yesLabel = (market.yes_sub_title && market.yes_sub_title.trim()) ? market.yes_sub_title : "Yes";
+  const noLabel = (market.no_sub_title && market.no_sub_title.trim()) ? market.no_sub_title : "No";
   const [side, setSide] = useState<string>(yesLabel);
+
+  // Reset side when market changes (e.g. navigating between markets)
+  useEffect(() => {
+    setSide(yesLabel);
+  }, [yesLabel]);
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);

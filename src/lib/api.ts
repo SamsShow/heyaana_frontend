@@ -390,8 +390,8 @@ function normalizeGammaMarket(event: GammaEvent, market: GammaMarket): Market {
         event_ticker: event.slug ?? event.ticker ?? "UNKNOWN",
         market_type: "binary",
         title: market.question ?? event.title ?? "",
-        yes_sub_title: (() => { try { const o = JSON.parse(market.outcomes ?? ""); return o[0] ?? "Yes"; } catch { return "Yes"; } })(),
-        no_sub_title: (() => { try { const o = JSON.parse(market.outcomes ?? ""); return o[1] ?? "No"; } catch { return "No"; } })(),
+        yes_sub_title: (() => { try { const o = JSON.parse(market.outcomes ?? ""); return (Array.isArray(o) && typeof o[0] === "string" && o[0].trim()) ? o[0] : "Yes"; } catch { return "Yes"; } })(),
+        no_sub_title: (() => { try { const o = JSON.parse(market.outcomes ?? ""); return (Array.isArray(o) && typeof o[1] === "string" && o[1].trim()) ? o[1] : "No"; } catch { return "No"; } })(),
         status: market.closed ? "closed" : market.active === false ? "closed" : "open",
         yes_bid: yesPrice,
         yes_ask: yesPrice,
@@ -944,7 +944,7 @@ export async function fetchGlobalLeaderboard(params?: {
     if (!res.ok) throw new Error(data.error ?? data.detail ?? "Failed to fetch leaderboard");
     // API may return array directly or wrapped in various keys
     if (Array.isArray(data)) return { entries: data as GlobalLeaderboardEntry[], params_used: {} };
-    // Try to find the array in the response under various common keys
+    // Try to find the array in the response under known keys only (no wildcard search)
     const maybeArr =
         data.entries ??
         data.leaderboard ??
@@ -952,12 +952,9 @@ export async function fetchGlobalLeaderboard(params?: {
         data.traders ??
         data.results ??
         data.rankings ??
-        // Some APIs wrap in the endpoint name
         data.pnl_leaderboard ??
-        // Fallback: find first array value in the response object
-        Object.values(data as Record<string, unknown>).find(Array.isArray) ??
         [];
-    return { entries: maybeArr as GlobalLeaderboardEntry[], params_used: (data.params_used ?? {}) as Record<string, unknown> };
+    return { entries: Array.isArray(maybeArr) ? maybeArr as GlobalLeaderboardEntry[] : [], params_used: (data.params_used ?? {}) as Record<string, unknown> };
 }
 
 // ─── Bridge ───────────────────────────────────────────────
@@ -1089,7 +1086,7 @@ export async function postLimitOrder(order: LimitOrderRequest): Promise<unknown>
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? data.detail ?? data.message ?? "Limit order failed");
     if (data.success === false) throw new Error(data.message ?? data.error ?? "Limit order failed");
-    if (data.status === "failed" || data.status === "error") throw new Error(data.message ?? data.error ?? "Limit order failed");
+    if (typeof data.status === "string" && (data.status === "failed" || data.status === "error")) throw new Error(data.message ?? data.error ?? "Limit order failed");
     if (data.error && typeof data.error === "string") throw new Error(data.error);
     return data;
 }

@@ -182,16 +182,19 @@ export default function ProfilePage() {
     fetchOrders,
     { revalidateOnFocus: true, refreshInterval: 15000 },
   );
-  const orders: LimitOrder[] = (ordersRaw ?? []).filter(
-    o => !optimisticCancelledOrders.has((o.order_id ?? o.id) as string)
-  );
+  const orders: LimitOrder[] = (ordersRaw ?? []).filter(o => {
+    const id = o.order_id ?? o.id;
+    if (!id) return true; // keep orders with no ID (can't cancel them anyway)
+    return !optimisticCancelledOrders.has(String(id));
+  });
 
-  const walletAddress =
+  const rawWallet =
     user?.wallet_address ??
     walletData?.address ??
     walletData?.wallet_address ??
     walletData?.eth_address ??
     null;
+  const walletAddress = typeof rawWallet === "string" && rawWallet.length > 0 ? rawWallet : null;
 
   type FollowingEntry = { config?: { leader_address?: string; leader_username?: string; display_name?: string }; [key: string]: unknown };
   const { data: hooksRaw, isLoading: followingLoading, mutate: mutateFollowing } = useSWR<unknown>(
@@ -303,14 +306,17 @@ export default function ProfilePage() {
       mutatePortfolio();
       mutateBalance();
     } catch (err) {
-      // Revert optimistic removal on failure
+      // Always revert optimistic removal on any failure
       setOptimisticClosed((prev) => { const s = new Set(prev); s.delete(condId); return s; });
       const raw = err instanceof Error ? err.message : "Failed to close position";
-      // Map cryptic balance/swap errors that occur on resolved markets to a clearer message
+      // Map cryptic balance/swap errors or zero-value positions to a resolved market message
       const isResolvedError =
+        currentValue === 0 ||
         raw.toLowerCase().includes("no native usdc") ||
         raw.toLowerCase().includes("usdc.e found") ||
-        (raw.toLowerCase().includes("not enough balance") && currentValue === 0);
+        raw.toLowerCase().includes("not enough balance") ||
+        raw.toLowerCase().includes("market is closed") ||
+        raw.toLowerCase().includes("market has resolved");
       setCloseResult({
         ok: false,
         message: isResolvedError
@@ -323,8 +329,12 @@ export default function ProfilePage() {
   }
 
   async function handleCancelOrder(order: LimitOrder) {
-    const id = (order.order_id ?? order.id) as string | undefined;
-    if (!id) return;
+    const rawId = order.order_id ?? order.id;
+    const id = rawId != null ? String(rawId) : undefined;
+    if (!id) {
+      setCancelResult({ ok: false, message: "Order ID not found — cannot cancel." });
+      return;
+    }
     setCancellingId(id);
     setCancelResult(null);
     setOptimisticCancelledOrders(prev => new Set(prev).add(id));

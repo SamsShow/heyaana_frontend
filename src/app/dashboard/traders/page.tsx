@@ -269,6 +269,7 @@ export default function TradersPage() {
   const [globalEntries, setGlobalEntries] = useState<GlobalLeaderboardEntry[]>([]);
   const [globalLoading, setGlobalLoading] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const [globalPartialError, setGlobalPartialError] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
   const [globalPage, setGlobalPage] = useState(0);
   const GLOBAL_PAGE_SIZE = 20;
@@ -286,23 +287,27 @@ export default function TradersPage() {
   async function loadGlobalLeaderboard(category = globalCategory, period = globalPeriod, orderBy = globalOrderBy) {
     setGlobalLoading(true);
     setGlobalError(null);
+    setGlobalPartialError(false);
     setGlobalPage(0);
     try {
       // API caps at 50 per request — fetch 6 pages to get up to 300
       const PAGE_SIZE = 50;
       const PAGES = 6;
-      const pages = await Promise.all(
+      const results = await Promise.all(
         Array.from({ length: PAGES }, (_, i) =>
           fetchGlobalLeaderboard({ limit: PAGE_SIZE, offset: i * PAGE_SIZE, category, time_period: period, order_by: orderBy })
-            .then(r => (Array.isArray(r) ? r : (r.entries ?? [])))
-            .catch(() => [] as GlobalLeaderboardEntry[])
+            .then(r => ({ ok: true, entries: Array.isArray(r) ? r : (r.entries ?? []) as GlobalLeaderboardEntry[] }))
+            .catch(() => ({ ok: false, entries: [] as GlobalLeaderboardEntry[] }))
         )
       );
-      const all = pages.flat();
-      // Deduplicate by proxyWallet, re-rank
+      const hadFailure = results.some(r => !r.ok);
+      if (hadFailure) setGlobalPartialError(true);
+      const all = results.flatMap(r => r.entries);
+      // Deduplicate strictly by proxyWallet — skip entries without one
       const seen = new Set<string>();
       const deduped = all.filter(e => {
-        const key = e.proxyWallet ?? String(e.rank);
+        const key = e.proxyWallet;
+        if (!key || typeof key !== "string") return false;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -472,7 +477,7 @@ export default function TradersPage() {
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-1 p-1 rounded-xl border border-border bg-surface/40">
                   {GLOBAL_CATEGORIES.map(cat => (
-                    <button key={cat} onClick={() => { setGlobalCategory(cat); loadGlobalLeaderboard(cat, globalPeriod, globalOrderBy); }}
+                    <button key={cat} onClick={() => { setGlobalCategory(cat); setGlobalPage(0); loadGlobalLeaderboard(cat, globalPeriod, globalOrderBy); }}
                       className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${globalCategory === cat ? "bg-white/[0.08] text-foreground" : "text-muted hover:text-foreground"}`}>
                       {cat}
                     </button>
@@ -482,7 +487,7 @@ export default function TradersPage() {
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-1 p-1 rounded-xl border border-border bg-surface/40">
                   {GLOBAL_PERIODS.map(p => (
-                    <button key={p} onClick={() => { setGlobalPeriod(p); loadGlobalLeaderboard(globalCategory, p, globalOrderBy); }}
+                    <button key={p} onClick={() => { setGlobalPeriod(p); setGlobalPage(0); loadGlobalLeaderboard(globalCategory, p, globalOrderBy); }}
                       className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${globalPeriod === p ? "bg-white/[0.08] text-foreground" : "text-muted hover:text-foreground"}`}>
                       {p}
                     </button>
@@ -490,7 +495,7 @@ export default function TradersPage() {
                 </div>
                 <div className="flex items-center gap-1 p-1 rounded-xl border border-border bg-surface/40">
                   {GLOBAL_ORDER.map(o => (
-                    <button key={o} onClick={() => { setGlobalOrderBy(o); loadGlobalLeaderboard(globalCategory, globalPeriod, o); }}
+                    <button key={o} onClick={() => { setGlobalOrderBy(o); setGlobalPage(0); loadGlobalLeaderboard(globalCategory, globalPeriod, o); }}
                       className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${globalOrderBy === o ? "bg-white/[0.08] text-foreground" : "text-muted hover:text-foreground"}`}>
                       Sort by {o}
                     </button>
@@ -501,6 +506,11 @@ export default function TradersPage() {
               {globalError && (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono">
                   <AlertCircle className="w-4 h-4 shrink-0" />{globalError}
+                </div>
+              )}
+              {!globalError && globalPartialError && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-mono">
+                  <AlertCircle className="w-4 h-4 shrink-0" />Some pages failed to load — showing partial results.
                 </div>
               )}
 

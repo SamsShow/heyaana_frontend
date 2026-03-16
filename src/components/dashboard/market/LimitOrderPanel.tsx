@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Market, postLimitOrder } from "@/lib/api";
 import { Loader2, CheckCircle2, AlertCircle, ExternalLink, Clock, ChevronDown } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
@@ -13,9 +13,14 @@ interface LimitOrderPanelProps {
 
 export function LimitOrderPanel({ market, conditionId, onOrderSuccess }: LimitOrderPanelProps) {
   const { isAuthenticated } = useAuth();
-  const yesLabel = market.yes_sub_title ?? "Yes";
-  const noLabel = market.no_sub_title ?? "No";
+  const yesLabel = (market.yes_sub_title && market.yes_sub_title.trim()) ? market.yes_sub_title : "Yes";
+  const noLabel = (market.no_sub_title && market.no_sub_title.trim()) ? market.no_sub_title : "No";
   const [side, setSide] = useState<string>(yesLabel);
+
+  // Reset side when market changes
+  useEffect(() => {
+    setSide(yesLabel);
+  }, [yesLabel]);
   const [orderSide, setOrderSide] = useState<"BUY" | "SELL">("BUY");
   const [price, setPrice] = useState("");
   const [size, setSize] = useState("");
@@ -26,10 +31,17 @@ export function LimitOrderPanel({ market, conditionId, onOrderSuccess }: LimitOr
   const yesPrice = market.yes_bid ?? market.last_price ?? 50;
   const noPrice = market.no_bid ?? (market.last_price ? 100 - market.last_price : 50);
 
-  const estimatedCost = price && size ? ((parseFloat(price) / 100) * parseFloat(size)).toFixed(2) : null;
+  const estimatedCost = (() => {
+    const p = parseFloat(price);
+    const s = parseFloat(size);
+    if (!Number.isFinite(p) || !Number.isFinite(s) || p <= 0 || s <= 0) return null;
+    return ((p / 100) * s).toFixed(2);
+  })();
 
   async function handleSubmit() {
-    if (!price || !size || Number(price) <= 0 || Number(size) <= 0) return;
+    const priceNum = parseFloat(price);
+    const sizeNum = parseFloat(size);
+    if (!price || !size || !Number.isFinite(priceNum) || priceNum <= 0 || priceNum > 99 || !Number.isFinite(sizeNum) || sizeNum <= 0) return;
     if (!conditionId) {
       setResult({ ok: false, message: "Market condition ID not available" });
       return;
@@ -41,8 +53,8 @@ export function LimitOrderPanel({ market, conditionId, onOrderSuccess }: LimitOr
       const data = await postLimitOrder({
         condition_id: conditionId,
         side,
-        price: Number(price) / 100, // send as dollars (0–1) to API
-        size: Number(size),
+        price: priceNum / 100, // send as dollars (0–1) to API
+        size: sizeNum,
         order_side: orderSide,
         auto_prepare: true,
       }) as Record<string, unknown>;
