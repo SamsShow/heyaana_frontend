@@ -276,6 +276,20 @@ export default function ProfilePage() {
   async function handleClose(pos: Position, size: number) {
     const condId = positionConditionId(pos) ?? "";
     if (!condId) return;
+
+    // Detect resolved/worthless positions before hitting the API
+    const currentValue = pos.current_value ?? 0;
+    const currentPrice = pos.current_price ?? 0;
+    const pnlPct = positionPnlPct(pos);
+    const isResolvedMarket = currentValue === 0 && currentPrice === 0 && (pnlPct !== undefined && pnlPct <= -99);
+    if (isResolvedMarket) {
+      setCloseResult({
+        ok: false,
+        message: "This market has already resolved — your shares are worth $0 and cannot be sold. Export your private key and check Polymarket directly if you believe you are owed a payout.",
+      });
+      return;
+    }
+
     setClosingId(condId);
     setCloseResult(null);
     // Optimistically remove the position immediately
@@ -291,7 +305,18 @@ export default function ProfilePage() {
     } catch (err) {
       // Revert optimistic removal on failure
       setOptimisticClosed((prev) => { const s = new Set(prev); s.delete(condId); return s; });
-      setCloseResult({ ok: false, message: err instanceof Error ? err.message : "Failed to close position" });
+      const raw = err instanceof Error ? err.message : "Failed to close position";
+      // Map cryptic balance/swap errors that occur on resolved markets to a clearer message
+      const isResolvedError =
+        raw.toLowerCase().includes("no native usdc") ||
+        raw.toLowerCase().includes("usdc.e found") ||
+        (raw.toLowerCase().includes("not enough balance") && currentValue === 0);
+      setCloseResult({
+        ok: false,
+        message: isResolvedError
+          ? "This market appears to have resolved. Shares are worth $0 and cannot be sold. Export your private key and check Polymarket directly if you believe you are owed a payout."
+          : raw,
+      });
     } finally {
       setClosingId(null);
     }
@@ -849,6 +874,7 @@ export default function ProfilePage() {
                   const pnlPct = positionPnlPct(pos);
                   const isPositive = pnlCash >= 0;
                   const isClosing = closingId === condId;
+                  const isResolved = (pos.current_value ?? 0) === 0 && (pos.current_price ?? 0) === 0 && pnlPct !== undefined && pnlPct <= -99;
 
                   return (
                     <div key={condId ?? i} className="p-4 inner-card">
@@ -896,11 +922,15 @@ export default function ProfilePage() {
                             <button
                               onClick={() => handleClose(pos, positionSize(pos))}
                               disabled={isClosing}
-                              title="Close position"
-                              className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
+                              title={isResolved ? "Market resolved — shares worth $0" : "Close position"}
+                              className={`flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border transition-all disabled:opacity-50 ${
+                                isResolved
+                                  ? "border-muted/20 text-muted/40 cursor-not-allowed"
+                                  : "border-red-500/30 text-red-400 hover:bg-red-500/10"
+                              }`}
                             >
                               {isClosing ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
-                              Close
+                              {isResolved ? "Resolved" : "Close"}
                             </button>
                           )}
                         </div>
