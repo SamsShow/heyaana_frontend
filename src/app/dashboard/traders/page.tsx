@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/useAuth";
 import { CopyTradeModal } from "@/components/dashboard/CopyTradeModal";
 import {
   Loader2, Users, UserPlus, UserMinus, AlertCircle,
-  Search, ChevronDown, X, Lightbulb, Globe, Trophy, ExternalLink,
+  Search, ChevronDown, X, Lightbulb, Globe, Trophy, ExternalLink, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 
@@ -270,6 +270,8 @@ export default function TradersPage() {
   const [globalLoading, setGlobalLoading] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [globalSearch, setGlobalSearch] = useState("");
+  const [globalPage, setGlobalPage] = useState(0);
+  const GLOBAL_PAGE_SIZE = 20;
 
   // Filter state
   const [search, setSearch] = useState("");
@@ -284,10 +286,28 @@ export default function TradersPage() {
   async function loadGlobalLeaderboard(category = globalCategory, period = globalPeriod, orderBy = globalOrderBy) {
     setGlobalLoading(true);
     setGlobalError(null);
+    setGlobalPage(0);
     try {
-      const result = await fetchGlobalLeaderboard({ limit: 200, category, time_period: period, order_by: orderBy });
-      const entries = Array.isArray(result) ? result : (result.entries ?? []);
-      setGlobalEntries(entries);
+      // API caps at 50 per request — fetch 6 pages to get up to 300
+      const PAGE_SIZE = 50;
+      const PAGES = 6;
+      const pages = await Promise.all(
+        Array.from({ length: PAGES }, (_, i) =>
+          fetchGlobalLeaderboard({ limit: PAGE_SIZE, offset: i * PAGE_SIZE, category, time_period: period, order_by: orderBy })
+            .then(r => (Array.isArray(r) ? r : (r.entries ?? [])))
+            .catch(() => [] as GlobalLeaderboardEntry[])
+        )
+      );
+      const all = pages.flat();
+      // Deduplicate by proxyWallet, re-rank
+      const seen = new Set<string>();
+      const deduped = all.filter(e => {
+        const key = e.proxyWallet ?? String(e.rank);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).map((e, i) => ({ ...e, rank: i + 1 }));
+      setGlobalEntries(deduped);
     } catch (err) {
       setGlobalError(err instanceof Error ? err.message : "Failed to load leaderboard");
     } finally {
@@ -443,7 +463,7 @@ export default function TradersPage() {
                   type="text"
                   placeholder="Search by username or wallet address"
                   value={globalSearch}
-                  onChange={e => setGlobalSearch(e.target.value)}
+                  onChange={e => { setGlobalSearch(e.target.value); setGlobalPage(0); }}
                   className="w-full h-11 pl-10 pr-4 text-sm rounded-xl bg-surface/60 border border-border/70 text-foreground placeholder:text-muted focus:outline-none focus:border-blue-primary/50 focus:ring-2 focus:ring-blue-primary/20 transition-all"
                 />
               </div>
@@ -497,6 +517,8 @@ export default function TradersPage() {
                 const addressHref = isAddressSearch && filtered.length === 0
                   ? `/dashboard/traders/${encodeURIComponent(globalSearch.trim())}?wallet=${encodeURIComponent(globalSearch.trim())}`
                   : null;
+                const totalPages = Math.ceil(filtered.length / GLOBAL_PAGE_SIZE);
+                const paginated = filtered.slice(globalPage * GLOBAL_PAGE_SIZE, (globalPage + 1) * GLOBAL_PAGE_SIZE);
                 return (
                   <>
                     <div className="dashboard-card overflow-hidden">
@@ -520,14 +542,47 @@ export default function TradersPage() {
                           <Trophy className="w-6 h-6 mb-2 opacity-30" />
                           <p className="text-sm font-mono">{q ? `No traders matching "${globalSearch}"` : "No leaderboard data."}</p>
                         </div>
-                      ) : filtered.map(entry => (
+                      ) : paginated.map(entry => (
                         <GlobalTraderCard key={entry.proxyWallet ?? entry.rank} entry={entry} />
                       ))}
                     </div>
                     {filtered.length > 0 && (
-                      <p className="text-[10px] font-mono text-muted text-center">
-                        Sourced from Polymarket Data API • {q ? `${filtered.length} of ${globalEntries.length}` : globalEntries.length} traders
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-mono text-muted">
+                          Sourced from Polymarket Data API • showing {globalPage * GLOBAL_PAGE_SIZE + 1}–{Math.min((globalPage + 1) * GLOBAL_PAGE_SIZE, filtered.length)} of {filtered.length} traders
+                        </p>
+                        {totalPages > 1 && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setGlobalPage(p => Math.max(0, p - 1))}
+                              disabled={globalPage === 0}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-border text-muted hover:text-foreground hover:border-foreground/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                            >
+                              <ChevronLeft className="w-3.5 h-3.5" />
+                            </button>
+                            {Array.from({ length: totalPages }, (_, i) => i).filter(i => Math.abs(i - globalPage) <= 2).map(i => (
+                              <button
+                                key={i}
+                                onClick={() => setGlobalPage(i)}
+                                className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-mono transition-all ${
+                                  i === globalPage
+                                    ? "bg-blue-primary/20 text-blue-primary border border-blue-primary/40"
+                                    : "border border-border text-muted hover:text-foreground hover:border-foreground/20"
+                                }`}
+                              >
+                                {i + 1}
+                              </button>
+                            ))}
+                            <button
+                              onClick={() => setGlobalPage(p => Math.min(totalPages - 1, p + 1))}
+                              disabled={globalPage >= totalPages - 1}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-border text-muted hover:text-foreground hover:border-foreground/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                            >
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </>
                 );
