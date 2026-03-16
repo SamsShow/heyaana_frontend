@@ -390,8 +390,8 @@ function normalizeGammaMarket(event: GammaEvent, market: GammaMarket): Market {
         event_ticker: event.slug ?? event.ticker ?? "UNKNOWN",
         market_type: "binary",
         title: market.question ?? event.title ?? "",
-        yes_sub_title: "Yes",
-        no_sub_title: "No",
+        yes_sub_title: (() => { try { const o = JSON.parse(market.outcomes ?? ""); return o[0] ?? "Yes"; } catch { return "Yes"; } })(),
+        no_sub_title: (() => { try { const o = JSON.parse(market.outcomes ?? ""); return o[1] ?? "No"; } catch { return "No"; } })(),
         status: market.closed ? "closed" : market.active === false ? "closed" : "open",
         yes_bid: yesPrice,
         yes_ask: yesPrice,
@@ -1087,8 +1087,10 @@ export async function postLimitOrder(order: LimitOrderRequest): Promise<unknown>
         body: JSON.stringify(order),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Limit order failed");
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? data.message ?? "Limit order failed");
     if (data.success === false) throw new Error(data.message ?? data.error ?? "Limit order failed");
+    if (data.status === "failed" || data.status === "error") throw new Error(data.message ?? data.error ?? "Limit order failed");
+    if (data.error && typeof data.error === "string") throw new Error(data.error);
     return data;
 }
 

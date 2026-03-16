@@ -495,6 +495,16 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Disclaimer */}
+        <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl border border-amber-500/20 bg-amber-500/5 text-amber-300/80">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+          <p className="text-[11px] leading-relaxed">
+            <span className="font-semibold text-amber-400">Heads up (beta):</span> Since we&apos;re in beta, some things may not work perfectly. If something isn&apos;t behaving as expected — for example, a market won&apos;t close because it has already resolved — export your private key and access your wallet directly on{" "}
+            <a href="https://polymarket.com" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-amber-200 transition-colors">Polymarket</a>{" "}
+            to manage your positions there.
+          </p>
+        </div>
+
         {/* Stats Bar */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="stat-card accent-blue p-4">

@@ -16,7 +16,9 @@ interface TradePanelProps {
 export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: TradePanelProps) {
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
-  const [side, setSide] = useState<"Yes" | "No">("Yes");
+  const yesLabel = market.yes_sub_title ?? "Yes";
+  const noLabel = market.no_sub_title ?? "No";
+  const [side, setSide] = useState<string>(yesLabel);
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
@@ -39,18 +41,18 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
 
     if (e.key === "b" || e.key === "B") {
       e.preventDefault();
-      setSide("Yes");
+      setSide(yesLabel);
       setTimeout(() => amountInputRef.current?.focus(), 0);
       return;
     }
 
     if (e.key === "s" || e.key === "S") {
       e.preventDefault();
-      setSide("No");
+      setSide(noLabel);
       setTimeout(() => amountInputRef.current?.focus(), 0);
       return;
     }
-  }, []);
+  }, [yesLabel, noLabel]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -99,24 +101,24 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
       {/* Side selector */}
       <div className="grid grid-cols-2 gap-2">
         <button
-          onClick={() => setSide("Yes")}
+          onClick={() => setSide(yesLabel)}
           className={`py-3 rounded-lg text-sm font-semibold transition-all ${
-            side === "Yes"
+            side === yesLabel
               ? "bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500/40"
               : "bg-surface border border-border text-muted hover:text-foreground hover:border-emerald-500/20"
           }`}
         >
-          Yes {yesPrice}¢
+          {yesLabel} {yesPrice}¢
         </button>
         <button
-          onClick={() => setSide("No")}
+          onClick={() => setSide(noLabel)}
           className={`py-3 rounded-lg text-sm font-semibold transition-all ${
-            side === "No"
+            side === noLabel
               ? "bg-red-500/20 text-red-400 border-2 border-red-500/40"
               : "bg-surface border border-border text-muted hover:text-foreground hover:border-red-500/20"
           }`}
         >
-          No {noPrice}¢
+          {noLabel} {noPrice}¢
         </button>
       </div>
 
@@ -139,7 +141,7 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
         </div>
         {amount && Number(amount) > 0 && (
           <div className="mt-1.5 text-xs text-muted font-mono">
-            ≈ {(Number(amount) / ((side === "Yes" ? yesPrice : noPrice) / 100)).toFixed(1)} shares
+            ≈ {(Number(amount) / ((side === yesLabel ? yesPrice : noPrice) / 100)).toFixed(1)} shares
           </div>
         )}
       </div>
@@ -166,7 +168,7 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
         onClick={handleTrade}
         disabled={loading || !amount || Number(amount) <= 0 || !isAuthenticated}
         className={`w-full py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-          side === "Yes"
+          side === yesLabel
             ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
             : "bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20"
         }`}
@@ -185,8 +187,8 @@ export function TradePanel({ market, conditionId, marketId, onTradeSuccess }: Tr
 
       {/* Keyboard shortcut hints */}
       <div className="flex items-center justify-center gap-3 text-[10px] text-muted/50 font-mono">
-        <span><kbd className="px-1 py-0.5 rounded bg-white/[0.06] border border-white/[0.08] text-[9px]">B</kbd> Buy Yes</span>
-        <span><kbd className="px-1 py-0.5 rounded bg-white/[0.06] border border-white/[0.08] text-[9px]">S</kbd> Sell No</span>
+        <span><kbd className="px-1 py-0.5 rounded bg-white/[0.06] border border-white/[0.08] text-[9px]">B</kbd> Buy {yesLabel}</span>
+        <span><kbd className="px-1 py-0.5 rounded bg-white/[0.06] border border-white/[0.08] text-[9px]">S</kbd> Sell {noLabel}</span>
         <span><kbd className="px-1 py-0.5 rounded bg-white/[0.06] border border-white/[0.08] text-[9px]">Esc</kbd> Clear</span>
       </div>
 

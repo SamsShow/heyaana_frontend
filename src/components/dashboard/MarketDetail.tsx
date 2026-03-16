@@ -100,7 +100,7 @@ export function MarketDetail({ ticker, onClose }: MarketDetailProps) {
                 {/* YES side */}
                 <div className="p-3 rounded-lg border border-green-500/20 bg-green-500/5">
                     <div className="text-[10px] font-mono text-green-400 uppercase tracking-wider mb-1">
-                        Yes
+                        {market.yes_sub_title ?? "Yes"}
                     </div>
                     <div className="text-xs text-muted font-mono mb-2 line-clamp-1">{market.yes_sub_title}</div>
                     <div className="grid grid-cols-2 gap-2 text-xs font-mono">
@@ -118,7 +118,7 @@ export function MarketDetail({ ticker, onClose }: MarketDetailProps) {
                 {/* NO side */}
                 <div className="p-3 rounded-lg border border-red-500/20 bg-red-500/5">
                     <div className="text-[10px] font-mono text-red-400 uppercase tracking-wider mb-1">
-                        No
+                        {market.no_sub_title ?? "No"}
                     </div>
                     <div className="text-xs text-muted font-mono mb-2 line-clamp-1">{market.no_sub_title}</div>
                     <div className="grid grid-cols-2 gap-2 text-xs font-mono">

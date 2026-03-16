@@ -13,7 +13,9 @@ interface LimitOrderPanelProps {
 
 export function LimitOrderPanel({ market, conditionId, onOrderSuccess }: LimitOrderPanelProps) {
   const { isAuthenticated } = useAuth();
-  const [side, setSide] = useState<"Yes" | "No">("Yes");
+  const yesLabel = market.yes_sub_title ?? "Yes";
+  const noLabel = market.no_sub_title ?? "No";
+  const [side, setSide] = useState<string>(yesLabel);
   const [orderSide, setOrderSide] = useState<"BUY" | "SELL">("BUY");
   const [price, setPrice] = useState("");
   const [size, setSize] = useState("");
@@ -44,6 +46,9 @@ export function LimitOrderPanel({ market, conditionId, onOrderSuccess }: LimitOr
         order_side: orderSide,
         auto_prepare: true,
       }) as Record<string, unknown>;
+      // Treat any error-like field in the response as a failure
+      const errMsg = (data?.error ?? data?.errorMessage ?? data?.err) as string | undefined;
+      if (errMsg) throw new Error(errMsg);
       const txHash = (data?.tx_hash ?? data?.transaction_hash ?? data?.txHash ?? data?.order_id) as string | undefined;
       setResult({ ok: true, message: `Limit order placed: ${orderSide} ${size} ${side} shares @ ${price}¢`, txHash });
       setPrice("");
@@ -74,24 +79,24 @@ export function LimitOrderPanel({ market, conditionId, onOrderSuccess }: LimitOr
       {/* Side selector (Yes/No) */}
       <div className="grid grid-cols-2 gap-2">
         <button
-          onClick={() => setSide("Yes")}
+          onClick={() => setSide(yesLabel)}
           className={`py-3 rounded-lg text-sm font-semibold transition-all ${
-            side === "Yes"
+            side === yesLabel
               ? "bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500/40"
               : "bg-surface border border-border text-muted hover:text-foreground hover:border-emerald-500/20"
           }`}
         >
-          Yes {yesPrice}¢
+          {yesLabel} {yesPrice}¢
         </button>
         <button
-          onClick={() => setSide("No")}
+          onClick={() => setSide(noLabel)}
           className={`py-3 rounded-lg text-sm font-semibold transition-all ${
-            side === "No"
+            side === noLabel
               ? "bg-red-500/20 text-red-400 border-2 border-red-500/40"
               : "bg-surface border border-border text-muted hover:text-foreground hover:border-red-500/20"
           }`}
         >
-          No {noPrice}¢
+          {noLabel} {noPrice}¢
         </button>
       </div>
 
@@ -131,7 +136,7 @@ export function LimitOrderPanel({ market, conditionId, onOrderSuccess }: LimitOr
             min="1"
             max="99"
             step="1"
-            placeholder={String(side === "Yes" ? yesPrice : noPrice)}
+            placeholder={String(side === yesLabel ? yesPrice : noPrice)}
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             className="w-full pl-3 pr-8 py-2.5 text-sm font-mono dark-input"
@@ -141,11 +146,11 @@ export function LimitOrderPanel({ market, conditionId, onOrderSuccess }: LimitOr
         {/* Quick price buttons */}
         <div className="flex gap-2 mt-1.5">
           {[
-            { label: "-5¢", val: Math.max(1, (side === "Yes" ? yesPrice : noPrice) - 5) },
-            { label: "-2¢", val: Math.max(1, (side === "Yes" ? yesPrice : noPrice) - 2) },
-            { label: "Mkt", val: side === "Yes" ? yesPrice : noPrice },
-            { label: "+2¢", val: Math.min(99, (side === "Yes" ? yesPrice : noPrice) + 2) },
-            { label: "+5¢", val: Math.min(99, (side === "Yes" ? yesPrice : noPrice) + 5) },
+            { label: "-5¢", val: Math.max(1, (side === yesLabel ? yesPrice : noPrice) - 5) },
+            { label: "-2¢", val: Math.max(1, (side === yesLabel ? yesPrice : noPrice) - 2) },
+            { label: "Mkt", val: side === yesLabel ? yesPrice : noPrice },
+            { label: "+2¢", val: Math.min(99, (side === yesLabel ? yesPrice : noPrice) + 2) },
+            { label: "+5¢", val: Math.min(99, (side === yesLabel ? yesPrice : noPrice) + 5) },
           ].map((p) => (
             <button
               key={p.label}
@@ -206,7 +211,7 @@ export function LimitOrderPanel({ market, conditionId, onOrderSuccess }: LimitOr
         disabled={loading || !price || !size || Number(price) <= 0 || Number(size) <= 0 || !isAuthenticated}
         className={`w-full py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
           orderSide === "BUY"
-            ? side === "Yes"
+            ? side === yesLabel
               ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
               : "bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20"
             : "bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20"
