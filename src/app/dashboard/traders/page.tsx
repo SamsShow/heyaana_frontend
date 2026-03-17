@@ -290,9 +290,9 @@ export default function TradersPage() {
     setGlobalPartialError(false);
     setGlobalPage(0);
     try {
-      // API caps at 50 per request — fetch 6 pages to get up to 300
+      // Fetch 2 pages of 50 (offset 100+ is unreliable on the backend)
       const PAGE_SIZE = 50;
-      const PAGES = 6;
+      const PAGES = 2;
       const results = await Promise.all(
         Array.from({ length: PAGES }, (_, i) =>
           fetchGlobalLeaderboard({ limit: PAGE_SIZE, offset: i * PAGE_SIZE, category, time_period: period, order_by: orderBy })
@@ -301,7 +301,6 @@ export default function TradersPage() {
         )
       );
       const hadFailure = results.some(r => !r.ok);
-      if (hadFailure) setGlobalPartialError(true);
       const all = results.flatMap(r => r.entries);
       // Deduplicate strictly by proxyWallet — skip entries without one
       const seen = new Set<string>();
@@ -312,7 +311,12 @@ export default function TradersPage() {
         seen.add(key);
         return true;
       }).map((e, i) => ({ ...e, rank: i + 1 }));
-      setGlobalEntries(deduped);
+      if (deduped.length === 0) {
+        setGlobalError("Leaderboard unavailable — service may be temporarily down. Try refreshing.");
+      } else {
+        if (hadFailure) setGlobalPartialError(true);
+        setGlobalEntries(deduped);
+      }
     } catch (err) {
       setGlobalError(err instanceof Error ? err.message : "Failed to load leaderboard");
     } finally {
@@ -504,8 +508,16 @@ export default function TradersPage() {
               </div>
 
               {globalError && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono">
-                  <AlertCircle className="w-4 h-4 shrink-0" />{globalError}
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />{globalError}
+                  </div>
+                  <button
+                    onClick={() => loadGlobalLeaderboard()}
+                    className="shrink-0 px-2.5 py-1 rounded-lg bg-red-500/15 border border-red-500/30 hover:bg-red-500/25 transition-all text-[11px] font-semibold"
+                  >
+                    Retry
+                  </button>
                 </div>
               )}
               {!globalError && globalPartialError && (
@@ -547,7 +559,7 @@ export default function TradersPage() {
                             {globalSearch.trim().slice(0, 10)}…{globalSearch.trim().slice(-6)}
                           </Link>
                         </div>
-                      ) : filtered.length === 0 ? (
+                      ) : filtered.length === 0 && !globalError ? (
                         <div className="flex flex-col items-center justify-center py-16 text-muted">
                           <Trophy className="w-6 h-6 mb-2 opacity-30" />
                           <p className="text-sm font-mono">{q ? `No traders matching "${globalSearch}"` : "No leaderboard data."}</p>

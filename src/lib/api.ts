@@ -944,8 +944,9 @@ export async function fetchGlobalLeaderboard(params?: {
     if (!res.ok) throw new Error(data.error ?? data.detail ?? "Failed to fetch leaderboard");
     // API may return array directly or wrapped in various keys
     if (Array.isArray(data)) return { entries: data as GlobalLeaderboardEntry[], params_used: {} };
-    // Try to find the array in the response under known keys only (no wildcard search)
+    // Try to find the array — API returns { leaders: [...] }
     const maybeArr =
+        data.leaders ??
         data.entries ??
         data.leaderboard ??
         data.data ??
