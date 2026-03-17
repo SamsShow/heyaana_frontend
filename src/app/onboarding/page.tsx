@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState, useCallback, useEffect, useRef } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -358,9 +359,6 @@ function OnboardingPageContent() {
               Hey<span className="text-blue-primary">Anna</span>
             </span>
           </Link>
-          <Link href="/dashboard" className="text-xs text-muted hover:text-foreground transition-colors">
-            Skip to Dashboard →
-          </Link>
         </div>
 
         {/* Progress Stepper */}
@@ -580,15 +578,10 @@ function OnboardingPageContent() {
             {step === 2 && (
               <div className="space-y-6">
                 <div className="text-center mb-8">
-                  <h2 className="text-3xl font-bold mb-2">Select Your Markets</h2>
-                  <p className="text-muted">Choose the prediction market categories you want to trade in</p>
+                  <h2 className="text-3xl font-bold mb-2">Top Markets</h2>
+                  <p className="text-muted">Live prediction markets — ranked by volume</p>
                 </div>
-
-                <div className="max-w-md mx-auto p-8 dashboard-card flex flex-col items-center justify-center text-center text-muted">
-                  <Globe className="w-12 h-12 mb-4 opacity-30" />
-                  <p className="text-sm font-medium">Coming soon</p>
-                  <p className="text-xs mt-1">Market categories will appear here when available</p>
-                </div>
+                <TopMarketsPreview />
               </div>
             )}
 
@@ -860,6 +853,116 @@ function OnboardingPageContent() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Top Markets Preview (step 2) ────────────────────────────────
+
+type GammaEvent = {
+  id?: string;
+  title?: string;
+  slug?: string;
+  image?: string;
+  volume?: number;
+  markets?: Array<{ outcomePrices?: string; outcomes?: string; volume?: number }>;
+  [key: string]: unknown;
+};
+
+function TopMarketsPreview() {
+  const { data, isLoading } = useSWR<GammaEvent[]>(
+    "/api/gamma?active=true&closed=false&limit=5&order=volume&ascending=false",
+    (url: string) => fetch(url).then(r => r.json()),
+    { revalidateOnFocus: false }
+  );
+
+  const events: GammaEvent[] = Array.isArray(data) ? data.slice(0, 5) : [];
+
+  function fmtVol(v: number | undefined) {
+    if (!v) return null;
+    if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+    if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}K`;
+    return `$${v.toFixed(0)}`;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="max-w-lg mx-auto space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="dashboard-card p-4 flex items-center gap-4 animate-pulse">
+            <div className="w-10 h-10 rounded-xl bg-surface/60 shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3 bg-surface/60 rounded w-3/4" />
+              <div className="h-2.5 bg-surface/40 rounded w-1/3" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (!events.length) {
+    return (
+      <div className="max-w-lg mx-auto p-8 dashboard-card flex flex-col items-center justify-center text-center text-muted">
+        <Globe className="w-10 h-10 mb-3 opacity-30" />
+        <p className="text-sm">Could not load markets right now</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-lg mx-auto space-y-3">
+      {events.map((event, i) => {
+        const vol = fmtVol(event.volume);
+        const market = event.markets?.[0];
+        let yesPrice: number | null = null;
+        try {
+          const prices = market?.outcomePrices ? JSON.parse(market.outcomePrices) : null;
+          if (Array.isArray(prices) && prices.length > 0) yesPrice = Math.round(Number(prices[0]) * 100);
+        } catch { /* ignore */ }
+
+        return (
+          <div key={event.id ?? i} className="dashboard-card p-4 flex items-center gap-4 hover:border-blue-primary/20 transition-all">
+            {/* Rank */}
+            <span className="shrink-0 w-6 text-center text-xs font-bold font-mono text-muted/60">{i + 1}</span>
+
+            {/* Icon */}
+            {event.image ? (
+              <Image
+                src={event.image}
+                alt={event.title ?? ""}
+                width={40}
+                height={40}
+                className="w-10 h-10 rounded-xl object-cover shrink-0"
+                unoptimized
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-blue-primary/10 flex items-center justify-center shrink-0">
+                <Globe className="w-5 h-5 text-blue-primary/60" />
+              </div>
+            )}
+
+            {/* Title + volume */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium leading-snug line-clamp-2">{event.title ?? "Unknown"}</p>
+              {vol && (
+                <p className="text-[11px] font-mono text-muted mt-0.5">Vol {vol}</p>
+              )}
+            </div>
+
+            {/* Yes price */}
+            {yesPrice !== null && (
+              <div className="shrink-0 text-right">
+                <span className={`text-sm font-bold font-mono ${yesPrice >= 50 ? "text-emerald-400" : "text-red-400"}`}>
+                  {yesPrice}¢
+                </span>
+                <p className="text-[10px] text-muted font-mono">YES</p>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <p className="text-[10px] font-mono text-muted text-center pt-1">Live from Polymarket · Top 5 by volume</p>
     </div>
   );
 }
