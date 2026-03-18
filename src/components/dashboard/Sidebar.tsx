@@ -12,12 +12,13 @@ import {
   Settings,
   Users,
   LogOut,
+  Zap,
 } from "lucide-react";
 
 const mobileNavItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Home" },
   { href: "/dashboard/markets", icon: Activity, label: "Markets" },
-  { href: "/dashboard/social", icon: TrendingUp, label: "Trades" },
+  { href: "/dashboard/auto-trade", icon: Zap, label: "Auto" },
   { href: "/dashboard/traders", icon: Users, label: "Traders" },
   { href: "/dashboard/profile", icon: Settings, label: "Profile" },
 ];

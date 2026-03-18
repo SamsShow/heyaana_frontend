@@ -1129,6 +1129,83 @@ export async function refreshCache(): Promise<Record<string, string>> {
     return res.json();
 }
 
+// ─── Signal Auto-Trading ──────────────────────────────────
+
+export type SignalTradingSettings = {
+    enabled: boolean;
+    amount_usd: number;
+    wallet?: string;
+    trading_wallet?: string;
+};
+
+export type SignalTradingJob = {
+    id?: string;
+    market_title?: string;
+    asset?: string;
+    direction?: string;
+    side?: string;
+    amount?: number;
+    status?: string;
+    signal_at?: string | number;
+    executed_at?: string | number;
+    created_at?: string | number;
+    tx_hash?: string;
+    error?: string;
+    [key: string]: unknown;
+};
+
+export async function getSignalTradingSettings(): Promise<SignalTradingSettings> {
+    const res = await fetch(`${API2_BASE_URL}/me/signal-trading/settings`, {
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`,
+        },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Failed to fetch signal trading settings");
+    return data;
+}
+
+export async function updateSignalTradingSettings(settings: { enabled: boolean; amount_usd: number }): Promise<SignalTradingSettings> {
+    const res = await fetch(`${API2_BASE_URL}/me/signal-trading/settings`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`,
+        },
+        body: JSON.stringify(settings),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Failed to update signal trading settings");
+    return data;
+}
+
+export async function getSignalTradingJobs(limit = 50): Promise<{ jobs: SignalTradingJob[]; count: number }> {
+    const res = await fetch(`${API2_BASE_URL}/me/signal-trading/jobs?limit=${limit}`, {
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`,
+        },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Failed to fetch signal trading jobs");
+    return data;
+}
+
+export async function claimSignalTradingWinnings(): Promise<{ wallet: string; result: string }> {
+    const res = await fetch(`${API2_BASE_URL}/me/signal-trading/claim-latest`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : ""}`,
+        },
+        body: "",
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? data.detail ?? "Failed to claim winnings");
+    return data;
+}
+
 // ─── Formatting helpers ───────────────────────────────────
 
 export function formatVolume(vol: number): string {

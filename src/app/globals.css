@@ -1110,3 +1110,17 @@ body::before {
 .meta-row:last-child {
   border-bottom: none;
 }
+
+/* ————————————————————————————————
+   TOAST ANIMATION
+   ———————————————————————————————— */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

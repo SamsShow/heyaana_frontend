@@ -25,6 +25,7 @@ import {
   AlignJustify,
   X,
   Star,
+  Zap,
 } from "lucide-react";
 import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { MobileTopBar, MobileBottomNav } from "@/components/dashboard/Sidebar";
@@ -34,7 +35,7 @@ import { TransferToSafeModal } from "@/components/dashboard/TransferToSafeModal"
 import { CommandPalette, useCommandPaletteShortcut } from "@/components/dashboard/CommandPalette";
 import { useAuth } from "@/lib/useAuth";
 import { proxyFetcher, formatRelativeTime, type CopyNotification } from "@/lib/api";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 
 interface DashboardChromeProps {
@@ -48,6 +49,7 @@ const navItems = [
   { icon: BarChart2, label: "My Stats", href: "/dashboard/user-analytics" },
   { icon: Activity, label: "Markets", href: "/dashboard/markets" },
   { icon: Star, label: "Watchlist", href: "/dashboard/watchlist" },
+  { icon: Zap, label: "Auto Trade", href: "/dashboard/auto-trade" },
   { icon: TrendingUp, label: "Trades", href: "/dashboard/social" },
   { icon: Users, label: "Traders", href: "/dashboard/traders" },
   { icon: Gift, label: "Referral", href: "/dashboard/referral" },
@@ -213,6 +215,66 @@ function HamburgerMenu({ onLogout, onDeposit, onWithdraw, onTransferToSafe }: { 
   );
 }
 
+// ── Notification Toast ──────────────────────────────────────
+
+interface ToastItem {
+  id: string;
+  notif: CopyNotification;
+}
+
+function NotificationToast({ notif, onDismiss }: { notif: CopyNotification; onDismiss: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onDismiss, 5000);
+    return () => clearTimeout(timer);
+  }, [onDismiss]);
+
+  const isSuccess = notif.status === "success" || notif.status === "filled" || notif.status === "executed";
+  const isFailed = notif.status === "failed" || notif.status === "error";
+  const isSignal = notif.status === "signal";
+
+  const accentClass = isSuccess
+    ? "bg-emerald-500/12 border-emerald-500/25 text-emerald-400"
+    : isFailed
+      ? "bg-red-500/12 border-red-500/25 text-red-400"
+      : "bg-blue-primary/12 border-blue-primary/25 text-blue-primary";
+
+  const dotClass = isSuccess
+    ? "bg-emerald-400"
+    : isFailed
+      ? "bg-red-400"
+      : isSignal
+        ? "bg-blue-primary animate-pulse"
+        : "bg-amber-400";
+
+  const label = isSuccess ? "Trade executed" : isFailed ? "Trade failed" : isSignal ? "Signal received" : "Notification";
+
+  return (
+    <div className={`flex items-start gap-3 px-4 py-3 rounded-xl border shadow-xl backdrop-blur-sm w-72 ${accentClass}`}
+      style={{ animation: "slideInRight 0.2s ease-out" }}
+    >
+      <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${dotClass}`} />
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] font-semibold text-foreground">{label}</p>
+        <p className="text-[11px] text-foreground/70 truncate mt-0.5">
+          {notif.market_title ?? notif.message ?? "Copy Trade"}
+        </p>
+        <div className="flex items-center gap-2 mt-1 text-[10px] font-mono text-muted flex-wrap">
+          {notif.leader_username && <span>@{notif.leader_username}</span>}
+          {notif.asset && notif.direction && (
+            <span className={notif.direction === "UP" ? "text-emerald-400" : "text-red-400"}>
+              {notif.asset} {notif.direction === "UP" ? "▲" : "▼"}
+            </span>
+          )}
+          {notif.amount != null && <span>${Number(notif.amount).toFixed(2)}</span>}
+        </div>
+      </div>
+      <button onClick={onDismiss} className="mt-0.5 text-muted hover:text-foreground transition-colors shrink-0">
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
 export function DashboardChrome({ title, children }: DashboardChromeProps) {
   const pathname = usePathname();
   const { user, logout, isAuthenticated, hasSessionToken, isValidating, error } = useAuth();
@@ -222,6 +284,13 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const seenNotifIds = useRef<Set<string>>(new Set());
+  const notifInitialized = useRef(false);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
 
   useCommandPaletteShortcut(showCommandPalette, setShowCommandPalette);
 
@@ -268,6 +337,40 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
     return [];
   })();
 
+  // Detect new notifications and trigger toasts
+  useEffect(() => {
+    if (!notifications.length) return;
+
+    if (!notifInitialized.current) {
+      // On first load, mark all existing notifications as seen — no toast spam
+      notifications.forEach(n => {
+        const id = n.id ?? `${n.market_title}-${n.created_at}`;
+        seenNotifIds.current.add(id);
+      });
+      notifInitialized.current = true;
+      return;
+    }
+
+    const newOnes: CopyNotification[] = [];
+    notifications.forEach(n => {
+      const id = n.id ?? `${n.market_title}-${n.created_at}`;
+      if (!seenNotifIds.current.has(id)) {
+        newOnes.push(n);
+        seenNotifIds.current.add(id);
+      }
+    });
+
+    if (newOnes.length > 0) {
+      setToasts(prev => [
+        ...prev,
+        ...newOnes.map(n => ({
+          id: n.id ?? `toast-${Date.now()}-${Math.random()}`,
+          notif: n,
+        })),
+      ]);
+    }
+  }, [notifications]);
+
   const totalBalance = (() => {
     const direct = balanceData?.total_usd;
     if (typeof direct === "number") return direct;
@@ -308,7 +411,7 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
           <div className="text-[10px] font-medium text-muted uppercase tracking-widest mb-3 px-3">
             Trading
           </div>
-          {navItems.slice(0, 5).map((item) => {
+          {navItems.slice(0, 6).map((item) => {
             const active = isItemActive(pathname, item.href);
             return (
               <Link
@@ -336,7 +439,7 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
           <div className="text-[10px] font-medium text-muted uppercase tracking-widest mb-3 px-3 pt-6">
             Account
           </div>
-          {navItems.slice(5).map((item) => {
+          {navItems.slice(6).map((item) => {
             const active = isItemActive(pathname, item.href);
             return (
               <Link
@@ -531,6 +634,20 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
           onWithdraw={() => setShowWithdraw(true)}
           onTransferToSafe={() => setShowTransferToSafe(true)}
         />
+      )}
+
+      {toasts.length > 0 && typeof document !== "undefined" && createPortal(
+        <div className="fixed top-4 right-4 z-99999 flex flex-col gap-2 pointer-events-none">
+          {toasts.map(t => (
+            <div key={t.id} className="pointer-events-auto">
+              <NotificationToast
+                notif={t.notif}
+                onDismiss={() => dismissToast(t.id)}
+              />
+            </div>
+          ))}
+        </div>,
+        document.body,
       )}
     </div>
   );
