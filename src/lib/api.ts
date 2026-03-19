@@ -775,6 +775,7 @@ export type CopyNotification = {
     direction?: string;
     timeframe?: string;
     confidence_pct?: number | null;
+    order_side?: string;
     [key: string]: unknown;
 };
 

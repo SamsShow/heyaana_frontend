@@ -260,6 +260,11 @@ function NotificationToast({ notif, onDismiss }: { notif: CopyNotification; onDi
         </p>
         <div className="flex items-center gap-2 mt-1 text-[10px] font-mono text-muted flex-wrap">
           {notif.leader_username && <span>@{notif.leader_username}</span>}
+          {(notif.order_side ?? notif.side) && (
+            <span className={`font-semibold ${(notif.order_side ?? notif.side)?.toLowerCase() === "buy" ? "text-emerald-400" : "text-red-400"}`}>
+              {(notif.order_side ?? notif.side)!.toUpperCase()}
+            </span>
+          )}
           {notif.asset && notif.direction && (
             <span className={notif.direction === "UP" ? "text-emerald-400" : "text-red-400"}>
               {notif.asset} {notif.direction === "UP" ? "▲" : "▼"}
@@ -587,7 +592,11 @@ export function DashboardChrome({ title, children }: DashboardChromeProps) {
                                       {n.asset} {n.direction === "UP" ? "▲" : "▼"}
                                     </span>
                                   )}
-                                  {n.side && <span>{n.side}</span>}
+                                  {(n.order_side ?? n.side) && (
+                                    <span className={`font-semibold ${(n.order_side ?? n.side)?.toLowerCase() === "buy" ? "text-emerald-400" : "text-red-400"}`}>
+                                      {(n.order_side ?? n.side)!.toUpperCase()}
+                                    </span>
+                                  )}
                                   {n.amount != null && <span>${Number(n.amount).toFixed(2)}</span>}
                                   {n.status && (
                                     <span className={isSuccess ? "text-emerald-400" : isFailed ? "text-red-400" : isSignal ? "text-blue-primary" : "text-amber-400"}>
