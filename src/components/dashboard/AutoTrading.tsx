@@ -7,7 +7,6 @@ import {
   proxyFetcher,
   formatRelativeTime,
   updateSignalTradingSettings,
-  claimSignalTradingWinnings,
   type SignalTradingSettings,
 } from "@/lib/api";
 import {
@@ -190,7 +189,6 @@ function TimeframeCard({
 export function AutoTrading() {
   const { isAuthenticated } = useAuth();
   const [saving, setSaving] = useState<string | null>(null); // tracks which tf is saving
-  const [claiming, setClaiming] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ ok: boolean; message: string } | null>(null);
 
   // Fetch settings
@@ -264,22 +262,6 @@ export function AutoTrading() {
       setStatusMsg({ ok: false, message: parseError(err, `Failed to update ${tf} shares`) });
     } finally {
       setSaving(null);
-    }
-  }
-
-  async function handleClaim() {
-    setClaiming(true);
-    setStatusMsg(null);
-    try {
-      const result = await claimSignalTradingWinnings();
-      const msg = typeof result.result === "string" && result.result.trim()
-        ? result.result.trim()
-        : "Winnings claimed successfully";
-      setStatusMsg({ ok: true, message: msg });
-    } catch (err) {
-      setStatusMsg({ ok: false, message: parseError(err, "Failed to claim winnings") });
-    } finally {
-      setClaiming(false);
     }
   }
 
@@ -360,27 +342,21 @@ export function AutoTrading() {
         ))}
       </div>
 
-      {/* ── Claim Winnings ── */}
-      <div className="dashboard-card p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center">
-              <Gift className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-sm font-bold">Claim Winnings</p>
-              <p className="text-[10px] text-muted">Gasless claim for resolved trades</p>
-            </div>
-          </div>
-          <button
-            onClick={handleClaim}
-            disabled={claiming}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/20 border border-amber-500/20 text-amber-400 text-xs font-semibold hover:from-amber-500/30 hover:to-amber-600/30 transition-all disabled:opacity-50 flex items-center gap-2"
+      {/* ── Claim Disclaimer ── */}
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
+        <Gift className="w-4 h-4 text-amber-400 shrink-0" />
+        <p className="text-xs text-amber-400/80 leading-relaxed">
+          To claim winnings from resolved trades, visit{" "}
+          <a
+            href="https://polymarket.com/portfolio"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-amber-300 underline underline-offset-2 hover:text-amber-200 transition-colors"
           >
-            {claiming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Gift className="w-3.5 h-3.5" />}
-            {claiming ? "Claiming…" : "Claim Latest"}
-          </button>
-        </div>
+            Polymarket
+          </a>{" "}
+          directly.
+        </p>
       </div>
 
       {/* ── Whale & Insider Trades ── */}
