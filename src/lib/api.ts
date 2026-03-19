@@ -1131,12 +1131,12 @@ export async function refreshCache(): Promise<Record<string, string>> {
 
 // ─── Signal Auto-Trading ──────────────────────────────────
 
-export type SignalTradingSettings = {
+export type TimeframeSettings = {
     enabled: boolean;
-    amount_usd: number;
-    wallet?: string;
-    trading_wallet?: string;
+    shares: number;
 };
+
+export type SignalTradingSettings = Record<string, TimeframeSettings>;
 
 export type SignalTradingJob = {
     id?: string;
@@ -1166,7 +1166,7 @@ export async function getSignalTradingSettings(): Promise<SignalTradingSettings>
     return data;
 }
 
-export async function updateSignalTradingSettings(settings: { enabled: boolean; amount_usd: number }): Promise<SignalTradingSettings> {
+export async function updateSignalTradingSettings(settings: { timeframe: string; enabled: boolean; shares: number }): Promise<SignalTradingSettings> {
     const res = await fetch(`${API2_BASE_URL}/me/signal-trading/settings`, {
         method: "POST",
         headers: {
