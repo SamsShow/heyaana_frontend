@@ -283,13 +283,11 @@ export function DashboardSummary() {
                                 AI-powered portfolio tracking with real-time market signals and risk analysis.
                             </p>
                         </div>
-                        <Link
-                            href="/dashboard/analytics"
-                            className="mt-4 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/15 hover:bg-white/20 text-white text-sm font-medium transition-all border border-white/10"
+                        <div
+                            className="mt-4 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/15 text-white/60 text-sm font-medium border border-white/10 cursor-default"
                         >
-                            View Analytics
-                            <ArrowRight className="w-3.5 h-3.5" />
-                        </Link>
+                            Coming Soon
+                        </div>
                     </div>
                 </div>
             ) : error ? (
