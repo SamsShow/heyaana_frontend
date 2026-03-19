@@ -17,7 +17,6 @@ import {
   Hash,
   CheckCircle2,
   AlertCircle,
-  Clock,
   ArrowUpRight,
   ArrowDownRight,
   Gift,
@@ -26,26 +25,12 @@ import {
   PowerOff,
   RefreshCw,
   X,
-  BarChart3,
   Fish,
   ExternalLink,
 } from "lucide-react";
+import { useAuth } from "@/lib/useAuth";
 
-/* ── Types for autotrader markets & whale/insider ──────── */
-
-type AutotraderTimeframe = {
-  series_slug: string;
-  condition_id?: string;
-  event_slug?: string;
-  success: boolean;
-  error?: string;
-};
-
-type AutotraderMarketsResponse = {
-  success: boolean;
-  timeframes: Record<string, AutotraderTimeframe>;
-  count: number;
-};
+/* ── Types for whale/insider ──────────────────────────── */
 
 type WhaleInsiderFlag = {
   id: number;
@@ -65,7 +50,12 @@ type WhaleInsiderResponse = {
   offset: number;
   kind: string | null;
 };
-import { useAuth } from "@/lib/useAuth";
+
+function fmtUsd(v: number): string {
+  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `$${(v / 1_000).toFixed(1)}K`;
+  return `$${v.toFixed(0)}`;
+}
 
 export function AutoTrading() {
   const { isAuthenticated } = useAuth();
@@ -97,16 +87,6 @@ export function AutoTrading() {
     isAuthenticated ? "/api/proxy/me/signal-trading/jobs?limit=50" : null,
     proxyFetcher,
     { revalidateOnFocus: true, refreshInterval: 30000 },
-  );
-
-  // Fetch autotrader markets (public endpoint)
-  const {
-    data: marketsData,
-    isLoading: marketsLoading,
-  } = useSWR<AutotraderMarketsResponse>(
-    "/api/proxy/autotrader/markets",
-    fetcher,
-    { revalidateOnFocus: false, refreshInterval: 60000 },
   );
 
   // Fetch whale/insider trades (public endpoint)
@@ -233,7 +213,7 @@ export function AutoTrading() {
   const pendingJobs = jobs.filter(j => j.status === "pending" || j.status === "signal");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Status message */}
       {statusMsg && (
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono ${statusMsg.ok ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border border-red-500/20 text-red-400"}`}>
@@ -249,426 +229,357 @@ export function AutoTrading() {
         </div>
       )}
 
-      {/* Settings Card */}
-      <div className="dashboard-card p-5 space-y-5">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-primary/15 text-blue-primary flex items-center justify-center">
-            <Settings className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold">Auto-Trade Settings</h3>
-            <p className="text-[10px] text-muted mt-0.5">Configure signal-based automatic trading</p>
-          </div>
-        </div>
-
-        {/* Toggle */}
-        <div className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-white/[0.02]">
+      {/* ── Top row: Settings + Claim side by side on desktop ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4">
+        {/* Settings Card */}
+        <div className="dashboard-card p-5 space-y-4">
           <div className="flex items-center gap-3">
-            {enabled ? (
-              <Power className="w-5 h-5 text-emerald-400" />
-            ) : (
-              <PowerOff className="w-5 h-5 text-muted" />
-            )}
+            <div className="w-9 h-9 rounded-xl bg-blue-primary/15 text-blue-primary flex items-center justify-center">
+              <Settings className="w-4.5 h-4.5" />
+            </div>
             <div>
-              <p className="text-sm font-semibold">{enabled ? "Active" : "Inactive"}</p>
-              <p className="text-[10px] text-muted">
-                {enabled ? "Signals will automatically execute trades" : "Enable to start auto-trading on signals"}
-              </p>
+              <h3 className="text-sm font-bold">Auto-Trade Settings</h3>
+              <p className="text-[10px] text-muted mt-0.5">Configure signal-based automatic trading</p>
             </div>
           </div>
-          <button
-            onClick={handleToggle}
-            disabled={saving}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 ${
-              enabled
-                ? "bg-red-500/15 text-red-400 border border-red-500/20 hover:bg-red-500/25"
-                : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/25"
-            }`}
-          >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : enabled ? "Disable" : "Enable"}
-          </button>
-        </div>
 
-        {/* Amount per trade */}
-        <div className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-white/[0.02]">
-          <div className="flex items-center gap-3">
-            <Hash className="w-5 h-5 text-blue-primary" />
-            <div>
-              <p className="text-sm font-semibold">Number of Shares</p>
-              <p className="text-[10px] text-muted">Shares per auto-trade</p>
-            </div>
-          </div>
-          {isEditing ? (
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <input
-                  type="number"
-                  value={editAmount}
-                  onChange={e => setEditAmount(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") handleSaveAmount(); if (e.key === "Escape") setIsEditing(false); }}
-                  className="w-24 px-3 py-1.5 rounded-lg border border-border bg-surface text-sm font-mono text-foreground focus:outline-none focus:border-blue-primary"
-                  min="5"
-                  step="1"
-                  autoFocus
-                />
+          {/* Toggle + Shares in a row on desktop */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Toggle */}
+            <div className="flex items-center justify-between p-3.5 rounded-xl border border-border/50 bg-white/[0.02]">
+              <div className="flex items-center gap-2.5">
+                {enabled ? (
+                  <Power className="w-4.5 h-4.5 text-emerald-400" />
+                ) : (
+                  <PowerOff className="w-4.5 h-4.5 text-muted" />
+                )}
+                <div>
+                  <p className="text-sm font-semibold">{enabled ? "Active" : "Inactive"}</p>
+                  <p className="text-[10px] text-muted leading-tight">
+                    {enabled ? "Auto-executing signals" : "Enable to start"}
+                  </p>
+                </div>
               </div>
               <button
-                onClick={handleSaveAmount}
+                onClick={handleToggle}
                 disabled={saving}
-                className="px-3 py-1.5 rounded-lg bg-blue-primary/15 text-blue-primary text-xs font-semibold hover:bg-blue-primary/25 transition-all disabled:opacity-50"
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 ${
+                  enabled
+                    ? "bg-red-500/15 text-red-400 border border-red-500/20 hover:bg-red-500/25"
+                    : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/25"
+                }`}
               >
-                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save"}
-              </button>
-              <button
-                onClick={() => setIsEditing(false)}
-                className="px-3 py-1.5 rounded-lg border border-border text-xs text-muted hover:text-foreground transition-all"
-              >
-                Cancel
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : enabled ? "Disable" : "Enable"}
               </button>
             </div>
-          ) : (
-            <button
-              onClick={() => { setEditAmount(String(amountUsd)); setIsEditing(true); }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-sm font-bold font-mono hover:bg-white/[0.04] transition-all"
-            >
-              {amountUsd}
-              <span className="text-[10px] text-muted font-normal">Edit</span>
-            </button>
-          )}
-        </div>
 
-        {/* Wallet info */}
-        {settings?.wallet && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border/30 bg-white/[0.01]">
-            <div className="text-[10px] font-mono text-muted space-y-1">
-              <p>Wallet: <span className="text-foreground/70">{settings.wallet.slice(0, 6)}...{settings.wallet.slice(-4)}</span></p>
-              {settings.trading_wallet && (
-                <p>Trading: <span className="text-foreground/70">{settings.trading_wallet.slice(0, 6)}...{settings.trading_wallet.slice(-4)}</span></p>
+            {/* Shares */}
+            <div className="flex items-center justify-between p-3.5 rounded-xl border border-border/50 bg-white/[0.02]">
+              <div className="flex items-center gap-2.5">
+                <Hash className="w-4.5 h-4.5 text-blue-primary" />
+                <div>
+                  <p className="text-sm font-semibold">Shares</p>
+                  <p className="text-[10px] text-muted leading-tight">Per auto-trade</p>
+                </div>
+              </div>
+              {isEditing ? (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    value={editAmount}
+                    onChange={e => setEditAmount(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleSaveAmount(); if (e.key === "Escape") setIsEditing(false); }}
+                    className="w-20 px-2.5 py-1.5 rounded-lg border border-border bg-surface text-sm font-mono text-foreground focus:outline-none focus:border-blue-primary"
+                    min="5"
+                    step="1"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleSaveAmount}
+                    disabled={saving}
+                    className="px-2.5 py-1.5 rounded-lg bg-blue-primary/15 text-blue-primary text-xs font-semibold hover:bg-blue-primary/25 transition-all disabled:opacity-50"
+                  >
+                    {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save"}
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="p-1.5 rounded-lg border border-border text-muted hover:text-foreground transition-all"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setEditAmount(String(amountUsd)); setIsEditing(true); }}
+                  className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-border text-sm font-bold font-mono hover:bg-white/[0.04] transition-all"
+                >
+                  {amountUsd}
+                  <span className="text-[10px] text-muted font-normal">Edit</span>
+                </button>
               )}
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Active Markets */}
-      <div className="dashboard-card p-5 space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center">
-            <BarChart3 className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold">Active Markets</h3>
-            <p className="text-[10px] text-muted mt-0.5">Available autotrader markets by timeframe</p>
-          </div>
-        </div>
-        {marketsLoading ? (
-          <div className="flex items-center gap-2 text-muted py-4 justify-center">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-xs font-mono">Loading markets…</span>
-          </div>
-        ) : marketsData?.timeframes ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-            {Object.entries(marketsData.timeframes).map(([tf, data]) => (
-              <div
-                key={tf}
-                className={`relative p-3 rounded-xl border text-center transition-all ${
-                  data.success
-                    ? "border-emerald-500/20 bg-emerald-500/5"
-                    : "border-border/30 bg-white/[0.01] opacity-50"
-                }`}
-              >
-                <p className="text-sm font-bold font-mono">{tf}</p>
-                <p className={`text-[10px] font-mono mt-1 ${data.success ? "text-emerald-400" : "text-muted"}`}>
-                  {data.success ? "Active" : "Inactive"}
-                </p>
-                {data.success && (
-                  <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          {/* Wallet info */}
+          {settings?.wallet && (
+            <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-border/30 bg-white/[0.01]">
+              <div className="text-[10px] font-mono text-muted flex gap-4">
+                <span>Wallet: <span className="text-foreground/70">{settings.wallet.slice(0, 6)}...{settings.wallet.slice(-4)}</span></span>
+                {settings.trading_wallet && (
+                  <span>Trading: <span className="text-foreground/70">{settings.trading_wallet.slice(0, 6)}...{settings.trading_wallet.slice(-4)}</span></span>
                 )}
               </div>
-            ))}
+            </div>
+          )}
+        </div>
+
+        {/* Claim Winnings Card */}
+        <div className="dashboard-card p-5 flex flex-col justify-between lg:w-[220px]">
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center">
+              <Gift className="w-4.5 h-4.5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold">Claim Winnings</h3>
+              <p className="text-[10px] text-muted mt-0.5">Gasless claim</p>
+            </div>
           </div>
-        ) : (
-          <p className="text-xs text-muted/50 text-center py-4">No market data available</p>
-        )}
+          <button
+            onClick={handleClaim}
+            disabled={claiming}
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/20 border border-amber-500/20 text-amber-400 text-xs font-semibold hover:from-amber-500/30 hover:to-amber-600/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {claiming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Gift className="w-3.5 h-3.5" />}
+            {claiming ? "Claiming…" : "Claim Latest"}
+          </button>
+        </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="dashboard-card p-5 space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center">
-            <Gift className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold">Claim Winnings</h3>
-            <p className="text-[10px] text-muted mt-0.5">Gasless claim for resolved signal trades</p>
-          </div>
+      {/* ── Stats Row ── */}
+      <div className="grid grid-cols-4 gap-3">
+        <div className="dashboard-card p-3 text-center">
+          <p className="text-[10px] font-mono text-muted uppercase tracking-wider">Total</p>
+          <p className="text-lg font-bold mt-0.5">{jobsData?.count ?? 0}</p>
         </div>
-        <button
-          onClick={handleClaim}
-          disabled={claiming}
-          className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/20 border border-amber-500/20 text-amber-400 text-sm font-semibold hover:from-amber-500/30 hover:to-amber-600/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          {claiming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
-          {claiming ? "Claiming…" : "Claim Latest Winnings"}
-        </button>
-      </div>
-
-      {/* Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="dashboard-card p-4 text-center">
-          <p className="text-[10px] font-mono text-muted uppercase tracking-wider">Total Jobs</p>
-          <p className="text-lg font-bold mt-1">{jobsData?.count ?? 0}</p>
-        </div>
-        <div className="dashboard-card p-4 text-center">
+        <div className="dashboard-card p-3 text-center">
           <p className="text-[10px] font-mono text-muted uppercase tracking-wider">Executed</p>
-          <p className="text-lg font-bold mt-1 text-emerald-400">{successJobs.length}</p>
+          <p className="text-lg font-bold mt-0.5 text-emerald-400">{successJobs.length}</p>
         </div>
-        <div className="dashboard-card p-4 text-center">
+        <div className="dashboard-card p-3 text-center">
           <p className="text-[10px] font-mono text-muted uppercase tracking-wider">Pending</p>
-          <p className="text-lg font-bold mt-1 text-amber-400">{pendingJobs.length}</p>
+          <p className="text-lg font-bold mt-0.5 text-amber-400">{pendingJobs.length}</p>
         </div>
-        <div className="dashboard-card p-4 text-center">
+        <div className="dashboard-card p-3 text-center">
           <p className="text-[10px] font-mono text-muted uppercase tracking-wider">Failed</p>
-          <p className="text-lg font-bold mt-1 text-red-400">{failedJobs.length}</p>
+          <p className="text-lg font-bold mt-0.5 text-red-400">{failedJobs.length}</p>
         </div>
       </div>
 
-      {/* Whale & Insider Trades */}
-      <div className="dashboard-card overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
-          <div className="flex items-center gap-2">
-            <Fish className="w-4 h-4 text-cyan-400" />
-            <span className="text-sm font-bold">Whale & Insider Trades</span>
-            {whaleData?.flags && (
-              <span className="text-[10px] font-mono text-muted">({whaleData.flags.length})</span>
+      {/* ── Two-column: Signal Jobs + Whale Trades ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-4">
+        {/* Signal Jobs Table */}
+        <div className="dashboard-card overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-blue-primary" />
+              <span className="text-sm font-bold">Signal Jobs</span>
+              <span className="text-[10px] font-mono text-muted">({jobs.length})</span>
+            </div>
+            <button
+              onClick={() => mutateJobs()}
+              className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-white/[0.04] transition-all"
+              aria-label="Refresh"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Header */}
+          <div className="grid grid-cols-[1fr_70px_70px_70px] gap-2 px-4 py-2 text-[10px] font-mono text-muted uppercase tracking-wider border-b border-border/50">
+            <span>Market</span>
+            <span className="text-center">Side</span>
+            <span className="text-right">Amt</span>
+            <span className="text-right">Time</span>
+          </div>
+
+          <div className="max-h-[400px] overflow-y-auto">
+            {jobsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="flex items-center gap-2 text-muted">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-xs font-mono">Loading jobs…</span>
+                </div>
+              </div>
+            ) : jobsError ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
+                <AlertCircle className="w-5 h-5 text-red-400 opacity-70" />
+                <p className="text-xs font-mono text-muted">Could not load signal jobs</p>
+                <button
+                  onClick={() => mutateJobs()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted hover:text-foreground hover:bg-white/[0.04] transition-all"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Retry
+                </button>
+              </div>
+            ) : jobs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-muted">
+                <Zap className="w-5 h-5 mb-2 opacity-30" />
+                <p className="text-xs font-mono">No signal jobs yet.</p>
+                <p className="text-[10px] font-mono text-muted/60 mt-1">Jobs appear when signals are received.</p>
+              </div>
+            ) : (
+              jobs.map((job, i) => {
+                const isSuccess = job.status === "success" || job.status === "filled" || job.status === "executed";
+                const isFailed = job.status === "failed" || job.status === "error";
+                const isPending = job.status === "pending" || job.status === "signal";
+                const isUp = (job.direction ?? "").toUpperCase() === "UP";
+                const isBuy = (job.side ?? "").toLowerCase() === "buy" || (job.side ?? "").toLowerCase() === "yes";
+
+                const rawTime = job.signal_at ?? job.executed_at ?? job.created_at;
+                const timeStr = typeof rawTime === "number"
+                  ? new Date(rawTime * 1000).toISOString()
+                  : (rawTime as string | undefined);
+
+                const statusDot = isSuccess
+                  ? "bg-emerald-400"
+                  : isFailed
+                    ? "bg-red-400"
+                    : isPending
+                      ? "bg-amber-400 animate-pulse"
+                      : "bg-muted";
+
+                return (
+                  <div
+                    key={job.id ?? `${job.market_title}-${i}`}
+                    className="grid grid-cols-[1fr_70px_70px_70px] gap-2 items-center px-4 py-2.5 border-b border-border/30 hover:bg-surface/60 transition-all"
+                  >
+                    <div className="min-w-0 flex items-center gap-2">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDot}`} />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate">{job.market_title ?? job.asset ?? "Signal Trade"}</p>
+                        {job.direction && (
+                          <span className={`text-[10px] font-mono ${isUp ? "text-emerald-400" : "text-red-400"}`}>
+                            {isUp ? "↑" : "↓"} {job.direction}
+                          </span>
+                        )}
+                        {job.error && (
+                          <p className="text-[10px] font-mono text-red-400/70 truncate">{job.error}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-center">
+                      {job.side ? (
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                          isBuy
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            : "bg-red-500/10 text-red-400 border border-red-500/20"
+                        }`}>
+                          {job.side}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono text-muted">—</span>
+                      )}
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-xs font-bold font-mono">
+                        {job.amount != null ? `$${Number(job.amount).toFixed(2)}` : "—"}
+                      </span>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-[10px] font-mono text-muted">
+                        {timeStr ? formatRelativeTime(timeStr) : "—"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
 
-        {/* Header */}
-        <div className="grid grid-cols-[1fr_80px_80px] md:grid-cols-[1fr_100px_120px_100px] gap-3 px-4 py-2.5 text-[10px] font-mono text-muted uppercase tracking-wider border-b border-border/50">
-          <span>Market</span>
-          <span className="text-center">Type</span>
-          <span className="text-right hidden md:block">Amount</span>
-          <span className="text-right">Time</span>
-        </div>
-
-        {whaleLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="flex items-center gap-2 text-muted">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="text-sm font-mono">Loading whale trades…</span>
+        {/* Whale & Insider Trades */}
+        <div className="dashboard-card overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <Fish className="w-4 h-4 text-cyan-400" />
+              <span className="text-sm font-bold">Whale & Insider Trades</span>
+              {whaleData?.flags && (
+                <span className="text-[10px] font-mono text-muted">({whaleData.flags.length})</span>
+              )}
             </div>
           </div>
-        ) : !whaleData?.flags?.length ? (
-          <div className="flex flex-col items-center justify-center py-12 text-muted">
-            <Fish className="w-6 h-6 mb-2 opacity-30" />
-            <p className="text-sm font-mono">No whale or insider trades detected yet.</p>
-          </div>
-        ) : (
-          whaleData.flags.map((flag) => {
-            const isWhale = flag.kind === "whale";
-            const timeStr = new Date(flag.executed_at * 1000).toISOString();
-            const txShort = flag.tx_hash.slice(0, 10) + "…";
-            const walletShort = flag.wallet.slice(0, 6) + "…" + flag.wallet.slice(-4);
-            const amtStr = flag.trade_usd >= 1_000_000
-              ? `$${(flag.trade_usd / 1_000_000).toFixed(1)}M`
-              : flag.trade_usd >= 1_000
-                ? `$${(flag.trade_usd / 1_000).toFixed(1)}K`
-                : `$${flag.trade_usd.toFixed(0)}`;
 
-            return (
-              <div
-                key={flag.id}
-                className="grid grid-cols-[1fr_80px_80px] md:grid-cols-[1fr_100px_120px_100px] gap-3 items-center px-4 py-3 border-b border-border/30 hover:bg-surface/60 transition-all"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{flag.market_title}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] font-mono text-muted/50">{walletShort}</span>
-                    <a
-                      href={`https://polygonscan.com/tx/${flag.tx_hash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-0.5 text-[10px] font-mono text-blue-primary/60 hover:text-blue-primary transition-colors"
-                    >
-                      {txShort}
-                      <ExternalLink className="w-2.5 h-2.5" />
-                    </a>
+          {/* Header */}
+          <div className="grid grid-cols-[1fr_70px_70px] gap-2 px-4 py-2 text-[10px] font-mono text-muted uppercase tracking-wider border-b border-border/50">
+            <span>Market</span>
+            <span className="text-center">Type</span>
+            <span className="text-right">Amount</span>
+          </div>
+
+          <div className="max-h-[400px] overflow-y-auto">
+            {whaleLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="flex items-center gap-2 text-muted">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-xs font-mono">Loading whale trades…</span>
+                </div>
+              </div>
+            ) : !whaleData?.flags?.length ? (
+              <div className="flex flex-col items-center justify-center py-12 text-muted">
+                <Fish className="w-5 h-5 mb-2 opacity-30" />
+                <p className="text-xs font-mono">No whale or insider trades yet.</p>
+              </div>
+            ) : (
+              whaleData.flags.map((flag) => {
+                const isWhale = flag.kind === "whale";
+                const timeStr = new Date(flag.executed_at * 1000).toISOString();
+                const walletShort = flag.wallet.slice(0, 6) + "…" + flag.wallet.slice(-4);
+
+                return (
+                  <div
+                    key={flag.id}
+                    className="grid grid-cols-[1fr_70px_70px] gap-2 items-center px-4 py-2.5 border-b border-border/30 hover:bg-surface/60 transition-all"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium truncate">{flag.market_title}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] font-mono text-muted/50">{walletShort}</span>
+                        <a
+                          href={`https://polygonscan.com/tx/${flag.tx_hash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-0.5 text-[10px] font-mono text-blue-primary/60 hover:text-blue-primary transition-colors"
+                        >
+                          tx
+                          <ExternalLink className="w-2.5 h-2.5" />
+                        </a>
+                      </div>
+                      <span className="text-[10px] font-mono text-muted/40">{formatRelativeTime(timeStr)}</span>
+                    </div>
+
+                    <div className="flex justify-center">
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        isWhale
+                          ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                          : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                      }`}>
+                        {isWhale ? "Whale" : "Insider"}
+                      </span>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-xs font-bold font-mono">{fmtUsd(flag.trade_usd)}</span>
+                    </div>
                   </div>
-                </div>
-
-                <div className="flex justify-center">
-                  <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                    isWhale
-                      ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
-                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                  }`}>
-                    {isWhale ? "🐋 Whale" : "👤 Insider"}
-                  </span>
-                </div>
-
-                <div className="text-right hidden md:block">
-                  <span className="text-sm font-bold font-mono">{amtStr}</span>
-                </div>
-
-                <div className="text-right">
-                  <span className="text-[10px] font-mono text-muted">
-                    {formatRelativeTime(timeStr)}
-                  </span>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {/* Signal Jobs Table */}
-      <div className="dashboard-card overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-blue-primary" />
-            <span className="text-sm font-bold">Signal Jobs</span>
-            <span className="text-[10px] font-mono text-muted">({jobs.length})</span>
+                );
+              })
+            )}
           </div>
-          <button
-            onClick={() => mutateJobs()}
-            className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-white/[0.04] transition-all"
-            aria-label="Refresh"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
         </div>
-
-        {/* Header */}
-        <div className="grid grid-cols-[1fr_80px_80px_80px] md:grid-cols-[1fr_100px_90px_90px_100px_90px] gap-3 px-4 py-2.5 text-[10px] font-mono text-muted uppercase tracking-wider border-b border-border/50">
-          <span>Market / Signal</span>
-          <span className="hidden md:block text-center">Direction</span>
-          <span className="text-center">Side</span>
-          <span className="text-right">Amount</span>
-          <span className="text-center hidden md:block">Status</span>
-          <span className="text-right">Time</span>
-        </div>
-
-        {jobsLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="flex items-center gap-2 text-muted">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="text-sm font-mono">Loading jobs…</span>
-            </div>
-          </div>
-        ) : jobsError ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
-            <AlertCircle className="w-6 h-6 text-red-400 opacity-70" />
-            <div>
-              <p className="text-sm font-mono text-muted">Could not load signal jobs</p>
-              <p className="text-[10px] font-mono text-muted/60 mt-0.5">
-                {jobsError instanceof Error ? jobsError.message : "Fetch failed"}
-              </p>
-            </div>
-            <button
-              onClick={() => mutateJobs()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted hover:text-foreground hover:bg-white/[0.04] transition-all"
-            >
-              <RefreshCw className="w-3 h-3" />
-              Retry
-            </button>
-          </div>
-        ) : jobs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-muted">
-            <Zap className="w-6 h-6 mb-2 opacity-30" />
-            <p className="text-sm font-mono">No signal jobs yet.</p>
-            <p className="text-[10px] font-mono text-muted/60 mt-1">Jobs will appear here when signals are received.</p>
-          </div>
-        ) : (
-          jobs.map((job, i) => {
-            const isSuccess = job.status === "success" || job.status === "filled" || job.status === "executed";
-            const isFailed = job.status === "failed" || job.status === "error";
-            const isPending = job.status === "pending" || job.status === "signal";
-            const isUp = (job.direction ?? "").toUpperCase() === "UP";
-            const isBuy = (job.side ?? "").toLowerCase() === "buy" || (job.side ?? "").toLowerCase() === "yes";
-
-            const rawTime = job.signal_at ?? job.executed_at ?? job.created_at;
-            const timeStr = typeof rawTime === "number"
-              ? new Date(rawTime * 1000).toISOString()
-              : (rawTime as string | undefined);
-
-            return (
-              <div
-                key={job.id ?? `${job.market_title}-${i}`}
-                className="grid grid-cols-[1fr_80px_80px_80px] md:grid-cols-[1fr_100px_90px_90px_100px_90px] gap-3 items-center px-4 py-3 border-b border-border/30 hover:bg-surface/60 transition-all"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{job.market_title ?? job.asset ?? "Signal Trade"}</p>
-                  {job.tx_hash && (
-                    <p className="text-[10px] font-mono text-muted/50 truncate mt-0.5">tx: {job.tx_hash.slice(0, 10)}…</p>
-                  )}
-                  {job.error && (
-                    <p className="text-[10px] font-mono text-red-400/70 truncate mt-0.5">{job.error}</p>
-                  )}
-                </div>
-
-                <div className="hidden md:flex justify-center">
-                  {job.direction ? (
-                    <span className={`inline-flex items-center gap-1 text-xs font-semibold ${isUp ? "text-emerald-400" : "text-red-400"}`}>
-                      {isUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                      {job.direction}
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-mono text-muted">—</span>
-                  )}
-                </div>
-
-                <div className="flex justify-center">
-                  {job.side ? (
-                    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                      isBuy
-                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                        : "bg-red-500/10 text-red-400 border border-red-500/20"
-                    }`}>
-                      {job.side}
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-mono text-muted">—</span>
-                  )}
-                </div>
-
-                <div className="text-right">
-                  <span className="text-sm font-bold font-mono">
-                    {job.amount != null ? `$${Number(job.amount).toFixed(2)}` : "—"}
-                  </span>
-                </div>
-
-                <div className="text-center hidden md:block">
-                  {isSuccess ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-mono text-emerald-400 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      {job.status}
-                    </span>
-                  ) : isFailed ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-mono text-red-400 px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                      {job.status}
-                    </span>
-                  ) : isPending ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-mono text-amber-400 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                      {job.status}
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-mono text-muted">{job.status ?? "—"}</span>
-                  )}
-                </div>
-
-                <div className="text-right">
-                  <span className="text-[10px] font-mono text-muted">
-                    {timeStr ? formatRelativeTime(timeStr) : "—"}
-                  </span>
-                </div>
-              </div>
-            );
-          })
-        )}
       </div>
     </div>
   );
