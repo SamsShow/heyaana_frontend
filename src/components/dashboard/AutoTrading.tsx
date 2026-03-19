@@ -9,16 +9,12 @@ import {
   updateSignalTradingSettings,
   claimSignalTradingWinnings,
   type SignalTradingSettings,
-  type SignalTradingJob,
 } from "@/lib/api";
 import {
   Loader2,
-  Zap,
   Hash,
   CheckCircle2,
   AlertCircle,
-  ArrowUpRight,
-  ArrowDownRight,
   Gift,
   Settings,
   Power,
@@ -77,18 +73,6 @@ export function AutoTrading() {
     { revalidateOnFocus: true },
   );
 
-  // Fetch jobs
-  const {
-    data: jobsData,
-    mutate: mutateJobs,
-    isLoading: jobsLoading,
-    error: jobsError,
-  } = useSWR<{ jobs: SignalTradingJob[]; count: number }>(
-    isAuthenticated ? "/api/proxy/me/signal-trading/jobs?limit=50" : null,
-    proxyFetcher,
-    { revalidateOnFocus: true, refreshInterval: 30000 },
-  );
-
   // Fetch whale/insider trades (public endpoint)
   const {
     data: whaleData,
@@ -106,7 +90,6 @@ export function AutoTrading() {
     return () => clearTimeout(timer);
   }, [statusMsg]);
 
-  const jobs = jobsData?.jobs ?? [];
   const enabled = settings?.enabled ?? false;
   const amountUsd = settings?.amount_usd ?? 0;
 
@@ -166,7 +149,6 @@ export function AutoTrading() {
         ? result.result.trim()
         : "Winnings claimed successfully";
       setStatusMsg({ ok: true, message: msg });
-      await mutateJobs();
     } catch (err) {
       setStatusMsg({ ok: false, message: parseError(err, "Failed to claim winnings") });
     } finally {
@@ -207,10 +189,6 @@ export function AutoTrading() {
       </div>
     );
   }
-
-  const successJobs = jobs.filter(j => j.status === "success" || j.status === "filled" || j.status === "executed");
-  const failedJobs = jobs.filter(j => j.status === "failed" || j.status === "error");
-  const pendingJobs = jobs.filter(j => j.status === "pending" || j.status === "signal");
 
   return (
     <div className="space-y-4">
@@ -355,154 +333,8 @@ export function AutoTrading() {
         </div>
       </div>
 
-      {/* ── Stats Row ── */}
-      <div className="grid grid-cols-4 gap-3">
-        <div className="dashboard-card p-3 text-center">
-          <p className="text-[10px] font-mono text-muted uppercase tracking-wider">Total</p>
-          <p className="text-lg font-bold mt-0.5">{jobsData?.count ?? 0}</p>
-        </div>
-        <div className="dashboard-card p-3 text-center">
-          <p className="text-[10px] font-mono text-muted uppercase tracking-wider">Executed</p>
-          <p className="text-lg font-bold mt-0.5 text-emerald-400">{successJobs.length}</p>
-        </div>
-        <div className="dashboard-card p-3 text-center">
-          <p className="text-[10px] font-mono text-muted uppercase tracking-wider">Pending</p>
-          <p className="text-lg font-bold mt-0.5 text-amber-400">{pendingJobs.length}</p>
-        </div>
-        <div className="dashboard-card p-3 text-center">
-          <p className="text-[10px] font-mono text-muted uppercase tracking-wider">Failed</p>
-          <p className="text-lg font-bold mt-0.5 text-red-400">{failedJobs.length}</p>
-        </div>
-      </div>
-
-      {/* ── Two-column: Signal Jobs + Whale Trades ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-4">
-        {/* Signal Jobs Table */}
-        <div className="dashboard-card overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-blue-primary" />
-              <span className="text-sm font-bold">Signal Jobs</span>
-              <span className="text-[10px] font-mono text-muted">({jobs.length})</span>
-            </div>
-            <button
-              onClick={() => mutateJobs()}
-              className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-white/[0.04] transition-all"
-              aria-label="Refresh"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Header */}
-          <div className="grid grid-cols-[1fr_70px_70px_70px] gap-2 px-4 py-2 text-[10px] font-mono text-muted uppercase tracking-wider border-b border-border/50">
-            <span>Market</span>
-            <span className="text-center">Side</span>
-            <span className="text-right">Amt</span>
-            <span className="text-right">Time</span>
-          </div>
-
-          <div className="max-h-[400px] overflow-y-auto">
-            {jobsLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="flex items-center gap-2 text-muted">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-xs font-mono">Loading jobs…</span>
-                </div>
-              </div>
-            ) : jobsError ? (
-              <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
-                <AlertCircle className="w-5 h-5 text-red-400 opacity-70" />
-                <p className="text-xs font-mono text-muted">Could not load signal jobs</p>
-                <button
-                  onClick={() => mutateJobs()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted hover:text-foreground hover:bg-white/[0.04] transition-all"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  Retry
-                </button>
-              </div>
-            ) : jobs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted">
-                <Zap className="w-5 h-5 mb-2 opacity-30" />
-                <p className="text-xs font-mono">No signal jobs yet.</p>
-                <p className="text-[10px] font-mono text-muted/60 mt-1">Jobs appear when signals are received.</p>
-              </div>
-            ) : (
-              jobs.map((job, i) => {
-                const isSuccess = job.status === "success" || job.status === "filled" || job.status === "executed";
-                const isFailed = job.status === "failed" || job.status === "error";
-                const isPending = job.status === "pending" || job.status === "signal";
-                const isUp = (job.direction ?? "").toUpperCase() === "UP";
-                const isBuy = (job.side ?? "").toLowerCase() === "buy" || (job.side ?? "").toLowerCase() === "yes";
-
-                const rawTime = job.signal_at ?? job.executed_at ?? job.created_at;
-                const timeStr = typeof rawTime === "number"
-                  ? new Date(rawTime * 1000).toISOString()
-                  : (rawTime as string | undefined);
-
-                const statusDot = isSuccess
-                  ? "bg-emerald-400"
-                  : isFailed
-                    ? "bg-red-400"
-                    : isPending
-                      ? "bg-amber-400 animate-pulse"
-                      : "bg-muted";
-
-                return (
-                  <div
-                    key={job.id ?? `${job.market_title}-${i}`}
-                    className="grid grid-cols-[1fr_70px_70px_70px] gap-2 items-center px-4 py-2.5 border-b border-border/30 hover:bg-surface/60 transition-all"
-                  >
-                    <div className="min-w-0 flex items-center gap-2">
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDot}`} />
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium truncate">{job.market_title ?? job.asset ?? "Signal Trade"}</p>
-                        {job.direction && (
-                          <span className={`text-[10px] font-mono ${isUp ? "text-emerald-400" : "text-red-400"}`}>
-                            {isUp ? "↑" : "↓"} {job.direction}
-                          </span>
-                        )}
-                        {job.error && (
-                          <p className="text-[10px] font-mono text-red-400/70 truncate">{job.error}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex justify-center">
-                      {job.side ? (
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                          isBuy
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                            : "bg-red-500/10 text-red-400 border border-red-500/20"
-                        }`}>
-                          {job.side}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-mono text-muted">—</span>
-                      )}
-                    </div>
-
-                    <div className="text-right">
-                      <span className="text-xs font-bold font-mono">
-                        {job.amount != null ? `$${Number(job.amount).toFixed(2)}` : "—"}
-                      </span>
-                    </div>
-
-                    <div className="text-right">
-                      <span className="text-[10px] font-mono text-muted">
-                        {timeStr ? formatRelativeTime(timeStr) : "—"}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        {/* Whale & Insider Trades */}
-        <div className="dashboard-card overflow-hidden">
+      {/* ── Whale & Insider Trades ── */}
+      <div className="dashboard-card overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
             <div className="flex items-center gap-2">
               <Fish className="w-4 h-4 text-cyan-400" />
@@ -579,7 +411,6 @@ export function AutoTrading() {
               })
             )}
           </div>
-        </div>
       </div>
     </div>
   );
