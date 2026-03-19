@@ -798,18 +798,26 @@ export type LimitOrder = {
     id?: string;
     order_id?: string;
     condition_id?: string;
+    market?: string;
     market_title?: string;
     title?: string;
     side?: string;
     order_side?: string;
+    outcome?: string;
     price?: number;
     size?: number;
-    original_size?: number;
+    original_size?: string | number;
+    size_matched?: string | number;
     filled_size?: number;
     status?: string;
+    state?: string;
+    order_type?: string;
     created_at?: string | number;
     [key: string]: unknown;
 };
+
+// Cache market titles so we don't re-fetch on every poll
+const _marketTitleCache = new Map<string, string>();
 
 export async function fetchOrders(): Promise<LimitOrder[]> {
     const res = await fetch(`${API2_BASE_URL}/me/orders`, {
@@ -820,7 +828,51 @@ export async function fetchOrders(): Promise<LimitOrder[]> {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail ?? data.error ?? "Failed to fetch orders");
-    return Array.isArray(data) ? data : data.orders ?? data.items ?? [];
+    const orders: LimitOrder[] = Array.isArray(data) ? data : data.orders ?? data.items ?? [];
+
+    // Resolve market titles for orders missing them
+    const unknownConditions = new Set<string>();
+    for (const o of orders) {
+        const cid = o.market ?? o.condition_id;
+        if (cid && !o.market_title && !o.title && !_marketTitleCache.has(cid)) {
+            unknownConditions.add(cid);
+        }
+    }
+
+    // Fetch titles in parallel (max 10 at a time to avoid flooding)
+    const toResolve = [...unknownConditions].slice(0, 10);
+    if (toResolve.length > 0) {
+        const results = await Promise.allSettled(
+            toResolve.map(async (cid) => {
+                const r = await fetch(`${API2_BASE_URL}/markets/by-condition/${encodeURIComponent(cid)}`, {
+                    headers: {
+                        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+                    },
+                });
+                if (!r.ok) return { cid, title: null };
+                const m = await r.json();
+                const title = m.title ?? m.question ?? m.market_title ?? null;
+                return { cid, title };
+            })
+        );
+        for (const r of results) {
+            if (r.status === "fulfilled" && r.value.title) {
+                _marketTitleCache.set(r.value.cid, r.value.title);
+            }
+        }
+    }
+
+    // Enrich orders with cached titles
+    for (const o of orders) {
+        if (!o.market_title && !o.title) {
+            const cid = o.market ?? o.condition_id;
+            if (cid && _marketTitleCache.has(cid)) {
+                o.market_title = _marketTitleCache.get(cid);
+            }
+        }
+    }
+
+    return orders;
 }
 
 export async function cancelOrder(orderId: string): Promise<unknown> {

@@ -997,12 +997,13 @@ export default function ProfilePage() {
                   {orders.map((order, i) => {
                     const id = (order.order_id ?? order.id) as string | undefined;
                     const isCancelling = cancellingId === id;
-                    const isBuy = order.order_side?.toUpperCase() === "BUY";
-                    const filled = order.filled_size ?? 0;
-                    const total = order.original_size ?? order.size ?? 0;
-                    const fillPct = total > 0 ? (filled / total) * 100 : 0;
-                    const outcome = order.side ?? "—";
+                    const isBuy = (order.order_side ?? order.side)?.toUpperCase() === "BUY";
+                    const totalSize = Number(order.original_size ?? order.size ?? 0);
+                    const matched = Number(order.size_matched ?? order.filled_size ?? 0);
+                    const fillPct = totalSize > 0 ? (matched / totalSize) * 100 : 0;
+                    const outcome = order.outcome ?? order.side ?? "—";
                     const isYesLike = outcome.toLowerCase().startsWith("y") || outcome.toLowerCase() === "over" || outcome.toLowerCase() === "home";
+                    const displayStatus = order.status ?? order.state ?? "—";
 
                     return (
                       <div key={id ?? i} className="p-4 inner-card">
@@ -1010,14 +1011,14 @@ export default function ProfilePage() {
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 mb-0.5">
                               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isBuy ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"}`}>
-                                {order.order_side ?? "—"}
+                                {(order.order_side ?? order.side ?? "—").toUpperCase()}
                               </span>
                               <span className={`text-[10px] font-semibold ${isYesLike ? "text-emerald-400" : "text-red-400"}`}>
                                 {outcome}
                               </span>
                             </div>
                             <p className="text-sm font-semibold truncate">
-                              {order.market_title ?? order.title ?? order.condition_id ?? `Order #${i + 1}`}
+                              {order.market_title ?? order.title ?? `Order #${i + 1}`}
                             </p>
                           </div>
                           {id && (
@@ -1034,17 +1035,16 @@ export default function ProfilePage() {
                         </div>
 
                         <div className="flex gap-4 text-[10px] font-mono text-muted flex-wrap">
-                          {order.price != null && <span>Price: {order.price}¢</span>}
-                          {order.size != null && <span>Size: {order.size}</span>}
-                          {filled > 0 && <span className="text-emerald-400/80">Filled: {filled.toFixed(2)}</span>}
-                          {order.status && (
-                            <span className={order.status === "open" ? "text-amber-400" : order.status === "filled" ? "text-emerald-400" : "text-muted"}>
-                              {order.status}
-                            </span>
-                          )}
+                          {order.price != null && <span>Price: {Number(order.price)}¢</span>}
+                          {totalSize > 0 && <span>Size: {totalSize}</span>}
+                          {matched > 0 && <span className="text-emerald-400/80">Filled: {matched}</span>}
+                          {order.order_type && <span>{order.order_type}</span>}
+                          <span className={displayStatus.toUpperCase() === "LIVE" || displayStatus === "open" ? "text-amber-400" : displayStatus === "filled" ? "text-emerald-400" : "text-muted"}>
+                            {displayStatus.toUpperCase()}
+                          </span>
                         </div>
 
-                        {total > 0 && fillPct > 0 && (
+                        {totalSize > 0 && fillPct > 0 && (
                           <div className="mt-2 h-1 rounded-full bg-surface overflow-hidden">
                             <div className="h-full bg-emerald-500/60 rounded-full transition-all" style={{ width: `${fillPct}%` }} />
                           </div>
