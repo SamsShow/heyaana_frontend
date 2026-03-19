@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import useSWR from "swr";
 import {
+  fetcher,
   proxyFetcher,
   formatRelativeTime,
   updateSignalTradingSettings,
@@ -13,7 +14,7 @@ import {
 import {
   Loader2,
   Zap,
-  DollarSign,
+  Hash,
   CheckCircle2,
   AlertCircle,
   Clock,
@@ -25,7 +26,45 @@ import {
   PowerOff,
   RefreshCw,
   X,
+  BarChart3,
+  Fish,
+  ExternalLink,
 } from "lucide-react";
+
+/* ── Types for autotrader markets & whale/insider ──────── */
+
+type AutotraderTimeframe = {
+  series_slug: string;
+  condition_id?: string;
+  event_slug?: string;
+  success: boolean;
+  error?: string;
+};
+
+type AutotraderMarketsResponse = {
+  success: boolean;
+  timeframes: Record<string, AutotraderTimeframe>;
+  count: number;
+};
+
+type WhaleInsiderFlag = {
+  id: number;
+  wallet: string;
+  kind: "whale" | "insider";
+  trade_usd: number;
+  condition_id: string;
+  market_title: string;
+  tx_hash: string;
+  executed_at: number;
+  created_at: number;
+};
+
+type WhaleInsiderResponse = {
+  flags: WhaleInsiderFlag[];
+  limit: number;
+  offset: number;
+  kind: string | null;
+};
 import { useAuth } from "@/lib/useAuth";
 
 export function AutoTrading() {
@@ -58,6 +97,26 @@ export function AutoTrading() {
     isAuthenticated ? "/api/proxy/me/signal-trading/jobs?limit=50" : null,
     proxyFetcher,
     { revalidateOnFocus: true, refreshInterval: 30000 },
+  );
+
+  // Fetch autotrader markets (public endpoint)
+  const {
+    data: marketsData,
+    isLoading: marketsLoading,
+  } = useSWR<AutotraderMarketsResponse>(
+    "/api/proxy/autotrader/markets",
+    fetcher,
+    { revalidateOnFocus: false, refreshInterval: 60000 },
+  );
+
+  // Fetch whale/insider trades (public endpoint)
+  const {
+    data: whaleData,
+    isLoading: whaleLoading,
+  } = useSWR<WhaleInsiderResponse>(
+    "/api/proxy/indexer/whale-insider?limit=10&offset=0",
+    fetcher,
+    { revalidateOnFocus: false, refreshInterval: 60000 },
   );
 
   // Auto-dismiss status messages after 5 seconds
@@ -99,9 +158,9 @@ export function AutoTrading() {
   }
 
   async function handleSaveAmount() {
-    const newAmount = parseFloat(editAmount);
-    if (isNaN(newAmount) || newAmount < 0) {
-      setStatusMsg({ ok: false, message: "Enter a valid positive amount" });
+    const newAmount = parseInt(editAmount, 10);
+    if (isNaN(newAmount) || newAmount < 5) {
+      setStatusMsg({ ok: false, message: "Enter a valid number of shares (minimum 5)" });
       return;
     }
     setSaving(true);
@@ -110,7 +169,7 @@ export function AutoTrading() {
       await updateSignalTradingSettings({ enabled, amount_usd: newAmount });
       await mutateSettings();
       setIsEditing(false);
-      setStatusMsg({ ok: true, message: `Trade amount updated to $${newAmount.toFixed(2)}` });
+      setStatusMsg({ ok: true, message: `Shares per trade updated to ${newAmount}` });
     } catch (err) {
       setStatusMsg({ ok: false, message: parseError(err, "Failed to update amount") });
     } finally {
@@ -233,24 +292,23 @@ export function AutoTrading() {
         {/* Amount per trade */}
         <div className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-white/[0.02]">
           <div className="flex items-center gap-3">
-            <DollarSign className="w-5 h-5 text-blue-primary" />
+            <Hash className="w-5 h-5 text-blue-primary" />
             <div>
-              <p className="text-sm font-semibold">Amount per Trade</p>
-              <p className="text-[10px] text-muted">USD amount for each auto-trade</p>
+              <p className="text-sm font-semibold">Number of Shares</p>
+              <p className="text-[10px] text-muted">Shares per auto-trade</p>
             </div>
           </div>
           {isEditing ? (
             <div className="flex items-center gap-2">
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted">$</span>
                 <input
                   type="number"
                   value={editAmount}
                   onChange={e => setEditAmount(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") handleSaveAmount(); if (e.key === "Escape") setIsEditing(false); }}
-                  className="w-24 pl-6 pr-2 py-1.5 rounded-lg border border-border bg-surface text-sm font-mono text-foreground focus:outline-none focus:border-blue-primary"
-                  min="0"
-                  step="0.01"
+                  className="w-24 px-3 py-1.5 rounded-lg border border-border bg-surface text-sm font-mono text-foreground focus:outline-none focus:border-blue-primary"
+                  min="5"
+                  step="1"
                   autoFocus
                 />
               </div>
@@ -273,7 +331,7 @@ export function AutoTrading() {
               onClick={() => { setEditAmount(String(amountUsd)); setIsEditing(true); }}
               className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-sm font-bold font-mono hover:bg-white/[0.04] transition-all"
             >
-              ${amountUsd.toFixed(2)}
+              {amountUsd}
               <span className="text-[10px] text-muted font-normal">Edit</span>
             </button>
           )}
@@ -289,6 +347,48 @@ export function AutoTrading() {
               )}
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Active Markets */}
+      <div className="dashboard-card p-5 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center">
+            <BarChart3 className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold">Active Markets</h3>
+            <p className="text-[10px] text-muted mt-0.5">Available autotrader markets by timeframe</p>
+          </div>
+        </div>
+        {marketsLoading ? (
+          <div className="flex items-center gap-2 text-muted py-4 justify-center">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-xs font-mono">Loading markets…</span>
+          </div>
+        ) : marketsData?.timeframes ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+            {Object.entries(marketsData.timeframes).map(([tf, data]) => (
+              <div
+                key={tf}
+                className={`relative p-3 rounded-xl border text-center transition-all ${
+                  data.success
+                    ? "border-emerald-500/20 bg-emerald-500/5"
+                    : "border-border/30 bg-white/[0.01] opacity-50"
+                }`}
+              >
+                <p className="text-sm font-bold font-mono">{tf}</p>
+                <p className={`text-[10px] font-mono mt-1 ${data.success ? "text-emerald-400" : "text-muted"}`}>
+                  {data.success ? "Active" : "Inactive"}
+                </p>
+                {data.success && (
+                  <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-muted/50 text-center py-4">No market data available</p>
         )}
       </div>
 
@@ -331,6 +431,96 @@ export function AutoTrading() {
           <p className="text-[10px] font-mono text-muted uppercase tracking-wider">Failed</p>
           <p className="text-lg font-bold mt-1 text-red-400">{failedJobs.length}</p>
         </div>
+      </div>
+
+      {/* Whale & Insider Trades */}
+      <div className="dashboard-card overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
+          <div className="flex items-center gap-2">
+            <Fish className="w-4 h-4 text-cyan-400" />
+            <span className="text-sm font-bold">Whale & Insider Trades</span>
+            {whaleData?.flags && (
+              <span className="text-[10px] font-mono text-muted">({whaleData.flags.length})</span>
+            )}
+          </div>
+        </div>
+
+        {/* Header */}
+        <div className="grid grid-cols-[1fr_80px_80px] md:grid-cols-[1fr_100px_120px_100px] gap-3 px-4 py-2.5 text-[10px] font-mono text-muted uppercase tracking-wider border-b border-border/50">
+          <span>Market</span>
+          <span className="text-center">Type</span>
+          <span className="text-right hidden md:block">Amount</span>
+          <span className="text-right">Time</span>
+        </div>
+
+        {whaleLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="flex items-center gap-2 text-muted">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm font-mono">Loading whale trades…</span>
+            </div>
+          </div>
+        ) : !whaleData?.flags?.length ? (
+          <div className="flex flex-col items-center justify-center py-12 text-muted">
+            <Fish className="w-6 h-6 mb-2 opacity-30" />
+            <p className="text-sm font-mono">No whale or insider trades detected yet.</p>
+          </div>
+        ) : (
+          whaleData.flags.map((flag) => {
+            const isWhale = flag.kind === "whale";
+            const timeStr = new Date(flag.executed_at * 1000).toISOString();
+            const txShort = flag.tx_hash.slice(0, 10) + "…";
+            const walletShort = flag.wallet.slice(0, 6) + "…" + flag.wallet.slice(-4);
+            const amtStr = flag.trade_usd >= 1_000_000
+              ? `$${(flag.trade_usd / 1_000_000).toFixed(1)}M`
+              : flag.trade_usd >= 1_000
+                ? `$${(flag.trade_usd / 1_000).toFixed(1)}K`
+                : `$${flag.trade_usd.toFixed(0)}`;
+
+            return (
+              <div
+                key={flag.id}
+                className="grid grid-cols-[1fr_80px_80px] md:grid-cols-[1fr_100px_120px_100px] gap-3 items-center px-4 py-3 border-b border-border/30 hover:bg-surface/60 transition-all"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{flag.market_title}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] font-mono text-muted/50">{walletShort}</span>
+                    <a
+                      href={`https://polygonscan.com/tx/${flag.tx_hash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-0.5 text-[10px] font-mono text-blue-primary/60 hover:text-blue-primary transition-colors"
+                    >
+                      {txShort}
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+                </div>
+
+                <div className="flex justify-center">
+                  <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                    isWhale
+                      ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  }`}>
+                    {isWhale ? "🐋 Whale" : "👤 Insider"}
+                  </span>
+                </div>
+
+                <div className="text-right hidden md:block">
+                  <span className="text-sm font-bold font-mono">{amtStr}</span>
+                </div>
+
+                <div className="text-right">
+                  <span className="text-[10px] font-mono text-muted">
+                    {formatRelativeTime(timeStr)}
+                  </span>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* Signal Jobs Table */}
