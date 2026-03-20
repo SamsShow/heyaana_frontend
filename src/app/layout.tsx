@@ -24,6 +24,8 @@ const playfair = Playfair_Display({
 });
 
 const SITE_URL = getPublicSiteUrl();
+/** Matches `trailingSlash: true` in next.config — keeps og:url and canonical aligned for crawlers. */
+const CANONICAL_HOME = `${SITE_URL}/`;
 const OG_IMAGE = `${SITE_URL}/heyannabanner.png`;
 
 const TITLE = "HeyAnna — The Terminal for Prediction Markets";
@@ -32,6 +34,9 @@ const DESCRIPTION =
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  alternates: {
+    canonical: CANONICAL_HOME,
+  },
   title: {
     default: TITLE,
     template: "%s | HeyAnna",
@@ -57,7 +62,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: SITE_URL,
+    url: CANONICAL_HOME,
     siteName: "HeyAnna",
     title: TITLE,
     description: DESCRIPTION,
@@ -72,6 +77,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    site: "@tryheyanna",
     title: TITLE,
     description: DESCRIPTION,
     creator: "@heyanna_ai",
