@@ -61,12 +61,21 @@ export const metadata: Metadata = {
     siteName: "HeyAnna",
     title: TITLE,
     description: DESCRIPTION,
+    images: [
+      {
+        url: "/heyannabanner.png",
+        width: 1519,
+        height: 581,
+        alt: "HeyAnna — The Terminal for Prediction Markets",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
     creator: "@heyanna_ai",
+    images: ["/heyannabanner.png"],
   },
   robots: {
     index: true,
