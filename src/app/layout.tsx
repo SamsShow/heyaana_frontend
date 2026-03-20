@@ -22,9 +22,9 @@ const playfair = Playfair_Display({
   weight: ["400", "500", "600", "700"],
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_DEPLOYMENT_URL
-  ? `https://${process.env.NEXT_PUBLIC_DEPLOYMENT_URL}`
-  : "https://beta.heyanna.trade";
+const deployUrl = process.env.NEXT_PUBLIC_DEPLOYMENT_URL ?? "beta.heyanna.trade";
+const SITE_URL = `https://${deployUrl}`;
+const OG_IMAGE = `https://${deployUrl}/heyannabanner.png`;
 
 const TITLE = "HeyAnna — The Terminal for Prediction Markets";
 const DESCRIPTION =
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
     images: [
       {
-        url: "/heyannabanner.png",
+        url: OG_IMAGE,
         width: 1519,
         height: 581,
         alt: "HeyAnna — The Terminal for Prediction Markets",
@@ -75,7 +75,7 @@ export const metadata: Metadata = {
     title: TITLE,
     description: DESCRIPTION,
     creator: "@heyanna_ai",
-    images: ["/heyannabanner.png"],
+    images: [OG_IMAGE],
   },
   robots: {
     index: true,
