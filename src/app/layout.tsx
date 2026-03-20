@@ -22,14 +22,62 @@ const playfair = Playfair_Display({
   weight: ["400", "500", "600", "700"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_DEPLOYMENT_URL
+  ? `https://${process.env.NEXT_PUBLIC_DEPLOYMENT_URL}`
+  : "https://beta.heyanna.trade";
+
+const TITLE = "HeyAnna — The Terminal for Prediction Markets";
+const DESCRIPTION =
+  "Own the market before it owns you. We track the chaos — you take the position. Global data, cross-venue intelligence, and AI that's already ahead.";
+
 export const metadata: Metadata = {
-  title: "HeyAnna — The Terminal for Prediction Markets",
-  description: "Own the market before it owns you. We track the chaos — you take the position. Global data, cross-venue intelligence, and AI that's already ahead.",
-  keywords: ["prediction markets", "AI trading", "HeyAnna", "real-time signals", "market edge"],
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: TITLE,
+    template: "%s | HeyAnna",
+  },
+  description: DESCRIPTION,
+  keywords: [
+    "prediction markets",
+    "AI trading",
+    "HeyAnna",
+    "real-time signals",
+    "market edge",
+    "polymarket",
+    "copy trading",
+    "whale alerts",
+  ],
+  authors: [{ name: "HeyAnna" }],
+  creator: "HeyAnna",
   icons: {
     icon: "/heyannalogo.png",
     shortcut: "/heyannalogo.png",
     apple: "/heyannalogo.png",
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: SITE_URL,
+    siteName: "HeyAnna",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+    creator: "@heyanna_ai",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
 };
 
