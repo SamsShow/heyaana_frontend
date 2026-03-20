@@ -1,9 +1,8 @@
 import type { MetadataRoute } from "next";
+import { getPublicSiteUrl } from "@/lib/site-url";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_DEPLOYMENT_URL
-    ? `https://${process.env.NEXT_PUBLIC_DEPLOYMENT_URL}`
-    : "https://beta.heyanna.trade";
+  const baseUrl = getPublicSiteUrl();
 
   return [
     {

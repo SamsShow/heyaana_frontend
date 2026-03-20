@@ -5,6 +5,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/lib/theme";
 import { Providers } from "@/components/providers/Providers";
 import { ToastProvider } from "@/components/dashboard/Toast";
+import { getPublicSiteUrl } from "@/lib/site-url";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,9 +23,8 @@ const playfair = Playfair_Display({
   weight: ["400", "500", "600", "700"],
 });
 
-const deployUrl = process.env.NEXT_PUBLIC_DEPLOYMENT_URL ?? "beta.heyanna.trade";
-const SITE_URL = `https://${deployUrl}`;
-const OG_IMAGE = `https://${deployUrl}/heyannabanner.png`;
+const SITE_URL = getPublicSiteUrl();
+const OG_IMAGE = `${SITE_URL}/heyannabanner.png`;
 
 const TITLE = "HeyAnna — The Terminal for Prediction Markets";
 const DESCRIPTION =
