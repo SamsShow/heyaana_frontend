@@ -22,9 +22,9 @@ const playfair = Playfair_Display({
   weight: ["400", "500", "600", "700"],
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_DEPLOYMENT_URL
-  ? `https://${process.env.NEXT_PUBLIC_DEPLOYMENT_URL}`
-  : "https://beta.heyanna.trade";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL
+  || (process.env.NEXT_PUBLIC_DEPLOYMENT_URL ? `https://${process.env.NEXT_PUBLIC_DEPLOYMENT_URL}` : null)
+  || "https://beta.heyanna.trade";
 
 const TITLE = "HeyAnna — The Terminal for Prediction Markets";
 const DESCRIPTION =
