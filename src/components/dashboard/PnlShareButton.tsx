@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Share2, Check, Link2, X } from "lucide-react";
 import type { Position } from "@/lib/api";
 import {
@@ -59,6 +60,85 @@ export function PnlShareButton({
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  const modal = (
+    <div className="fixed inset-0 z-9999 flex items-end sm:items-center justify-center">
+      <button
+        type="button"
+        aria-label="Close"
+        className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+        onClick={() => setOpen(false)}
+      />
+      <div
+        className="relative z-10 w-full max-w-lg mx-4 mb-6 sm:mb-0 rounded-2xl border border-white/10 bg-[#0a1020] shadow-2xl overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pnl-share-title"
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+          <h2 id="pnl-share-title" className="text-sm font-semibold text-foreground">
+            Share PnL
+          </h2>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-white/5 transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-4 max-h-[min(70vh,520px)] overflow-y-auto">
+          {/* eslint-disable-next-line @next/next/no-img-element -- dynamic OG PNG */}
+          <img
+            src={imageUrl}
+            alt="PnL share card preview"
+            width={1200}
+            height={630}
+            className="w-full h-auto rounded-xl border border-white/10"
+          />
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-2 p-4 pt-0 border-t border-white/5">
+          <a
+            href={tweetHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold bg-white text-black hover:bg-white/90 transition-colors"
+          >
+            Post on X
+          </a>
+          <button
+            type="button"
+            onClick={copyShareLink}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold border border-white/15 text-foreground hover:bg-white/5 transition-colors"
+          >
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                Link copied
+              </>
+            ) : (
+              <>
+                <Link2 className="w-3.5 h-3.5" />
+                Copy link
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className={`inline-flex items-center gap-1 ${className}`}>
       <button
@@ -70,76 +150,9 @@ export function PnlShareButton({
         <Share2 className="w-3 h-3" />
         {label}
       </button>
-
-      {open ? (
-        <div className="fixed inset-0 z-100 flex items-end sm:items-center justify-center">
-          <button
-            type="button"
-            aria-label="Close"
-            className="absolute inset-0 bg-black/75 backdrop-blur-sm"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            className="relative z-10 w-full max-w-lg mx-4 mb-6 sm:mb-0 rounded-2xl border border-white/10 bg-[#0a1020] shadow-2xl overflow-hidden"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="pnl-share-title"
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-              <h2 id="pnl-share-title" className="text-sm font-semibold text-foreground">
-                Share PnL
-              </h2>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-white/5 transition-colors"
-                aria-label="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-4 max-h-[min(70vh,520px)] overflow-y-auto">
-              {/* eslint-disable-next-line @next/next/no-img-element -- dynamic OG PNG */}
-              <img
-                src={imageUrl}
-                alt="PnL share card preview"
-                width={1200}
-                height={630}
-                className="w-full h-auto rounded-xl border border-white/10"
-              />
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2 p-4 pt-0 border-t border-white/5">
-              <a
-                href={tweetHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold bg-white text-black hover:bg-white/90 transition-colors"
-              >
-                Post on X
-              </a>
-              <button
-                type="button"
-                onClick={copyShareLink}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold border border-white/15 text-foreground hover:bg-white/5 transition-colors"
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    Link copied
-                  </>
-                ) : (
-                  <>
-                    <Link2 className="w-3.5 h-3.5" />
-                    Copy link
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {typeof document !== "undefined" && open
+        ? createPortal(modal, document.body)
+        : null}
     </div>
   );
 }
