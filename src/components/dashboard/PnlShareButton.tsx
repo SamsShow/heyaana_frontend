@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Share2, Check, Link2, X } from "lucide-react";
+import { Share2, Check, Link2, X, Download, Images } from "lucide-react";
 import type { Position } from "@/lib/api";
 import {
   buildPnlShareImageUrl,
@@ -27,6 +27,8 @@ export function PnlShareButton({
 }: PnlShareButtonProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [imageCopied, setImageCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const origin = getShareOrigin();
   const input = { position, marketTitle };
@@ -50,6 +52,41 @@ export function PnlShareButton({
       /* ignore */
     }
   }, [sharePageUrl]);
+
+  /** X’s intent URL cannot attach files — only text + one link. */
+  const copyImageToClipboard = useCallback(async () => {
+    try {
+      const res = await fetch(imageUrl);
+      const blob = await res.blob();
+      const type = blob.type === "image/png" ? "image/png" : blob.type;
+      await navigator.clipboard.write([new ClipboardItem({ [type]: blob })]);
+      setImageCopied(true);
+      setTimeout(() => setImageCopied(false), 2000);
+    } catch {
+      setImageCopied(false);
+    }
+  }, [imageUrl]);
+
+  const downloadPng = useCallback(async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(imageUrl);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "heyanna-pnl.png";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      /* ignore */
+    } finally {
+      setSaving(false);
+    }
+  }, [imageUrl]);
 
   useEffect(() => {
     if (!open) return;
@@ -108,19 +145,51 @@ export function PnlShareButton({
           />
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2 p-4 pt-0 border-t border-white/5">
+        <p className="px-4 text-[10px] text-muted leading-relaxed border-t border-white/5 pt-3">
+          X’s “Post” window only accepts <span className="text-foreground/80">text + one URL</span> — it cannot
+          upload the PNG for you. Copy the image or save it, then paste or attach it in X. Use{" "}
+          <span className="text-foreground/80">Copy link</span> if you want a preview card (after X crawls the page).
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-4 pt-2">
+          <button
+            type="button"
+            onClick={copyImageToClipboard}
+            className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold bg-white text-black hover:bg-white/90 transition-colors"
+          >
+            {imageCopied ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                Image copied
+              </>
+            ) : (
+              <>
+                <Images className="w-3.5 h-3.5" />
+                Copy image
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={downloadPng}
+            disabled={saving}
+            className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold border border-white/15 text-foreground hover:bg-white/5 transition-colors disabled:opacity-50"
+          >
+            <Download className="w-3.5 h-3.5" />
+            {saving ? "Saving…" : "Save PNG"}
+          </button>
           <a
             href={tweetHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold bg-white text-black hover:bg-white/90 transition-colors"
+            className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold border border-white/15 text-foreground hover:bg-white/5 transition-colors"
           >
-            Post on X
+            Post on X (with link)
           </a>
           <button
             type="button"
             onClick={copyShareLink}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold border border-white/15 text-foreground hover:bg-white/5 transition-colors"
+            className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold border border-white/15 text-foreground hover:bg-white/5 transition-colors"
           >
             {copied ? (
               <>
