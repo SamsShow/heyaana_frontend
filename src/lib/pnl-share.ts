@@ -36,8 +36,8 @@ function fmtPnlCashForShare(n: number): string {
 }
 
 /**
- * Absolute origin for share image URLs. In the browser, prefer the current host
- * so local dev can open `/api/og/pnl` without pointing at production.
+ * Absolute origin for share URLs in the browser (current deployment).
+ * Use this for modal preview + links copied while using the app.
  */
 export function getShareOrigin(): string {
   if (typeof window !== "undefined") {
@@ -46,13 +46,11 @@ export function getShareOrigin(): string {
   return getPublicSiteUrl();
 }
 
-/**
- * Builds `/api/og/pnl?...` for a position. Open in a new tab or paste into X — clients fetch the PNG.
- */
 /** Keep full market copy; only cap pathological lengths for URL limits. */
 const MAX_MARKET_CHARS = 1800;
 
-export function buildPnlShareImageUrl(origin: string, input: PnlShareBuildInput): string {
+/** Query string shared by the OG image route and `/share/pnl/`. */
+export function buildPnlShareSearchParams(input: PnlShareBuildInput): URLSearchParams {
   const { position, marketTitle } = input;
   const rawTitle = marketTitle ?? position.title ?? position.ticker ?? "Market";
   const title =
@@ -85,7 +83,22 @@ export function buildPnlShareImageUrl(origin: string, input: PnlShareBuildInput)
   q.set("date", date);
   q.set("status", status.slice(0, 28));
   if (icon) q.set("icon", icon);
+  return q;
+}
 
+/** Direct PNG endpoint (same-origin preview in modal). */
+export function buildPnlShareImageUrl(origin: string, input: PnlShareBuildInput): string {
+  const q = buildPnlShareSearchParams(input);
   const base = origin.replace(/\/$/, "");
-  return `${base}/api/og/pnl?${q.toString()}`;
+  return `${base}/api/og/pnl/?${q.toString()}`;
+}
+
+/**
+ * Landing page for X/social: carries the same query as the image so crawlers get `summary_large_image`.
+ * Trailing path matches `trailingSlash: true` (`/share/pnl/?…`).
+ */
+export function buildPnlSharePageUrl(origin: string, input: PnlShareBuildInput): string {
+  const q = buildPnlShareSearchParams(input);
+  const base = origin.replace(/\/$/, "");
+  return `${base}/share/pnl/?${q.toString()}`;
 }
