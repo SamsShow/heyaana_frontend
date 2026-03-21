@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/useAuth";
 import { proxyFetcher, Portfolio, Position, closePosition, exportPrivateKey, unfollowTrader, swapUSDC, withdrawFunds, mergeFollowingWithCache, fetchOrders, cancelOrder, type LimitOrder } from "@/lib/api";
 import Link from "next/link";
 import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2, X, AlertCircle, CheckCircle2, ExternalLink, KeyRound, ShieldAlert, Copy, Eye, EyeOff, Users, UserMinus, ArrowLeftRight, ArrowUpFromLine, Clock } from "lucide-react";
+import { PnlShareButton } from "@/components/dashboard/PnlShareButton";
 
 function stripMarkdown(text: string): string {
   return text
@@ -915,7 +916,7 @@ export default function ProfilePage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-3 shrink-0 flex-wrap justify-end">
                           <div className={`text-right ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
                             <div className="text-sm font-bold font-mono flex items-center gap-1 justify-end">
                               {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
@@ -927,6 +928,8 @@ export default function ProfilePage() {
                               </div>
                             )}
                           </div>
+
+                          <PnlShareButton position={pos} />
 
                           {condId && (
                             <button

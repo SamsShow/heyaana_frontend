@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { proxyFetcher, Portfolio, Position, closePosition } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
 import { TrendingUp, TrendingDown, Loader2, X, BarChart3 } from "lucide-react";
+import { PnlShareButton } from "@/components/dashboard/PnlShareButton";
 
 interface PositionCardProps {
   ticker: string;         // conditionId passed from market page
@@ -68,16 +69,19 @@ export function PositionCard({ ticker, marketTitle }: PositionCardProps) {
 
   return (
     <div className="dashboard-card p-4 space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="text-xs text-muted font-mono flex items-center gap-1.5">
           <BarChart3 className="w-3.5 h-3.5 text-blue-primary" />
           Your Position
         </div>
-        <span className={`badge ${
-          side === "Yes" ? "badge-success" : "badge-danger"
-        }`}>
-          {side.toUpperCase()}
-        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <PnlShareButton position={position} marketTitle={marketTitle} />
+          <span className={`badge ${
+            side === "Yes" ? "badge-success" : "badge-danger"
+          }`}>
+            {side.toUpperCase()}
+          </span>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
