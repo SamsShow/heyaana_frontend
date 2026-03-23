@@ -1,0 +1,241 @@
+---
+name: heyaana-frontend-conventions
+description: Development conventions and patterns for heyaana_frontend. TypeScript Next.js project with mixed commits.
+---
+
+# Heyaana Frontend Conventions
+
+> Generated from [SamsShow/heyaana_frontend](https://github.com/SamsShow/heyaana_frontend) on 2026-03-23
+
+## Overview
+
+This skill teaches Claude the development patterns and conventions used in heyaana_frontend.
+
+## Tech Stack
+
+- **Primary Language**: TypeScript
+- **Framework**: Next.js
+- **Architecture**: type-based module organization
+- **Test Location**: separate
+
+## When to Use This Skill
+
+Activate this skill when:
+- Making changes to this repository
+- Adding new features following established patterns
+- Writing tests that match project conventions
+- Creating commits with proper message format
+
+## Commit Conventions
+
+Follow these commit message conventions based on 8 analyzed commits.
+
+### Commit Style: Mixed Style
+
+### Prefixes Used
+
+- `feat`
+- `fix`
+- `refactor`
+- `chore`
+
+### Message Guidelines
+
+- Average message length: ~69 characters
+- Keep first line concise and descriptive
+- Use imperative mood ("Add feature" not "Added feature")
+
+
+*Commit message example*
+
+```text
+fix: make edit button compact icon-only in following list
+```
+
+*Commit message example*
+
+```text
+feat: add copied-from trader indicator on positions and edit button for copy trade rules
+```
+
+*Commit message example*
+
+```text
+chore: remove outdated files and add sharp dependency
+```
+
+*Commit message example*
+
+```text
+refactor: replace hardcoded deployment URL with dynamic site URL retrieval
+```
+
+*Commit message example*
+
+```text
+revert: restore env-based SITE_URL for SEO metadata
+```
+
+*Commit message example*
+
+```text
+feat: add image copying and downloading functionality to PnlShareButton
+```
+
+*Commit message example*
+
+```text
+feat: implement modal for PnL sharing with improved accessibility
+```
+
+*Commit message example*
+
+```text
+feat: enhance PnL sharing functionality with modal and Twitter integration
+```
+
+## Architecture
+
+### Project Structure: Single Package
+
+This project uses **type-based** module organization.
+
+### Source Layout
+
+```
+src/
+├── app/
+├── components/
+├── lib/
+```
+
+### Configuration Files
+
+- `package.json`
+- `tsconfig.json`
+- `vercel.json`
+
+### Guidelines
+
+- Group code by type (components, services, utils)
+- Keep related functionality in the same type folder
+- Avoid circular dependencies between type folders
+
+## Code Style
+
+### Language: TypeScript
+
+### Naming Conventions
+
+| Element | Convention |
+|---------|------------|
+| Files | PascalCase |
+| Functions | camelCase |
+| Classes | PascalCase |
+| Constants | SCREAMING_SNAKE_CASE |
+
+### Import Style: Path Aliases (@/, ~/)
+
+### Export Style: Default Exports
+
+
+*Preferred import style*
+
+```typescript
+// Use path aliases for imports
+import { Button } from '@/components/Button'
+import { useAuth } from '@/hooks/useAuth'
+import { api } from '@/lib/api'
+```
+
+*Preferred export style*
+
+```typescript
+// Use default exports for main component/function
+export default function UserProfile() { ... }
+```
+
+## Error Handling
+
+### Error Handling Style: Try-Catch Blocks
+
+
+*Standard error handling pattern*
+
+```typescript
+try {
+  const result = await riskyOperation()
+  return result
+} catch (error) {
+  console.error('Operation failed:', error)
+  throw new Error('User-friendly message')
+}
+```
+
+## Common Workflows
+
+These workflows were detected from analyzing commit patterns.
+
+### Feature Development
+
+Standard feature implementation workflow
+
+**Frequency**: ~18 times per month
+
+**Steps**:
+1. Add feature implementation
+2. Add tests for feature
+3. Update documentation
+
+**Files typically involved**:
+- `src/app/onboarding/*`
+- `src/app/api/invite/has-access/*`
+- `src/app/api/invite/redeem/*`
+- `**/api/**`
+
+**Example commit sequence**:
+```
+feat: implement trader following functionality in onboarding page
+refactor: enhance PriceChart component for improved data handling and performance
+Merge pull request #6 from SamsShow/main
+```
+
+### Refactoring
+
+Code refactoring and cleanup workflow
+
+**Frequency**: ~7 times per month
+
+**Steps**:
+1. Ensure tests pass before refactor
+2. Refactor code structure
+3. Verify tests still pass
+
+**Files typically involved**:
+- `src/**/*`
+
+**Example commit sequence**:
+```
+refactor: replace hardcoded API URLs with environment variables for better configuration management
+refactor: remove invite-related API routes and integrate onboarding checks into onboarding page
+refactor: update onboarding page to improve widget rendering logic and remove unnecessary refs
+```
+
+
+## Best Practices
+
+Based on analysis of the codebase, follow these practices:
+
+### Do
+
+- Use PascalCase for file names
+- Prefer default exports
+
+### Don't
+
+- Don't use long relative imports (use aliases)
+- Don't deviate from established patterns without discussion
+
+---
+
+*This skill was auto-generated by [ECC Tools](https://ecc.tools). Review and customize as needed for your team.*
