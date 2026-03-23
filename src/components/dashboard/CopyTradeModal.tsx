@@ -19,6 +19,7 @@ interface CopyTradeModalProps {
   onConfirm: () => void;
   onClose: () => void;
   isPending?: boolean;
+  isEdit?: boolean;
 }
 
 function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
@@ -39,7 +40,7 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean
   );
 }
 
-export function CopyTradeModal({ username, displayName, onConfirm, onClose, isPending }: CopyTradeModalProps) {
+export function CopyTradeModal({ username, displayName, onConfirm, onClose, isPending, isEdit }: CopyTradeModalProps) {
   const name = displayName ?? username;
 
   const { data: portfolio } = useSWR<UserPortfolio>(
@@ -102,8 +103,8 @@ export function CopyTradeModal({ username, displayName, onConfirm, onClose, isPe
         {/* Header */}
         <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-border/50">
           <div>
-            <h2 className="text-base font-bold">Create Copy Trade</h2>
-            <p className="text-xs text-muted mt-0.5">Automatically mirror another trader&apos;s buys and sells</p>
+            <h2 className="text-base font-bold">{isEdit ? "Edit Copy Trade" : "Create Copy Trade"}</h2>
+            <p className="text-xs text-muted mt-0.5">{isEdit ? "Update copy trading rules for this trader" : "Automatically mirror another trader\u0027s buys and sells"}</p>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg text-muted hover:text-foreground hover:bg-white/[0.06] transition-all">
             <X className="w-4 h-4" />
@@ -283,7 +284,7 @@ export function CopyTradeModal({ username, displayName, onConfirm, onClose, isPe
             className="flex-1 py-2.5 text-sm font-semibold rounded-xl bg-amber-500 text-white hover:bg-amber-500/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
-            Start Copying
+            {isEdit ? "Save Changes" : "Start Copying"}
           </button>
         </div>
       </div>

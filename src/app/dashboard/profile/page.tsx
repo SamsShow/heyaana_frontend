@@ -5,10 +5,11 @@ import { useState, useEffect } from "react";
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { UserBadge } from "@/components/dashboard/WalletConnect";
 import { useAuth } from "@/lib/useAuth";
-import { proxyFetcher, Portfolio, Position, closePosition, exportPrivateKey, unfollowTrader, swapUSDC, withdrawFunds, mergeFollowingWithCache, fetchOrders, cancelOrder, type LimitOrder } from "@/lib/api";
+import { proxyFetcher, Portfolio, Position, closePosition, exportPrivateKey, unfollowTrader, followTrader, swapUSDC, withdrawFunds, mergeFollowingWithCache, fetchOrders, cancelOrder, type LimitOrder, type CopyNotification } from "@/lib/api";
 import Link from "next/link";
-import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2, X, AlertCircle, CheckCircle2, ExternalLink, KeyRound, ShieldAlert, Copy, Eye, EyeOff, Users, UserMinus, ArrowLeftRight, ArrowUpFromLine, Clock } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, BarChart3, Loader2, X, AlertCircle, CheckCircle2, ExternalLink, KeyRound, ShieldAlert, Copy, Eye, EyeOff, Users, UserMinus, ArrowLeftRight, ArrowUpFromLine, Clock, Pencil } from "lucide-react";
 import { PnlShareButton } from "@/components/dashboard/PnlShareButton";
+import { CopyTradeModal } from "@/components/dashboard/CopyTradeModal";
 
 function stripMarkdown(text: string): string {
   return text
@@ -62,6 +63,24 @@ export default function ProfilePage() {
   const [syncingPortfolio, setSyncingPortfolio] = useState(false);
   const [syncFrame, setSyncFrame] = useState(0);
   const [unfollowingId, setUnfollowingId] = useState<string | null>(null);
+
+  // Edit copy trade state
+  const [editingTrader, setEditingTrader] = useState<{ username: string; address: string; displayName: string } | null>(null);
+  const [editPending, setEditPending] = useState(false);
+
+  async function handleEditConfirm() {
+    if (!editingTrader) return;
+    setEditPending(true);
+    try {
+      await followTrader(editingTrader.username, editingTrader.address);
+      mutateFollowing();
+      setEditingTrader(null);
+    } catch {
+      // keep modal open on error
+    } finally {
+      setEditPending(false);
+    }
+  }
 
   // Swap USDC state
   const [swapAmount, setSwapAmount] = useState("");
@@ -188,6 +207,47 @@ export default function ProfilePage() {
     if (!id) return true; // keep orders with no ID (can't cancel them anyway)
     return !optimisticCancelledOrders.has(String(id));
   });
+
+  // Copy trading notifications — used to show which trader a position was copied from
+  const { data: copyNotifsRaw } = useSWR<unknown>(
+    isAuthenticated ? "/api/proxy/me/copy-trading/notifications" : null,
+    proxyFetcher,
+    { revalidateOnFocus: false, refreshInterval: 30000 },
+  );
+  const copyNotifs: CopyNotification[] = (() => {
+    if (Array.isArray(copyNotifsRaw)) return copyNotifsRaw;
+    const w = copyNotifsRaw as Record<string, unknown> | undefined;
+    if (Array.isArray(w?.notifications)) return w!.notifications as CopyNotification[];
+    if (Array.isArray(w?.items)) return w!.items as CopyNotification[];
+    return [];
+  })();
+
+  // Build lookup: condition_id → leader_username (from successful copy notifications)
+  const copiedFromMap = new Map<string, string>();
+  for (const n of copyNotifs) {
+    if (!n.leader_username) continue;
+    const cid = (n as Record<string, unknown>).condition_id ?? n.asset;
+    if (typeof cid === "string" && cid) {
+      copiedFromMap.set(cid, n.leader_username);
+    }
+    // Also index by market_title for fallback matching
+    if (n.market_title) {
+      copiedFromMap.set(`title:${n.market_title}`, n.leader_username);
+    }
+  }
+
+  function getCopiedFrom(pos: Position): string | undefined {
+    const cid = positionConditionId(pos);
+    if (cid && copiedFromMap.has(cid)) return copiedFromMap.get(cid);
+    // Fallback: match by title
+    if (pos.title && copiedFromMap.has(`title:${pos.title}`)) return copiedFromMap.get(`title:${pos.title}`);
+    // Check if any order has a copy-related source
+    if (pos.orders?.some(o => o.source && o.source.toLowerCase().includes("copy"))) {
+      // We know it's copied but don't have the leader name from orders
+      return undefined;
+    }
+    return undefined;
+  }
 
   const rawWallet =
     user?.wallet_address ??
@@ -818,16 +878,25 @@ export default function ProfilePage() {
                           <p className="text-sm font-semibold truncate">{displayName}</p>
                           {identifier && <p className="text-[10px] font-mono text-muted">@{identifier}</p>}
                         </div>
-                        <button
-                          onClick={() => handleUnfollow(identifier, leaderAddr)}
-                          disabled={unfollowingId === identifier}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
-                        >
-                          {unfollowingId === identifier
-                            ? <Loader2 className="w-3 h-3 animate-spin" />
-                            : <UserMinus className="w-3 h-3" />}
-                          Unfollow
-                        </button>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => setEditingTrader({ username: leaderUname, address: leaderAddr, displayName })}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-all"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleUnfollow(identifier, leaderAddr)}
+                            disabled={unfollowingId === identifier}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
+                          >
+                            {unfollowingId === identifier
+                              ? <Loader2 className="w-3 h-3 animate-spin" />
+                              : <UserMinus className="w-3 h-3" />}
+                            Unfollow
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -913,6 +982,19 @@ export default function ProfilePage() {
                               </span>
                               {" • "}{positionSize(pos).toFixed(4)} shares
                             </div>
+                            {(() => {
+                              const copiedFrom = getCopiedFrom(pos);
+                              if (!copiedFrom) return null;
+                              return (
+                                <Link
+                                  href={`/dashboard/traders/${copiedFrom}`}
+                                  className="flex items-center gap-1 text-[10px] font-mono text-blue-primary/60 hover:text-blue-primary transition-colors mt-0.5"
+                                >
+                                  <Copy className="w-2.5 h-2.5" />
+                                  @{copiedFrom}
+                                </Link>
+                              );
+                            })()}
                           </div>
                         </div>
 
@@ -1061,6 +1143,16 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+      {editingTrader && (
+        <CopyTradeModal
+          username={editingTrader.username || editingTrader.address}
+          displayName={editingTrader.displayName}
+          onConfirm={handleEditConfirm}
+          onClose={() => setEditingTrader(null)}
+          isPending={editPending}
+          isEdit
+        />
+      )}
     </DashboardChrome>
   );
 }
