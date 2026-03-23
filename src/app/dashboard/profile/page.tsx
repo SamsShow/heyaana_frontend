@@ -878,18 +878,18 @@ export default function ProfilePage() {
                           <p className="text-sm font-semibold truncate">{displayName}</p>
                           {identifier && <p className="text-[10px] font-mono text-muted">@{identifier}</p>}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             onClick={() => setEditingTrader({ username: leaderUname, address: leaderAddr, displayName })}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-all"
+                            title="Edit copy trade rules"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted hover:text-blue-400 hover:border-blue-500/30 hover:bg-blue-500/10 transition-all"
                           >
                             <Pencil className="w-3 h-3" />
-                            Edit
                           </button>
                           <button
                             onClick={() => handleUnfollow(identifier, leaderAddr)}
                             disabled={unfollowingId === identifier}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
+                            className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
                           >
                             {unfollowingId === identifier
                               ? <Loader2 className="w-3 h-3 animate-spin" />
