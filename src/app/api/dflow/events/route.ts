@@ -3,9 +3,19 @@ import { getEvents } from "@/lib/dflow-api";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeEvent(raw: any) {
+    // Derive closesAt from nested markets if not present on event
+    let closesAt = raw.closesAt;
+    if (!closesAt && raw.markets?.length) {
+        const maxClose = Math.max(
+            ...raw.markets.map((m: any) => m.closeTime || m.expirationTime || 0)
+        );
+        if (maxClose > 0) closesAt = new Date(maxClose * 1000).toISOString();
+    }
+
     return {
         ...raw,
         image: raw.image || raw.image_url || raw.imageUrl || null,
+        closesAt,
     };
 }
 

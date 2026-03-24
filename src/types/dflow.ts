@@ -2,40 +2,47 @@
 // dFlow API Types
 // ============================================================
 
-/** Single outcome within a dFlow market */
-export interface DFlowOutcome {
-    title: string;
-    mint: string;
-    price: number; // 0–1 probability
-}
-
 /** A single dFlow prediction market */
 export interface DFlowMarket {
     ticker: string;
     eventTicker: string;
     title: string;
-    status: string; // "active" | "closed" | "settled"
-    outcomes: DFlowOutcome[];
+    subtitle?: string;
+    yesSubTitle?: string;
+    noSubTitle?: string;
+    status: string; // "active" | "finalized" | "closed"
+    marketType?: string; // "binary"
+    yesBid: number | null;
+    yesAsk: number | null;
+    noBid: number | null;
+    noAsk: number | null;
     volume?: number;
     liquidity?: number;
-    createdAt?: string;
-    closesAt?: string;
-    resolvedAt?: string;
-    result?: string;
+    openInterest?: number;
+    result?: string; // "yes" | "no" | null
+    openTime?: number;
+    closeTime?: number;
+    expirationTime?: number;
 }
 
 /** A dFlow event that may contain nested markets */
 export interface DFlowEvent {
     ticker: string;
     title: string;
+    subtitle?: string;
     description?: string;
     image?: string;
+    imageUrl?: string;
     category?: string;
     tags?: string[];
     status: string;
     markets?: DFlowMarket[];
     volume?: number;
+    volume24h?: number;
     liquidity?: number;
+    openInterest?: number;
+    competition?: string;
+    seriesTicker?: string;
     createdAt?: string;
     closesAt?: string;
 }

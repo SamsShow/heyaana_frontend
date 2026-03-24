@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Clock, ExternalLink, Lock } from "lucide-react";
-import type { DFlowEvent } from "@/types/dflow";
+import type { DFlowEvent, DFlowMarket } from "@/types/dflow";
 
 function formatVolume(v: number | undefined): string {
     if (!v) return "$0";
@@ -27,6 +27,22 @@ function truncate(str: string, max: number): string {
     return str.length > max ? str.slice(0, max) + "\u2026" : str;
 }
 
+/** Get yes/no prices in cents from bid/ask midpoint */
+function getMarketPrices(market: DFlowMarket): { yes: number; no: number } {
+    const yesMid =
+        market.yesBid != null && market.yesAsk != null
+            ? (market.yesBid + market.yesAsk) / 2
+            : market.yesBid ?? market.yesAsk ?? 0;
+    const noMid =
+        market.noBid != null && market.noAsk != null
+            ? (market.noBid + market.noAsk) / 2
+            : market.noBid ?? market.noAsk ?? 0;
+    return {
+        yes: Math.round(yesMid * 100),
+        no: Math.round(noMid * 100),
+    };
+}
+
 interface Props {
     event: DFlowEvent;
 }
@@ -36,13 +52,9 @@ export function DFlowEventCard({ event }: Props) {
     const topMarkets = markets.slice(0, 3);
     const firstMarket = markets[0];
 
-    // Get yes/no prices from first outcome
-    const yesPrice = firstMarket?.outcomes?.[0]?.price
-        ? Math.round(firstMarket.outcomes[0].price * 100)
-        : 0;
-    const noPrice = firstMarket?.outcomes?.[1]?.price
-        ? Math.round(firstMarket.outcomes[1].price * 100)
-        : 100 - yesPrice;
+    const { yes: yesPrice, no: noPrice } = firstMarket
+        ? getMarketPrices(firstMarket)
+        : { yes: 0, no: 0 };
 
     return (
         <Link
@@ -62,11 +74,11 @@ export function DFlowEventCard({ event }: Props) {
                             />
                         ) : (
                             <span className="text-xl font-bold text-[var(--muted)]">
-                                {event.title.charAt(0)}
+                                {event.title?.charAt(0) ?? "?"}
                             </span>
                         )}
                     </div>
-                    {/* Kalshi badge - orange for Kalshi */}
+                    {/* Kalshi badge */}
                     <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#FF6B2C] border-2 border-[var(--surface)] flex items-center justify-center">
                         <span className="text-[8px] font-bold text-white">K</span>
                     </div>
@@ -93,12 +105,7 @@ export function DFlowEventCard({ event }: Props) {
                 {topMarkets.length > 1 ? (
                     <div className="space-y-2">
                         {topMarkets.map((market, i) => {
-                            const yP = market.outcomes?.[0]?.price
-                                ? Math.round(market.outcomes[0].price * 100)
-                                : 0;
-                            const nP = market.outcomes?.[1]?.price
-                                ? Math.round(market.outcomes[1].price * 100)
-                                : 100 - yP;
+                            const { yes: yP, no: nP } = getMarketPrices(market);
                             return (
                                 <div
                                     key={i}
@@ -106,8 +113,7 @@ export function DFlowEventCard({ event }: Props) {
                                 >
                                     <span className="text-[12px] text-[var(--foreground)] truncate shrink min-w-0">
                                         {truncate(
-                                            market.outcomes?.[0]?.title ||
-                                                market.title,
+                                            market.yesSubTitle || market.title,
                                             14
                                         )}
                                     </span>
@@ -115,8 +121,7 @@ export function DFlowEventCard({ event }: Props) {
                                         <span
                                             className="px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap"
                                             style={{
-                                                background:
-                                                    "rgba(74,222,128,0.18)",
+                                                background: "rgba(74,222,128,0.18)",
                                                 color: "#4ade80",
                                             }}
                                         >
@@ -125,8 +130,7 @@ export function DFlowEventCard({ event }: Props) {
                                         <span
                                             className="px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap"
                                             style={{
-                                                background:
-                                                    "rgba(248,113,113,0.18)",
+                                                background: "rgba(248,113,113,0.18)",
                                                 color: "#f87171",
                                             }}
                                         >
@@ -143,20 +147,14 @@ export function DFlowEventCard({ event }: Props) {
                             <div className="flex justify-between text-[12px] font-semibold mb-1.5">
                                 <span
                                     style={{
-                                        color:
-                                            yesPrice >= 50
-                                                ? "#4ade80"
-                                                : "#f87171",
+                                        color: yesPrice >= 50 ? "#4ade80" : "#f87171",
                                     }}
                                 >
                                     {yesPrice}%
                                 </span>
                                 <span
                                     style={{
-                                        color:
-                                            noPrice > 50
-                                                ? "#4ade80"
-                                                : "#f87171",
+                                        color: noPrice > 50 ? "#4ade80" : "#f87171",
                                     }}
                                 >
                                     {noPrice}%
@@ -164,23 +162,17 @@ export function DFlowEventCard({ event }: Props) {
                             </div>
                             <div
                                 className="h-1.5 rounded-full overflow-hidden"
-                                style={{
-                                    background: "rgba(248,113,113,0.2)",
-                                }}
+                                style={{ background: "rgba(248,113,113,0.2)" }}
                             >
                                 <div
                                     className="h-full rounded-full transition-all"
                                     style={{
                                         width: `${yesPrice}%`,
-                                        background:
-                                            yesPrice > 10
-                                                ? "#22c55e"
-                                                : "#ef4444",
+                                        background: yesPrice > 10 ? "#22c55e" : "#ef4444",
                                     }}
                                 />
                             </div>
                         </div>
-                        {/* View-only indicator instead of buy buttons */}
                         <div className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-[var(--muted)]">
                             <Lock className="w-3 h-3" />
                             <span className="text-[11px] font-medium">
