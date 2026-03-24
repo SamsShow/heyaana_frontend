@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import useSWR from "swr";
+import { useRouter } from "next/navigation";
 import {
     Search,
     Loader2,
@@ -88,6 +89,7 @@ function isEndingSoon(closesAt: string | undefined): boolean {
 // ── Component ────────────────────────────────────────────────
 
 export function DFlowEventList() {
+    const router = useRouter();
     const [search, setSearch] = useState("");
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<ViewMode>(getInitialView);
@@ -415,7 +417,12 @@ export function DFlowEventList() {
                                 return (
                                     <tr
                                         key={event.ticker}
-                                        className="border-b border-[var(--border-color)] hover:bg-white/[0.02] transition-colors"
+                                        onClick={() =>
+                                            router.push(
+                                                `/dashboard/kalshi-markets/${encodeURIComponent(event.ticker)}`
+                                            )
+                                        }
+                                        className="border-b border-[var(--border-color)] hover:bg-white/[0.02] transition-colors cursor-pointer"
                                     >
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-2">

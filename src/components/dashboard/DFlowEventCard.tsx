@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Clock, ExternalLink, Lock } from "lucide-react";
 import type { DFlowEvent } from "@/types/dflow";
 
@@ -44,7 +45,10 @@ export function DFlowEventCard({ event }: Props) {
         : 100 - yesPrice;
 
     return (
-        <div className="flex flex-col bg-[var(--surface)] border border-[var(--border-color)] rounded-2xl hover:border-white/10 transition-all hover:bg-[var(--surface-hover)]">
+        <Link
+            href={`/dashboard/kalshi-markets/${encodeURIComponent(event.ticker)}`}
+            className="flex flex-col bg-[var(--surface)] border border-[var(--border-color)] rounded-2xl hover:border-white/10 transition-all hover:bg-[var(--surface-hover)] cursor-pointer"
+        >
             {/* Card header */}
             <div className="flex items-start gap-3 p-4 pb-3">
                 {/* Event image */}
@@ -193,7 +197,20 @@ export function DFlowEventCard({ event }: Props) {
                     {formatVolume(event.volume)} Vol.
                 </span>
                 <div className="flex items-center gap-2 flex-shrink-0 text-[var(--muted)]">
-                    <ExternalLink className="w-3.5 h-3.5 hover:text-[var(--foreground)] cursor-pointer transition-colors" />
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.open(
+                                `https://kalshi.com/event/${event.ticker}`,
+                                "_blank",
+                                "noopener,noreferrer"
+                            );
+                        }}
+                    >
+                        <ExternalLink className="w-3.5 h-3.5 hover:text-[var(--foreground)] cursor-pointer transition-colors" />
+                    </button>
                     {event.closesAt && (
                         <div className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
@@ -204,7 +221,7 @@ export function DFlowEventCard({ event }: Props) {
                     )}
                 </div>
             </div>
-        </div>
+        </Link>
     );
 }
 
